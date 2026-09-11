@@ -1,0 +1,104 @@
+@import 'tailwindcss';
+
+/*
+ * Thème : contenu clair (fond blanc) ; sidebar et cartes en surfaces sombres
+ * via la classe `.dark` posée localement. Même structure que kratos —
+ * seules les teintes changent : HELIOS (direction) = violet profond + or.
+ */
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* Palette helios (direction) — mêmes noms de tokens que kratos, teintes différentes */
+@theme {
+  --color-brand: #3b0764; /* violet profond — couleur principale */
+  --color-accent: #ffc94d; /* or — chiffres, actifs, boutons en contexte sombre */
+  --color-brand-light: #a78bda; /* mauve — série secondaire des graphes sur violet */
+
+  /* Surfaces sombres, dérivées du violet (les noms `navy-*` sont conservés
+     pour que tous les composants copiés de kratos fonctionnent tels quels) */
+  --color-navy-950: #14052b; /* fond des cartes et de la sidebar */
+  --color-navy-900: #200a40; /* variante plus claire */
+  --color-navy-800: #2e1458; /* survols, chips, en-têtes de tableau */
+  --color-navy-700: #3f2373; /* bordures */
+  --color-navy-600: #533391; /* axes / bordures appuyées */
+
+  /* Ombre douce lilas autour des cartes */
+  --shadow-card:
+    0 2px 8px -2px rgb(216 198 244 / 0.4),
+    0 8px 28px -6px rgb(216 198 244 / 0.5);
+}
+
+:root {
+  /* Fond lilas très clair (pendant clair du violet HELIOS) — les cartes blanches
+     y ressortent avec leur ombre lilas. */
+  --background: #f5f3fb;
+  --foreground: #0a0a0a;
+}
+
+/*
+ * Dark mode global : `.dark` sur <html> (posé par le bouton de bascule).
+ * Fond violet profond ; les cartes (`.shadow-card`, blanches en clair)
+ * deviennent violet foncé. Le reste bascule via les variantes `dark:`.
+ */
+:root.dark {
+  --background: #14052b; /* violet profond, plus sombre que les cartes */
+}
+.dark .shadow-card {
+  background-color: #200a40; /* carte violette, un cran au-dessus du fond */
+  border: 1px solid #3f2373;
+}
+
+/*
+ * `.dark` est posé LOCALEMENT sur les surfaces sombres (sidebar, cartes) :
+ * le texte y bascule en clair par défaut, le reste du site reste blanc.
+ */
+.dark {
+  --foreground: #f0eaf8;
+  color: var(--foreground);
+  color-scheme: dark;
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+}
+
+/*
+ * Effet gloss sur les cartes : liseré lumineux en haut + reflet dégradé.
+ */
+.dark.shadow-card {
+  position: relative;
+  box-shadow:
+    var(--shadow-card),
+    inset 0 1px 0 rgb(255 255 255 / 0.14);
+}
+.dark.shadow-card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: linear-gradient(
+    180deg,
+    rgb(255 255 255 / 0.09),
+    rgb(255 255 255 / 0.03) 35%,
+    transparent 55%
+  );
+  pointer-events: none;
+}
+
+/*
+ * Lisibilité sur les surfaces sombres : les gris neutres y sont trop sombres,
+ * on les remonte en tons mauves clairs. Hors des cartes, ils restent gris.
+ */
+.dark :where(.text-neutral-300) {
+  color: #a693cf;
+}
+.dark :where(.text-neutral-400) {
+  color: #b5a3dd;
+}
+.dark :where(.text-neutral-500) {
+  color: #c7b9e8;
+}
+.dark :where(.text-neutral-600, .text-neutral-700) {
+  color: #e0d7f4;
+}
