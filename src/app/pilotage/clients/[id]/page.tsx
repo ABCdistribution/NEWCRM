@@ -82,7 +82,7 @@ export default async function ClientFiche({ params }: { params: Promise<{ id: st
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="flex items-start gap-3">
           <Link
-            href="/clients"
+            href="/pilotage/clients"
             className="mt-1 rounded-lg p-1.5 text-neutral-400 transition hover:bg-neutral-100 hover:text-neutral-700 dark:hover:bg-navy-800"
             aria-label="Retour à mes magasins"
           >
@@ -287,7 +287,7 @@ export default async function ClientFiche({ params }: { params: Promise<{ id: st
                       return (
                         <tr key={c.id} className="relative hover:bg-neutral-50 dark:hover:bg-navy-800/50">
                           <td className="px-5 py-2.5 font-mono text-xs font-medium text-brand dark:text-accent">
-                            <Link href={`/commandes/${c.id}`} className="absolute inset-0" aria-label={`Commande ${c.numero}`} />
+                            <Link href={`/pilotage/commandes/${c.id}`} className="absolute inset-0" aria-label={`Commande ${c.numero}`} />
                             {c.numero}
                             {c.viaMobile ? (
                               <Smartphone size={11} className="ml-1 inline text-neutral-400" aria-label="Saisie mobile" />

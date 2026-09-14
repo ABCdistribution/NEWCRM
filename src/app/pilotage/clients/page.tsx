@@ -105,7 +105,7 @@ export default async function ClientsPage({
                     className="relative hover:bg-neutral-50 dark:hover:bg-navy-800/50"
                   >
                     <td className="px-4 py-2.5 font-mono text-xs">
-                      <Link href={`/clients/${c.id}`} className="absolute inset-0" aria-label={`Fiche ${c.enseigne || c.raisonSociale}`} />
+                      <Link href={`/pilotage/clients/${c.id}`} className="absolute inset-0" aria-label={`Fiche ${c.enseigne || c.raisonSociale}`} />
                       {c.codeAs400}
                     </td>
                     <td className="px-4 py-2.5 font-medium text-brand dark:text-accent">

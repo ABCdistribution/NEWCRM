@@ -62,8 +62,8 @@ export async function createProspect(
   }
 
   const created = (await res.json().catch(() => null)) as { id?: string } | null;
-  revalidatePath('/prospects');
-  redirect(created?.id ? `/prospects/${created.id}` : '/prospects');
+  revalidatePath('/pilotage/prospects');
+  redirect(created?.id ? `/pilotage/prospects/${created.id}` : '/pilotage/prospects');
 }
 
 /** Change l'étape d'un prospect (PATCH /prospects/:id) — utilisé par le Kanban. */
@@ -82,7 +82,7 @@ export async function setProspectStatut(
   } catch {
     return { error: "Impossible de joindre l'API." };
   }
-  revalidatePath('/prospects');
+  revalidatePath('/pilotage/prospects');
   return { error: null };
 }
 
@@ -102,8 +102,8 @@ export async function updateProspect(formData: FormData): Promise<void> {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),
   }).catch(() => undefined);
-  revalidatePath(`/prospects/${id}`);
-  revalidatePath('/prospects');
+  revalidatePath(`/pilotage/prospects/${id}`);
+  revalidatePath('/pilotage/prospects');
 }
 
 /** Convertit un prospect gagné en client (POST /prospects/:id/convert). */
@@ -112,7 +112,7 @@ export async function convertProspect(formData: FormData): Promise<void> {
   if (!id) return;
   const res = await serverFetch(`/prospects/${id}/convert`, { method: 'POST' }).catch(() => null);
   const body = (await res?.json().catch(() => null)) as { clientId?: string } | null;
-  revalidatePath('/prospects');
-  if (body?.clientId) redirect(`/clients/${body.clientId}`);
-  redirect(`/prospects/${id}`);
+  revalidatePath('/pilotage/prospects');
+  if (body?.clientId) redirect(`/pilotage/clients/${body.clientId}`);
+  redirect(`/pilotage/prospects/${id}`);
 }

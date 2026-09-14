@@ -30,7 +30,7 @@ export async function createSecteur(
     const msg = Array.isArray(body?.message) ? body.message[0] : body?.message;
     return { error: msg ?? `Erreur serveur (${res.status}).`, ok: false };
   }
-  revalidatePath('/secteurs');
+  revalidatePath('/pilotage/secteurs');
   return { error: null, ok: true };
 }
 
@@ -49,5 +49,5 @@ export async function updateSecteur(formData: FormData): Promise<void> {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),
   }).catch(() => undefined);
-  revalidatePath('/secteurs');
+  revalidatePath('/pilotage/secteurs');
 }

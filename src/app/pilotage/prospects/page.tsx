@@ -96,7 +96,7 @@ export default async function ProspectsPage({
               {topProspects.map((p) => (
                 <tr key={p.id} className="relative hover:bg-neutral-50 dark:hover:bg-navy-800/50">
                   <td className="px-4 py-2.5 font-medium">
-                    <Link href={`/prospects/${p.id}`} className="absolute inset-0" aria-label={`Fiche ${p.enseigne}`} />
+                    <Link href={`/pilotage/prospects/${p.id}`} className="absolute inset-0" aria-label={`Fiche ${p.enseigne}`} />
                     {p.enseigne}
                   </td>
                   <td className="px-4 py-2.5">
@@ -151,7 +151,7 @@ function ListeView({ data, search }: { data: ProspectsResult | null; search: str
               <tr key={p.id} className="relative hover:bg-neutral-50 dark:hover:bg-navy-800/50">
                 <td className="px-4 py-3 text-neutral-400 tabular-nums">{offset + i + 1}</td>
                 <td className="px-4 py-3">
-                  <Link href={`/prospects/${p.id}`} className="absolute inset-0" aria-label={`Fiche ${p.enseigne}`} />
+                  <Link href={`/pilotage/prospects/${p.id}`} className="absolute inset-0" aria-label={`Fiche ${p.enseigne}`} />
                   <p className="font-medium text-brand dark:text-accent">{p.enseigne}</p>
                   {p.ville ? <p className="text-xs text-neutral-400">{p.ville}</p> : null}
                 </td>

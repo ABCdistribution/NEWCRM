@@ -1,8 +1,25 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import { X, MapPinned, CalendarDays, Smartphone, CheckCircle2, XCircle, PlusCircle, Target } from 'lucide-react';
+import { X, MapPinned, CalendarDays, Smartphone, CheckCircle2, XCircle, PlusCircle, Target, ChevronLeft, ChevronRight } from 'lucide-react';
 import { KpiTile } from './kpi-tile';
+
+const WEEK_FMT = new Intl.DateTimeFormat('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' });
+function isoToDate(iso: string): Date {
+  const [y, m, d] = iso.split('-').map(Number);
+  return new Date(y, m - 1, d);
+}
+function dateToIso(d: Date): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+function shiftWeek(iso: string, days: number): string {
+  const d = isoToDate(iso);
+  d.setDate(d.getDate() + days);
+  return dateToIso(d);
+}
+function weekLabel(iso: string): string {
+  return `Semaine du ${WEEK_FMT.format(isoToDate(iso))}`;
+}
 
 type Statut = 'PREVISION' | 'COMPLET';
 
@@ -30,7 +47,7 @@ type Rapport = {
 // Prototype — la prévision et le bilan seront saisis sur l'app mobile.
 const INIT: Rapport[] = [
   {
-    id: 'r1', dr: 'GS', semaine: 'Semaine du 19 mai', statut: 'PREVISION', synthese: '',
+    id: 'r1', dr: 'GS', semaine: '2025-05-19', statut: 'PREVISION', synthese: '',
     magasins: [
       { nom: 'Système U Lyon Vaise', ville: 'Lyon', prevu: true, realise: false },
       { nom: 'Leclerc Rennes', ville: 'Rennes', prevu: true, realise: false },
@@ -40,7 +57,7 @@ const INIT: Rapport[] = [
     ],
   },
   {
-    id: 'r2', dr: 'LM', semaine: 'Semaine du 19 mai', statut: 'PREVISION', synthese: '',
+    id: 'r2', dr: 'LM', semaine: '2025-05-19', statut: 'PREVISION', synthese: '',
     magasins: [
       { nom: 'Auchan Vert Saint-Denis', ville: 'Saint-Denis', prevu: true, realise: false },
       { nom: 'Carrefour Market Nantes', ville: 'Nantes', prevu: true, realise: false },
@@ -48,7 +65,7 @@ const INIT: Rapport[] = [
     ],
   },
   {
-    id: 'r3', dr: 'AR', semaine: 'Semaine du 12 mai', statut: 'COMPLET',
+    id: 'r3', dr: 'AR', semaine: '2025-05-12', statut: 'COMPLET',
     synthese: 'Bonne semaine sur le Sud-Ouest, objectif de visites tenu. Une opportunité de référencement détectée chez Auchan.',
     magasins: [
       { nom: 'Leclerc Blagnac', ville: 'Blagnac', prevu: true, realise: true },
@@ -59,7 +76,7 @@ const INIT: Rapport[] = [
     ],
   },
   {
-    id: 'r4', dr: 'MD', semaine: 'Semaine du 12 mai', statut: 'COMPLET',
+    id: 'r4', dr: 'MD', semaine: '2025-05-12', statut: 'COMPLET',
     synthese: 'Sud-Est en difficulté : baisse de CA confirmée sur Leclerc Évry, plan d’action lancé.',
     magasins: [
       { nom: 'Leclerc Évry 2', ville: 'Évry', prevu: true, realise: true, note: 'Baisse CA -23 %' },
@@ -69,7 +86,7 @@ const INIT: Rapport[] = [
     ],
   },
   {
-    id: 'r5', dr: 'CR', semaine: 'Semaine du 12 mai', statut: 'COMPLET',
+    id: 'r5', dr: 'CR', semaine: '2025-05-12', statut: 'COMPLET',
     synthese: 'Nord-Est régulier, aucune alerte majeure. Prospection lancée sur deux points de vente.',
     magasins: [
       { nom: 'Auchan Villeneuve', ville: 'Villeneuve', prevu: true, realise: true },
@@ -79,7 +96,7 @@ const INIT: Rapport[] = [
     ],
   },
   {
-    id: 'r6', dr: 'GS', semaine: 'Semaine du 5 mai', statut: 'COMPLET',
+    id: 'r6', dr: 'GS', semaine: '2025-05-05', statut: 'COMPLET',
     synthese: 'Couverture maintenue sur le Nord-Ouest, réassort validé chez Cora.',
     magasins: [
       { nom: 'Cora Bruay', ville: 'Bruay', prevu: true, realise: true },
@@ -91,8 +108,8 @@ const INIT: Rapport[] = [
 ];
 
 const chipBase = 'inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-medium transition';
-const chipOff = 'border-neutral-200 text-neutral-500 hover:border-neutral-300 dark:border-navy-700 dark:text-neutral-400';
-const chipOn = 'border-neutral-900 bg-neutral-900 text-white dark:border-white dark:bg-white dark:text-navy-950';
+const chipOff = 'border-neutral-200 bg-white text-neutral-600 hover:border-brand/50 hover:text-brand dark:border-navy-700 dark:bg-navy-900 dark:text-neutral-300 dark:hover:border-brand';
+const chipOn = 'border-brand bg-brand text-white shadow-sm';
 
 function stats(r: Rapport) {
   const prevus = r.magasins.filter((m) => m.prevu).length;
@@ -115,35 +132,50 @@ function StatutBadge({ statut }: { statut: Statut }) {
 }
 
 export function RapportsBoard() {
+  const weeks = useMemo(() => [...new Set(INIT.map((r) => r.semaine))].sort(), []);
+  const [weekIso, setWeekIso] = useState(() => weeks.at(-1) ?? dateToIso(new Date()));
   const [drFilter, setDrFilter] = useState<'ALL' | string>('ALL');
   const [statutFilter, setStatutFilter] = useState<'ALL' | Statut>('ALL');
   const [selected, setSelected] = useState<Rapport | null>(null);
 
+  const weekReports = useMemo(() => INIT.filter((r) => r.semaine === weekIso), [weekIso]);
+
   const kpis = useMemo(() => {
-    const complets = INIT.filter((r) => r.statut === 'COMPLET');
+    const complets = weekReports.filter((r) => r.statut === 'COMPLET');
     const tauxMoyen = complets.length
       ? Math.round(complets.reduce((s, r) => s + (stats(r).taux ?? 0), 0) / complets.length)
       : null;
     return {
-      total: INIT.length,
-      previsions: INIT.filter((r) => r.statut === 'PREVISION').length,
+      total: weekReports.length,
+      previsions: weekReports.filter((r) => r.statut === 'PREVISION').length,
       complets: complets.length,
       tauxMoyen,
     };
-  }, []);
+  }, [weekReports]);
 
   const filtered = useMemo(
-    () => INIT.filter((r) => (drFilter === 'ALL' || r.dr === drFilter) && (statutFilter === 'ALL' || r.statut === statutFilter)),
-    [drFilter, statutFilter],
+    () => weekReports.filter((r) => (drFilter === 'ALL' || r.dr === drFilter) && (statutFilter === 'ALL' || r.statut === statutFilter)),
+    [weekReports, drFilter, statutFilter],
   );
 
   return (
     <div className="flex flex-col gap-5">
-      <div>
-        <h1 className="text-2xl font-bold">Rapports d&apos;activité</h1>
-        <p className="mt-0.5 flex items-center gap-1.5 text-sm text-neutral-500">
-          <Smartphone size={14} /> Prévision en début de semaine, bilan en fin de semaine — saisis sur l&apos;app mobile.
-        </p>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-bold">Rapports d&apos;activité</h1>
+          <p className="mt-0.5 flex items-center gap-1.5 text-sm text-neutral-500">
+            <Smartphone size={14} /> Prévision en début de semaine, bilan en fin de semaine — saisis sur l&apos;app mobile.
+          </p>
+        </div>
+        <div className="flex items-center gap-1 rounded-xl bg-white p-1 shadow-card">
+          <button type="button" onClick={() => setWeekIso(shiftWeek(weekIso, -7))} className="rounded-lg p-1.5 text-neutral-500 transition hover:bg-neutral-100 dark:hover:bg-navy-800" aria-label="Semaine précédente">
+            <ChevronLeft size={16} />
+          </button>
+          <span className="min-w-52 px-1 text-center text-sm font-semibold">{weekLabel(weekIso)}</span>
+          <button type="button" onClick={() => setWeekIso(shiftWeek(weekIso, 7))} className="rounded-lg p-1.5 text-neutral-500 transition hover:bg-neutral-100 dark:hover:bg-navy-800" aria-label="Semaine suivante">
+            <ChevronRight size={16} />
+          </button>
+        </div>
       </div>
 
       <section className="grid grid-cols-2 gap-4 lg:grid-cols-4">
@@ -174,7 +206,6 @@ export function RapportsBoard() {
           <thead className="bg-neutral-50 text-left text-neutral-500 dark:bg-navy-950/50">
             <tr>
               <th className="px-4 py-2.5 font-medium">Auteur</th>
-              <th className="px-4 py-2.5 font-medium">Semaine</th>
               <th className="px-4 py-2.5 font-medium">Région</th>
               <th className="px-4 py-2.5 text-right font-medium">Prévus</th>
               <th className="px-4 py-2.5 text-right font-medium">Réalisés</th>
@@ -197,7 +228,6 @@ export function RapportsBoard() {
                       </span>
                     </span>
                   </td>
-                  <td className="px-4 py-3 text-neutral-500">{r.semaine}</td>
                   <td className="px-4 py-3 text-neutral-500">{dr.region}</td>
                   <td className="px-4 py-3 text-right tabular-nums">{s.prevus}</td>
                   <td className="px-4 py-3 text-right tabular-nums">{r.statut === 'COMPLET' ? s.realises : '—'}</td>
@@ -213,7 +243,7 @@ export function RapportsBoard() {
               );
             })}
             {filtered.length === 0 ? (
-              <tr><td colSpan={7} className="px-4 py-10 text-center text-neutral-400">Aucun rapport pour ce filtre.</td></tr>
+              <tr><td colSpan={6} className="px-4 py-10 text-center text-neutral-400">Aucune donnée pour cette semaine.</td></tr>
             ) : null}
           </tbody>
         </table>

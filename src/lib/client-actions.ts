@@ -48,7 +48,7 @@ export async function saveContact(
     return { error: msg ?? `Erreur serveur (${res.status}).`, ok: false };
   }
 
-  revalidatePath(`/clients/${clientId}`);
+  revalidatePath(`/pilotage/clients/${clientId}`);
   return { error: null, ok: true };
 }
 
@@ -63,5 +63,5 @@ export async function deleteContact(formData: FormData): Promise<void> {
   } catch {
     return;
   }
-  revalidatePath(`/clients/${clientId}`);
+  revalidatePath(`/pilotage/clients/${clientId}`);
 }

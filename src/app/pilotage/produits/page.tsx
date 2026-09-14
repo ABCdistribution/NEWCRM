@@ -1,8 +1,8 @@
 import { listArticles, countArticles, type Paginated, type ArticleRow } from '@/lib/api';
 import { SearchBar } from '@/components/search-bar';
 import { Pagination } from '@/components/pagination';
-import { ActiveBadge } from '@/components/badges';
 import { KpiTile } from '@/components/kpi-tile';
+import { ProduitsTable } from '@/components/produits-table';
 
 export const metadata = { title: 'Produits — Helios' };
 
@@ -77,41 +77,7 @@ export default async function ProduitsPage({
         </p>
       ) : (
         <>
-          <div className="overflow-x-auto rounded-xl bg-white shadow-card">
-            <table className="w-full text-sm">
-              <thead className="bg-neutral-50 text-left text-neutral-500 dark:bg-navy-950/50">
-                <tr>
-                  <th className="px-4 py-2.5 font-medium">Code</th>
-                  <th className="px-4 py-2.5 font-medium">Libellé</th>
-                  <th className="px-4 py-2.5 font-medium">Marque</th>
-                  <th className="px-4 py-2.5 font-medium">Gamme</th>
-                  <th className="px-4 py-2.5 font-medium">PCB</th>
-                  <th className="px-4 py-2.5 font-medium">Statut</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-neutral-100 dark:divide-navy-700">
-                {result!.data.map((a) => (
-                  <tr key={a.id} className="hover:bg-neutral-50 dark:hover:bg-navy-800/50">
-                    <td className="px-4 py-2.5 font-mono text-xs">{a.codeAs400}</td>
-                    <td className="px-4 py-2.5">{a.libelle}</td>
-                    <td className="px-4 py-2.5">{a.marque?.nom ?? '—'}</td>
-                    <td className="px-4 py-2.5">{a.gamme?.nom ?? '—'}</td>
-                    <td className="px-4 py-2.5">{a.pcb ?? '—'}</td>
-                    <td className="px-4 py-2.5">
-                      <ActiveBadge active={a.actif} />
-                    </td>
-                  </tr>
-                ))}
-                {result!.data.length === 0 ? (
-                  <tr>
-                    <td colSpan={6} className="px-4 py-8 text-center text-neutral-400">
-                      Aucun produit trouvé.
-                    </td>
-                  </tr>
-                ) : null}
-              </tbody>
-            </table>
-          </div>
+          <ProduitsTable articles={result!.data} />
           <Pagination
             total={result!.total}
             page={result!.page}

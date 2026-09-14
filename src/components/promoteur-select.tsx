@@ -16,7 +16,7 @@ export function PromoteurSelect({
   return (
     <select
       value={value}
-      onChange={(e) => router.push(`/tournees?promoteur=${e.target.value}&semaine=${semaine}`)}
+      onChange={(e) => router.push(`/pilotage/tournees?promoteur=${e.target.value}&semaine=${semaine}`)}
       className="rounded-lg border border-neutral-200 bg-white px-3 py-2 text-sm outline-none transition focus:border-brand dark:border-navy-700 dark:bg-navy-950"
     >
       {promoteurs.map((p) => (

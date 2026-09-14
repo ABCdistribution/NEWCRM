@@ -322,7 +322,7 @@ export default async function Home({
                       {data.sansCommande.exemples.map((c) => (
                         <li key={c.id} className="flex items-center gap-3 px-5 py-2.5">
                           <Link
-                            href={`/clients/${c.id}`}
+                            href={`/pilotage/clients/${c.id}`}
                             className="min-w-0 flex-1 truncate text-sm font-medium text-brand hover:underline dark:text-accent"
                           >
                             {c.nom}
@@ -337,7 +337,7 @@ export default async function Home({
                     {data.sansCommande.total > data.sansCommande.exemples.length ? (
                       <p className="border-t border-neutral-100 px-5 py-2.5 text-xs text-neutral-400 dark:border-navy-700">
                         … et {data.sansCommande.total - data.sansCommande.exemples.length} autres —{' '}
-                        <Link href="/clients" className="underline">tous les magasins</Link>.
+                        <Link href="/pilotage/clients" className="underline">tous les magasins</Link>.
                       </p>
                     ) : null}
                   </>

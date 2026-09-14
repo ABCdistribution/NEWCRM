@@ -1,6 +1,9 @@
 import { cookies } from 'next/headers';
 
-const COOKIE = 'helios_session';
+// Cookie de session PARTAGÉ entre Helios (pilotage) et Kratos (terrain).
+// Les cookies ne sont pas isolés par port : un nom commun suffit à partager le JWT
+// entre :3001 et :3002 sur le même hôte → SSO, une seule connexion pour les deux univers.
+const COOKIE = 'crm_session';
 const MAX_AGE = 60 * 60 * 8; // 8h — aligné sur JWT_EXPIRES_IN de l'API
 
 /** Base de l'API NestJS (appels serveur→serveur, pas de CORS). */

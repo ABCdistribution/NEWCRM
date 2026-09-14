@@ -1,16 +1,18 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 
-const COOKIE = 'helios_session';
+const COOKIE = 'crm_session';
 const PUBLIC_PATHS = ['/login'];
 
 export function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
   const token = req.cookies.get(COOKIE)?.value;
   const isPublic = PUBLIC_PATHS.some((p) => pathname === p || pathname.startsWith(`${p}/`));
+  // Fichiers statiques (logos, images, polices…) servis depuis /public : accessibles sans session.
+  const isAsset = /\.[a-z0-9]+$/i.test(pathname);
 
-  // Non connecté → tout sauf les pages publiques renvoie vers /login (en gardant la cible).
-  if (!token && !isPublic) {
+  // Non connecté → tout sauf les pages publiques / assets renvoie vers /login (en gardant la cible).
+  if (!token && !isPublic && !isAsset) {
     const url = req.nextUrl.clone();
     url.pathname = '/login';
     url.searchParams.set('from', pathname);

@@ -126,7 +126,7 @@ export function DashboardCS({ data }: { data: DashboardDirection }) {
                 {data.sansCommande.exemples.map((c) => (
                   <li key={c.id} className="flex items-center gap-3 px-5 py-2.5">
                     <Link
-                      href={`/clients/${c.id}`}
+                      href={`/pilotage/clients/${c.id}`}
                       className="min-w-0 flex-1 truncate text-sm font-medium text-brand hover:underline dark:text-accent"
                     >
                       {c.nom}
@@ -145,7 +145,7 @@ export function DashboardCS({ data }: { data: DashboardDirection }) {
                     : 'Liste complète des magasins'}
                 </span>
                 <Link
-                  href="/tournees"
+                  href="/pilotage/tournees"
                   className="inline-flex items-center gap-1 font-medium text-brand hover:underline dark:text-accent"
                 >
                   Planifier une tournée <Route size={13} />
@@ -248,7 +248,7 @@ export function DashboardCS({ data }: { data: DashboardDirection }) {
 
       {/* Accès centre d'alertes */}
       <Link
-        href="/alertes"
+        href="/pilotage/alertes"
         className="flex items-center gap-3 rounded-2xl border border-dashed border-brand/30 bg-brand/5 px-5 py-4 text-sm font-medium text-brand transition hover:bg-brand/10 dark:border-accent/30 dark:bg-accent/5 dark:text-accent dark:hover:bg-accent/10"
       >
         <span className="flex-1">Voir toutes les alertes de mon secteur (rappels, sans commande, baisses)</span>

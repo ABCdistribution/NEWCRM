@@ -87,7 +87,7 @@ export default async function ProspectDetailPage({ params }: { params: Promise<{
 
   return (
     <div className="flex flex-col gap-5">
-      <Link href="/prospects" className="inline-flex w-fit items-center gap-1 text-sm text-neutral-500 hover:text-brand dark:hover:text-accent">
+      <Link href="/pilotage/prospects" className="inline-flex w-fit items-center gap-1 text-sm text-neutral-500 hover:text-brand dark:hover:text-accent">
         <ArrowLeft size={15} /> Retour à la prospection
       </Link>
 
@@ -98,7 +98,7 @@ export default async function ProspectDetailPage({ params }: { params: Promise<{
             <h1 className="text-2xl font-bold">{p.enseigne}</h1>
             <StatutBadge value={p.statut} />
             {p.clientId ? (
-              <Link href={`/clients/${p.clientId}`} className="inline-flex items-center gap-1 rounded-full bg-emerald-500/15 px-2 py-0.5 text-xs font-medium text-emerald-500">
+              <Link href={`/pilotage/clients/${p.clientId}`} className="inline-flex items-center gap-1 rounded-full bg-emerald-500/15 px-2 py-0.5 text-xs font-medium text-emerald-500">
                 <CheckCircle2 size={12} /> Converti en client
               </Link>
             ) : null}

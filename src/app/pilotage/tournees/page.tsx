@@ -80,7 +80,7 @@ export default async function TourneesPage({
           ) : null}
           <div className="flex items-center gap-0.5 rounded-xl bg-white p-1 shadow-card">
             <Link
-              href={`/tournees?promoteur=${promoteurId}&semaine=${iso(prevMonday)}`}
+              href={`/pilotage/tournees?promoteur=${promoteurId}&semaine=${iso(prevMonday)}`}
               className={navBtn}
               aria-label="Semaine précédente"
             >
@@ -91,7 +91,7 @@ export default async function TourneesPage({
               Sem. du {WEEK_FMT.format(monday)}
             </span>
             <Link
-              href={`/tournees?promoteur=${promoteurId}&semaine=${iso(nextMonday)}`}
+              href={`/pilotage/tournees?promoteur=${promoteurId}&semaine=${iso(nextMonday)}`}
               className={navBtn}
               aria-label="Semaine suivante"
             >
@@ -100,7 +100,7 @@ export default async function TourneesPage({
             </Link>
             {!estSemaineCourante ? (
               <Link
-                href={`/tournees?promoteur=${promoteurId}`}
+                href={`/pilotage/tournees?promoteur=${promoteurId}`}
                 className="ml-1 rounded-xl bg-accent px-2.5 py-1.5 text-xs font-semibold text-brand transition hover:bg-accent/80"
               >
                 Aujourd&apos;hui
