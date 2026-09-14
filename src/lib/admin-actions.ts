@@ -13,7 +13,7 @@ export async function setUserRole(formData: FormData): Promise<void> {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ role }),
   }).catch(() => undefined);
-  revalidatePath('/users');
+  revalidatePath('/pilotage/users');
 }
 
 /** Active / désactive un utilisateur. */
@@ -26,7 +26,7 @@ export async function setUserActive(formData: FormData): Promise<void> {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ isActive }),
   }).catch(() => undefined);
-  revalidatePath('/users');
+  revalidatePath('/pilotage/users');
 }
 
 /** Rattache un utilisateur à un secteur ('' = détacher). */
@@ -39,7 +39,7 @@ export async function setUserSecteur(formData: FormData): Promise<void> {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ secteurId: secteurId || null }),
   }).catch(() => undefined);
-  revalidatePath('/users');
+  revalidatePath('/pilotage/users');
 }
 
 export type ObjectifState = { error: string | null; ok: boolean };
@@ -69,7 +69,7 @@ export async function saveObjectif(
   }
   if (!res.ok) return { error: `Erreur serveur (${res.status}).`, ok: false };
 
-  revalidatePath('/objectifs');
+  revalidatePath('/pilotage/objectifs');
   return { error: null, ok: true };
 }
 
@@ -99,7 +99,7 @@ export async function triggerImportClients(
     return { error: msg ?? `Erreur serveur (${res.status}).`, ok: false };
   }
 
-  revalidatePath('/imports');
+  revalidatePath('/pilotage/imports');
   return { error: null, ok: true };
 }
 
@@ -130,7 +130,7 @@ export async function syncAd(_prev: AdSyncState, _formData: FormData): Promise<A
     return { error: body?.message ?? `Erreur serveur (${res.status}).`, ok: false };
   }
   const stats = (await res.json()) as NonNullable<AdSyncState['stats']>;
-  revalidatePath('/users');
+  revalidatePath('/pilotage/users');
   return { error: null, ok: true, stats };
 }
 
@@ -154,7 +154,7 @@ export async function addQuestion(_prev: QuestionState, formData: FormData): Pro
     return { error: "Impossible de joindre l'API.", ok: false };
   }
   if (!res.ok) return { error: `Erreur serveur (${res.status}).`, ok: false };
-  revalidatePath('/questionnaire');
+  revalidatePath('/pilotage/questionnaire');
   return { error: null, ok: true };
 }
 
@@ -173,7 +173,7 @@ export async function updateQuestion(formData: FormData): Promise<void> {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),
   }).catch(() => undefined);
-  revalidatePath('/questionnaire');
+  revalidatePath('/pilotage/questionnaire');
 }
 
 /** Déplace une question d'un cran (haut/bas). */
@@ -186,7 +186,7 @@ export async function deplacerQuestion(formData: FormData): Promise<void> {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ direction }),
   }).catch(() => undefined);
-  revalidatePath('/questionnaire');
+  revalidatePath('/pilotage/questionnaire');
 }
 
 /** Supprime (logiquement) une question. */
@@ -194,7 +194,7 @@ export async function deleteQuestion(formData: FormData): Promise<void> {
   const id = String(formData.get('id') ?? '');
   if (!id) return;
   await serverFetch(`/questionnaire/questions/${id}`, { method: 'DELETE' }).catch(() => undefined);
-  revalidatePath('/questionnaire');
+  revalidatePath('/pilotage/questionnaire');
 }
 
 // --- Promos / PEM -------------------------------------------------------
@@ -239,7 +239,7 @@ export async function addPromo(_prev: PromoState, formData: FormData): Promise<P
     return { error: "Impossible de joindre l'API.", ok: false };
   }
   if (!res.ok) return { error: `Erreur serveur (${res.status}).`, ok: false };
-  revalidatePath('/promos');
+  revalidatePath('/pilotage/promos');
   return { error: null, ok: true };
 }
 
@@ -253,7 +253,7 @@ export async function togglePromo(formData: FormData): Promise<void> {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ actif }),
   }).catch(() => undefined);
-  revalidatePath('/promos');
+  revalidatePath('/pilotage/promos');
 }
 
 /** Supprime une promo. */
@@ -261,7 +261,7 @@ export async function deletePromo(formData: FormData): Promise<void> {
   const id = String(formData.get('id') ?? '');
   if (!id) return;
   await serverFetch(`/promos/${id}`, { method: 'DELETE' }).catch(() => undefined);
-  revalidatePath('/promos');
+  revalidatePath('/pilotage/promos');
 }
 
 /** Met un article en avant (PEM). */
@@ -279,7 +279,7 @@ export async function addPem(_prev: PromoState, formData: FormData): Promise<Pro
     return { error: "Impossible de joindre l'API.", ok: false };
   }
   if (!res.ok) return { error: `Erreur serveur (${res.status}).`, ok: false };
-  revalidatePath('/promos');
+  revalidatePath('/pilotage/promos');
   return { error: null, ok: true };
 }
 
@@ -288,5 +288,5 @@ export async function deletePem(formData: FormData): Promise<void> {
   const id = String(formData.get('id') ?? '');
   if (!id) return;
   await serverFetch(`/promos/pem/${id}`, { method: 'DELETE' }).catch(() => undefined);
-  revalidatePath('/promos');
+  revalidatePath('/pilotage/promos');
 }

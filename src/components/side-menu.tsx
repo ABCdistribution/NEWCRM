@@ -1,18 +1,14 @@
 'use client';
 
+import { useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
   Home,
-  Store,
-  Package,
+  Newspaper,
   Route,
   Target,
-  Truck,
   FileText,
-  ShoppingCart,
-  ShieldAlert,
-  BadgePercent,
   Users,
   UsersRound,
   AlertTriangle,
@@ -20,11 +16,13 @@ import {
   Database,
   Settings,
   LogOut,
+  ArrowLeftRight,
   type LucideIcon,
 } from 'lucide-react';
 import { logout } from '@/lib/auth-actions';
 import { Avatar } from './avatar';
 import { ThemeToggle } from './theme-toggle';
+import { UniverseSwitchOverlay } from './universe-switch-overlay';
 import type { Me } from '@/lib/api';
 
 type Leaf = { href: string; label: string; icon: LucideIcon; roles?: string[] };
@@ -35,56 +33,86 @@ type Section = { label: string | null; children: Leaf[] };
  * Vue globale : toute la force de vente, tous les magasins, toutes les commandes.
  */
 const SECTIONS: Section[] = [
-  { label: null, children: [{ href: '/', label: 'Accueil', icon: Home }] },
   {
-    label: 'Pilotage',
+    label: null,
     children: [
-      { href: '/prospects', label: 'Prospection', icon: Sprout, roles: ['ADMIN', 'DIRECTION', 'DIRECTEUR_REGIONAL', 'CHEF_SECTEUR'] },
-      { href: '/alertes', label: 'Alertes', icon: AlertTriangle, roles: ['ADMIN', 'DIRECTION', 'DIRECTEUR_REGIONAL', 'CHEF_SECTEUR'] },
-      { href: '/mon-equipe', label: 'Mon équipe', icon: UsersRound, roles: ['ADMIN', 'DIRECTION', 'DIRECTEUR_REGIONAL'] },
-      { href: '/rapports', label: 'Rapports d’activité', icon: FileText, roles: ['ADMIN', 'DIRECTION'] },
-      { href: '/livraisons', label: 'Livraisons & suivi', icon: Truck },
-      { href: '/objectifs', label: 'Objectifs', icon: Target, roles: ['ADMIN', 'DIRECTION'] },
-      { href: '/tournees', label: 'Planification tournées', icon: Route },
+      { href: '/pilotage', label: 'Accueil', icon: Home },
+      { href: '/pilotage/news', label: 'Les News', icon: Newspaper },
     ],
   },
   {
-    label: 'Référentiel',
+    label: 'Pilotage',
     children: [
-      { href: '/clients', label: 'Magasins', icon: Store },
-      { href: '/commandes', label: 'Commandes', icon: ShoppingCart },
-      { href: '/produits', label: 'Produits', icon: Package },
-      { href: '/promos', label: 'Promos / PEM', icon: BadgePercent },
-      { href: '/qualite', label: 'Qualité & rappels', icon: ShieldAlert },
+      { href: '/pilotage/prospects', label: 'Prospection', icon: Sprout, roles: ['ADMIN', 'DIRECTION', 'DIRECTEUR_REGIONAL', 'CHEF_SECTEUR'] },
+      { href: '/pilotage/tournees', label: 'Planification tournées', icon: Route },
+      { href: '/pilotage/alertes', label: 'Alertes', icon: AlertTriangle, roles: ['ADMIN', 'DIRECTION', 'DIRECTEUR_REGIONAL', 'CHEF_SECTEUR'] },
+      { href: '/pilotage/mon-equipe', label: 'Mon équipe', icon: UsersRound, roles: ['ADMIN', 'DIRECTION', 'DIRECTEUR_REGIONAL'] },
+      { href: '/pilotage/rapports', label: 'Rapports d’activité', icon: FileText, roles: ['ADMIN', 'DIRECTION'] },
+      { href: '/pilotage/objectifs', label: 'Objectifs', icon: Target, roles: ['ADMIN', 'DIRECTION'] },
     ],
   },
   {
     label: 'Administration',
     children: [
-      { href: '/users', label: 'Utilisateurs', icon: Users, roles: ['ADMIN'] },
-      { href: '/imports', label: 'Imports Minos', icon: Database, roles: ['ADMIN'] },
-      { href: '/parametres', label: 'Paramètres', icon: Settings, roles: ['ADMIN'] },
+      { href: '/pilotage/users', label: 'Utilisateurs', icon: Users, roles: ['ADMIN'] },
+      { href: '/pilotage/imports', label: 'Imports Minos', icon: Database, roles: ['ADMIN'] },
+      { href: '/pilotage/parametres', label: 'Paramètres', icon: Settings, roles: ['ADMIN'] },
     ],
   },
 ];
 
 function isActive(pathname: string, href: string) {
-  return href === '/' ? pathname === '/' : pathname === href || pathname.startsWith(`${href}/`);
+  return href === '/pilotage' ? pathname === '/pilotage' : pathname === href || pathname.startsWith(`${href}/`);
 }
 
-export function SideMenu({ me }: { me: Me }) {
+const SWITCH_ROLES = ['ADMIN', 'DIRECTION', 'DIRECTEUR_REGIONAL', 'CHEF_SECTEUR'];
+
+export function SideMenu({ me, kratosPort }: { me: Me; kratosPort: string }) {
   const pathname = usePathname();
+  const canSwitch = SWITCH_ROLES.includes(me.role);
+  const [switching, setSwitching] = useState(false);
+  // Kratos tourne sur le même serveur : on reprend l'hôte utilisé pour accéder à Helios.
+  // L'animation de bascule joue d'abord, puis la navigation part (le voile reste jusqu'au déchargement).
+  const goKratos = () => {
+    if (switching) return;
+    setSwitching(true);
+    window.setTimeout(() => {
+      window.location.href = `${window.location.protocol}//${window.location.hostname}:${kratosPort}`;
+    }, 1100);
+  };
 
   return (
-    // `dark` : la sidebar rend sa version sombre (violet) alors que le reste du site est clair.
     <aside className="sticky top-0 z-20 flex h-screen w-60 shrink-0 flex-col border-r border-neutral-200 bg-white text-neutral-800 dark:border-navy-700 dark:bg-navy-950 dark:text-neutral-100">
+      {switching ? (
+        <UniverseSwitchOverlay
+          fromSrc="/helios-transparent.png"
+          toSrc="/kratos-transparent.png"
+          toName="Kratos"
+        />
+      ) : null}
       {/* Marque */}
-      <Link href="/" className="flex items-center gap-2.5 px-4 py-4">
-        <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-brand text-sm font-bold text-white dark:bg-accent dark:text-brand">
-          H
-        </span>
-        <span className="text-lg font-bold tracking-tight">Helios</span>
+      <Link href="/pilotage" className="flex items-center justify-center px-4 py-5">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src="/helios-transparent.png" alt="Helios" className="h-16 w-auto" />
       </Link>
+
+      {/* Bascule vers l'univers terrain (Kratos) — encadrement uniquement */}
+      {canSwitch ? (
+        <button
+          type="button"
+          onClick={goKratos}
+          className="mx-3 mb-3 flex items-center gap-2.5 rounded-xl border border-neutral-200 p-2.5 text-left transition hover:border-brand hover:bg-neutral-50 dark:border-navy-700 dark:hover:border-accent dark:hover:bg-navy-800"
+          title="Basculer sur l'espace terrain (Kratos)"
+        >
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/kratos-transparent.png" alt="" className="h-9 w-9 shrink-0 object-contain" />
+          <div className="min-w-0 flex-1">
+            <p className="text-xs font-semibold">Espace terrain</p>
+            <p className="text-[11px] text-neutral-400">Basculer sur Kratos</p>
+          </div>
+          <ArrowLeftRight size={15} className="shrink-0 text-neutral-400" />
+        </button>
+      ) : null}
 
       {/* Navigation */}
       <nav className="flex-1 overflow-y-auto px-3 pb-4">

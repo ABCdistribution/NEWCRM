@@ -119,7 +119,7 @@ export function ProspectPipeline({ colonnes }: { colonnes: PipelineColonne[] }) 
                       }}
                       className="cursor-grab rounded-lg border border-neutral-100 bg-neutral-50 px-2.5 py-2 active:cursor-grabbing dark:border-navy-700 dark:bg-navy-800/40"
                     >
-                      <Link href={`/prospects/${p.id}`} className="truncate text-xs font-medium hover:underline">
+                      <Link href={`/pilotage/prospects/${p.id}`} className="truncate text-xs font-medium hover:underline">
                         {p.enseigne}
                       </Link>
                       {p.ville ? <p className="truncate text-[10px] text-neutral-400">{p.ville}</p> : null}

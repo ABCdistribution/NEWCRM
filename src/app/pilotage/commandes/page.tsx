@@ -58,7 +58,7 @@ export default async function CommandesPage({
         <div className="flex items-center gap-2">
           {/* Filtre annulées */}
           <Link
-            href={annulees ? '/commandes' : '/commandes?annulees=true'}
+            href={annulees ? '/pilotage/commandes' : '/pilotage/commandes?annulees=true'}
             className={`rounded-lg border px-3 py-1.5 text-xs font-medium transition ${
               annulees
                 ? 'border-red-300 bg-red-50 text-red-700 dark:border-red-900 dark:bg-red-950/40 dark:text-red-400'
@@ -128,7 +128,7 @@ export default async function CommandesPage({
                 {result!.data.map((c) => (
                   <tr key={c.id} className="relative hover:bg-neutral-50 dark:hover:bg-navy-800/50">
                     <td className="px-4 py-2.5 font-mono text-xs font-medium text-brand dark:text-accent">
-                      <Link href={`/commandes/${c.id}`} className="absolute inset-0" aria-label={`Commande ${c.numero}`} />
+                      <Link href={`/pilotage/commandes/${c.id}`} className="absolute inset-0" aria-label={`Commande ${c.numero}`} />
                       {c.numero}
                     </td>
                     <td className="px-4 py-2.5 text-neutral-500">

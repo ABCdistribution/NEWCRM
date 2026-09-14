@@ -20,7 +20,7 @@ export default async function CommandeDetail({ params }: { params: Promise<{ id:
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="flex items-start gap-3">
           <Link
-            href="/commandes"
+            href="/pilotage/commandes"
             className="mt-1 rounded-lg p-1.5 text-neutral-400 transition hover:bg-neutral-100 hover:text-neutral-700 dark:hover:bg-navy-800"
             aria-label="Retour aux commandes"
           >
@@ -73,7 +73,7 @@ export default async function CommandeDetail({ params }: { params: Promise<{ id:
         <div className="flex flex-wrap items-center gap-2">
           <Store size={16} className="text-brand" />
           {commande.client ? (
-            <Link href={`/clients/${commande.client.id}`} className="font-medium text-brand hover:underline dark:text-accent">
+            <Link href={`/pilotage/clients/${commande.client.id}`} className="font-medium text-brand hover:underline dark:text-accent">
               {commande.client.enseigne}
               <span className="ml-1.5 font-mono text-xs text-neutral-400">{commande.client.codeAs400}</span>
             </Link>

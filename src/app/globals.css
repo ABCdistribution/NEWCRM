@@ -34,6 +34,7 @@
      y ressortent avec leur ombre lilas. */
   --background: #f5f3fb;
   --foreground: #0a0a0a;
+  --color-brand: #8b5cf6; /* violet principal (mode clair) */
 }
 
 /*
@@ -42,11 +43,20 @@
  * deviennent violet foncé. Le reste bascule via les variantes `dark:`.
  */
 :root.dark {
-  --background: #14052b; /* violet profond, plus sombre que les cartes */
+  /* Dark mode « slate-bleu + violet » (façon SaaS moderne). */
+  --background: #0e1320;         /* fond du contenu — slate très sombre */
+  --color-brand: #8b5cf6;        /* accent violet (boutons, actifs, emphase) */
+  --color-brand-light: #2dd4bf;  /* secondaire teal (2ᵉ série des graphes) */
+  --color-accent: #8b5cf6;
+  --color-navy-950: #141a27;     /* fond du menu (sidebar) */
+  --color-navy-900: #171e2d;     /* modales */
+  --color-navy-800: #1e2637;     /* survols, puces */
+  --color-navy-700: #293143;     /* bordures */
+  --color-navy-600: #3b455e;
 }
 .dark .shadow-card {
-  background-color: #200a40; /* carte violette, un cran au-dessus du fond */
-  border: 1px solid #3f2373;
+  background-color: #171e2d; /* carte slate, un cran au-dessus du fond */
+  border: 1px solid #262f42;
 }
 
 /*
@@ -54,9 +64,15 @@
  * le texte y bascule en clair par défaut, le reste du site reste blanc.
  */
 .dark {
-  --foreground: #f0eaf8;
+  --foreground: #e4e7ec;
   color: var(--foreground);
   color-scheme: dark;
+}
+
+/* Boutons/pastilles à fond d'accent en sombre : texte blanc pour rester lisible. */
+.dark .bg-accent,
+.dark .bg-brand {
+  color: #ffffff;
 }
 
 body {
@@ -93,16 +109,16 @@ body {
  * on les remonte en tons mauves clairs. Hors des cartes, ils restent gris.
  */
 .dark :where(.text-neutral-300) {
-  color: #a693cf;
+  color: #b6bcca;
 }
 .dark :where(.text-neutral-400) {
-  color: #b5a3dd;
+  color: #8b92a5;
 }
 .dark :where(.text-neutral-500) {
-  color: #c7b9e8;
+  color: #767d90;
 }
 .dark :where(.text-neutral-600, .text-neutral-700) {
-  color: #e0d7f4;
+  color: #c9cdd8;
 }
 
 /*
@@ -127,10 +143,10 @@ body {
   background: rgb(124 91 192 / 0.05);
 }
 .dark .shadow-card thead th {
-  color: #b5a3dd;
-  background: #2a1550; /* opaque, un cran au-dessus de la carte violette */
-  border-bottom: 1px solid rgb(167 139 218 / 0.18);
+  color: #8b92a5;
+  background: #1b2230; /* opaque, un cran au-dessus de la carte slate */
+  border-bottom: 1px solid #262f42;
 }
 .dark .shadow-card tbody tr:hover td {
-  background: rgb(167 139 218 / 0.06);
+  background: rgb(255 255 255 / 0.03);
 }

@@ -37,7 +37,7 @@ export default async function ObjectifsPage({
   const grille = await getObjectifsGrille(annee, { search: search || undefined, page });
 
   const anneeQs = (a: number) =>
-    `/objectifs?annee=${a}${search ? `&search=${encodeURIComponent(search)}` : ''}`;
+    `/pilotage/objectifs?annee=${a}${search ? `&search=${encodeURIComponent(search)}` : ''}`;
 
   return (
     <div className="flex flex-col gap-4">
@@ -118,7 +118,7 @@ export default async function ObjectifsPage({
                           <td className="px-4 py-2.5">
                             <span className="flex items-center gap-2">
                               <Link
-                                href={`/clients/${l.clientId}`}
+                                href={`/pilotage/clients/${l.clientId}`}
                                 className="font-medium text-brand hover:underline dark:text-accent"
                               >
                                 {l.nom}

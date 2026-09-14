@@ -15,6 +15,21 @@ import {
   ClipboardCheck,
   Target,
 } from 'lucide-react';
+import { ClassBadge } from './class-badge';
+
+// Classification magasin (A→G) par point de vente — remontée du référentiel.
+const CLASSE_MAGASIN: Record<string, string> = {
+  'Système U Lyon Vaise': 'A',
+  'Intermarché La Mézière': 'B',
+  'Leclerc Évry 2': 'A',
+  'Auchan Vert Saint-Denis': 'B',
+  'Auchan Roncq': 'C',
+  'Carrefour Market Nantes': 'C',
+  'Cora Bruay': 'B',
+  'Intermarché Vannes': 'D',
+  'Leclerc Blagnac': 'A',
+  'Système U Rennes': 'B',
+};
 
 type Criticite = 'CRITIQUE' | 'ATTENTION' | 'INFO';
 type AlerteType = 'baisse' | 'rupture' | 'frequence' | 'dn' | 'opportunite' | 'sav';
@@ -85,9 +100,10 @@ const TYPES: { key: AlerteType; label: string }[] = [
   { key: 'opportunite', label: 'Opportunité' },
 ];
 
-const chipBase = 'inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-medium transition';
-const chipOff = 'border-neutral-200 text-neutral-500 hover:border-neutral-300 dark:border-navy-700 dark:text-neutral-400';
-const chipOn = 'border-neutral-900 bg-neutral-900 text-white dark:border-white dark:bg-white dark:text-navy-950';
+const chipBase = 'inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium transition';
+const chipOff = 'border-neutral-200 bg-white text-neutral-600 hover:border-brand/50 hover:text-brand dark:border-navy-700 dark:bg-navy-900 dark:text-neutral-300 dark:hover:border-brand';
+const chipOn = 'border-brand bg-brand text-white shadow-sm';
+const selectCls = 'rounded-full border border-neutral-200 bg-white px-3 py-1.5 text-xs font-medium text-neutral-600 outline-none transition focus:border-brand dark:border-navy-700 dark:bg-navy-900 dark:text-neutral-300';
 
 function Chip({ active, onClick, children }: { active: boolean; onClick: () => void; children: React.ReactNode }) {
   return (
@@ -97,10 +113,9 @@ function Chip({ active, onClick, children }: { active: boolean; onClick: () => v
   );
 }
 
-export function AlertesBoard() {
+export function AlertesBoard({ canManageRules }: { canManageRules: boolean }) {
   const [crit, setCrit] = useState<'ALL' | Criticite>('ALL');
   const [type, setType] = useState<'ALL' | AlerteType>('ALL');
-  const [cs, setCs] = useState<'ALL' | string>('ALL');
   const [q, setQ] = useState('');
 
   const counts = useMemo(() => ({
@@ -110,22 +125,19 @@ export function AlertesBoard() {
     INFO: ALERTES.filter((a) => a.criticite === 'INFO').length,
   }), []);
 
-  const csPresent = useMemo(() => [...new Set(ALERTES.map((a) => a.cs))], []);
-
   const filtered = useMemo(() => {
     const query = q.trim().toLowerCase();
     return ALERTES.filter(
       (a) =>
         (crit === 'ALL' || a.criticite === crit) &&
         (type === 'ALL' || a.type === type) &&
-        (cs === 'ALL' || a.cs === cs) &&
         (query === '' || a.magasin.toLowerCase().includes(query) || a.motif.toLowerCase().includes(query)),
     );
-  }, [crit, type, cs, q]);
+  }, [crit, type, q]);
 
   const exportCsv = () => {
-    const header = ['Magasin', 'Criticité', 'Type', 'Motif', 'Signal', 'CS', 'Détecté', 'Âge (j)'];
-    const lines = filtered.map((a) => [a.magasin, a.criticite, a.type, a.motif, a.signal, CS_LIST[a.cs]?.nom ?? a.cs, a.detecteLe, String(a.age)]);
+    const header = ['Magasin', 'Classe', 'Criticité', 'Type', 'Motif', 'Signal', 'CS', 'Détecté', 'Âge (j)'];
+    const lines = filtered.map((a) => [a.magasin, CLASSE_MAGASIN[a.magasin] ?? '', a.criticite, a.type, a.motif, a.signal, CS_LIST[a.cs]?.nom ?? a.cs, a.detecteLe, String(a.age)]);
     const csv = [header, ...lines].map((r) => r.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(';')).join('\n');
     const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8' });
     const url = URL.createObjectURL(blob);
@@ -147,13 +159,15 @@ export function AlertesBoard() {
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <button
-            type="button"
-            title="Configuration des règles de détection (à venir)"
-            className="inline-flex items-center gap-1.5 rounded-lg border border-neutral-200 px-3 py-2 text-sm font-medium text-neutral-600 transition hover:bg-neutral-50 dark:border-navy-700 dark:text-neutral-300 dark:hover:bg-navy-800"
-          >
-            <SlidersHorizontal size={15} /> Règles
-          </button>
+          {canManageRules ? (
+            <button
+              type="button"
+              title="Configuration des règles de détection (réservé à l'administration)"
+              className="inline-flex items-center gap-1.5 rounded-lg border border-neutral-200 px-3 py-2 text-sm font-medium text-neutral-600 transition hover:bg-neutral-50 dark:border-navy-700 dark:text-neutral-300 dark:hover:bg-navy-800"
+            >
+              <SlidersHorizontal size={15} /> Règles
+            </button>
+          ) : null}
           <button
             type="button"
             onClick={exportCsv}
@@ -183,29 +197,19 @@ export function AlertesBoard() {
         />
       </div>
 
-      {/* Filtres */}
-      <div className="flex flex-col gap-2.5">
-        <div className="flex flex-wrap items-center gap-2">
-          <span className="mr-1 text-[11px] font-semibold uppercase tracking-wide text-neutral-400">Criticité</span>
-          <Chip active={crit === 'ALL'} onClick={() => setCrit('ALL')}>Toutes <b className="opacity-60">{counts.total}</b></Chip>
-          <Chip active={crit === 'CRITIQUE'} onClick={() => setCrit('CRITIQUE')}>Critiques <b className="opacity-60">{counts.CRITIQUE}</b></Chip>
-          <Chip active={crit === 'ATTENTION'} onClick={() => setCrit('ATTENTION')}>Attention <b className="opacity-60">{counts.ATTENTION}</b></Chip>
-          <Chip active={crit === 'INFO'} onClick={() => setCrit('INFO')}>Info <b className="opacity-60">{counts.INFO}</b></Chip>
-        </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <span className="mr-1 text-[11px] font-semibold uppercase tracking-wide text-neutral-400">Type</span>
-          <Chip active={type === 'ALL'} onClick={() => setType('ALL')}>Tous</Chip>
+      {/* Filtres : criticité (pills) + type (menu) */}
+      <div className="flex flex-wrap items-center gap-2">
+        <Chip active={crit === 'ALL'} onClick={() => setCrit('ALL')}>Toutes <b className="opacity-70">{counts.total}</b></Chip>
+        <Chip active={crit === 'CRITIQUE'} onClick={() => setCrit('CRITIQUE')}>Critiques <b className="opacity-70">{counts.CRITIQUE}</b></Chip>
+        <Chip active={crit === 'ATTENTION'} onClick={() => setCrit('ATTENTION')}>Attention <b className="opacity-70">{counts.ATTENTION}</b></Chip>
+        <Chip active={crit === 'INFO'} onClick={() => setCrit('INFO')}>Info <b className="opacity-70">{counts.INFO}</b></Chip>
+        <span className="mx-1 hidden h-5 w-px bg-neutral-200 sm:block dark:bg-navy-700" />
+        <select value={type} onChange={(e) => setType(e.target.value as typeof type)} className={selectCls} aria-label="Filtrer par type">
+          <option value="ALL">Tous les types</option>
           {TYPES.map((t) => (
-            <Chip key={t.key} active={type === t.key} onClick={() => setType(t.key)}>{t.label}</Chip>
+            <option key={t.key} value={t.key}>{t.label}</option>
           ))}
-        </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <span className="mr-1 text-[11px] font-semibold uppercase tracking-wide text-neutral-400">CS</span>
-          <Chip active={cs === 'ALL'} onClick={() => setCs('ALL')}>Tous</Chip>
-          {csPresent.map((c) => (
-            <Chip key={c} active={cs === c} onClick={() => setCs(c)}>{c}</Chip>
-          ))}
-        </div>
+        </select>
       </div>
 
       {/* Tableau */}
@@ -234,6 +238,7 @@ export function AlertesBoard() {
                       <span className={`w-1 shrink-0 rounded-full ${cst.bar}`} />
                       <div className="min-w-0">
                         <p className="flex items-center gap-2 font-medium">
+                          <ClassBadge value={CLASSE_MAGASIN[a.magasin] ?? null} size="xs" />
                           {a.magasin}
                           <span className={`rounded-full px-1.5 py-0.5 text-[10px] font-semibold uppercase ${cst.badge}`}>{a.criticite}</span>
                         </p>

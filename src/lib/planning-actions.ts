@@ -34,7 +34,7 @@ export async function addPlanning(
     return { error: msg ?? `Erreur serveur (${res.status}).`, ok: false };
   }
 
-  revalidatePath('/tournees');
+  revalidatePath('/pilotage/tournees');
   return { error: null, ok: true };
 }
 
@@ -59,7 +59,7 @@ export async function dropPlanning(
     const msg = Array.isArray(body?.message) ? body.message[0] : body?.message;
     return { error: msg ?? `Erreur serveur (${res.status}).` };
   }
-  revalidatePath('/tournees');
+  revalidatePath('/pilotage/tournees');
   return { error: null };
 }
 
@@ -83,7 +83,7 @@ export async function movePlanning(
     const msg = Array.isArray(body?.message) ? body.message[0] : body?.message;
     return { error: msg ?? `Erreur serveur (${res.status}).` };
   }
-  revalidatePath('/tournees');
+  revalidatePath('/pilotage/tournees');
   return { error: null };
 }
 
@@ -136,7 +136,7 @@ export async function addRegle(_prev: RegleState, formData: FormData): Promise<R
     return { error: msg ?? `Erreur serveur (${res.status}).`, ok: false };
   }
 
-  revalidatePath('/tournees');
+  revalidatePath('/pilotage/tournees');
   return { error: null, ok: true };
 }
 
@@ -145,7 +145,7 @@ export async function removeRegle(formData: FormData): Promise<void> {
   const id = String(formData.get('id') ?? '');
   if (!id) return;
   await serverFetch(`/plannifications/${id}`, { method: 'DELETE' }).catch(() => undefined);
-  revalidatePath('/tournees');
+  revalidatePath('/pilotage/tournees');
 }
 
 /** Retire une visite planifiée. */
@@ -153,5 +153,5 @@ export async function removePlanning(formData: FormData): Promise<void> {
   const id = String(formData.get('id') ?? '');
   if (!id) return;
   await serverFetch(`/plannings/${id}`, { method: 'DELETE' }).catch(() => undefined);
-  revalidatePath('/tournees');
+  revalidatePath('/pilotage/tournees');
 }

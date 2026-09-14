@@ -9,5 +9,6 @@ const ALLOWED = ['ADMIN', 'DIRECTION', 'DIRECTEUR_REGIONAL', 'CHEF_SECTEUR'];
 export default async function AlertesPage() {
   const me = await getMe();
   if (!me || !ALLOWED.includes(me.role)) return <AccesRefuse />;
-  return <AlertesBoard />;
+  const canManageRules = me.role === 'ADMIN' || me.role === 'DIRECTION';
+  return <AlertesBoard canManageRules={canManageRules} />;
 }

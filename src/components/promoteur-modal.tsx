@@ -108,7 +108,7 @@ export function PromoteurModal({ membre, onClose }: { membre: Membre; onClose: (
           <div>
             <div className="mb-2 flex items-center justify-between">
               <h3 className="text-sm font-semibold">Visites planifiées cette semaine</h3>
-              <Link href={`/tournees?promoteur=${membre.id}`} className="inline-flex items-center gap-1 text-xs font-medium text-brand hover:underline dark:text-accent">
+              <Link href={`/pilotage/tournees?promoteur=${membre.id}`} className="inline-flex items-center gap-1 text-xs font-medium text-brand hover:underline dark:text-accent">
                 Ouvrir la tournée <Route size={12} />
               </Link>
             </div>
