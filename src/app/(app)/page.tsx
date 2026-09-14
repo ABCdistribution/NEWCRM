@@ -16,7 +16,9 @@ import {
 import { getMe, getDashboardDirection } from '@/lib/api';
 import { StatTile } from '@/components/stat-tile';
 import { CaChart } from '@/components/ca-chart';
+import { DonutChart } from '@/components/donut-chart';
 import { ClassBadge } from '@/components/class-badge';
+import { DashboardCS } from '@/components/dashboard-cs';
 
 export const metadata = { title: 'Pilotage — Helios' };
 
@@ -71,12 +73,13 @@ export default async function Home({
 
   const [me, data] = await Promise.all([getMe(), getDashboardDirection(annee, mois)]);
   const prenom = me?.displayName?.split(/\s+/)[0] ?? '';
+  const isCS = me?.role === 'CHEF_SECTEUR';
 
   return (
     <div className="flex flex-col gap-5">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold">Pilotage force de vente</h1>
+          <h1 className="text-2xl font-bold">{isCS ? 'Mon secteur' : 'Pilotage force de vente'}</h1>
           <p className="text-sm text-neutral-500">
             Bonjour {prenom} — {data?.scope.label.toLowerCase() ?? 'vue globale'}.
           </p>
@@ -108,6 +111,8 @@ export default async function Home({
         <p className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
           Chiffres indisponibles — l&apos;API est-elle démarrée ?
         </p>
+      ) : isCS ? (
+        <DashboardCS data={data} />
       ) : (
         <>
           {/* KPIs consolidés du mois */}
@@ -158,6 +163,43 @@ export default async function Home({
             </h2>
             <CaChart anneeN={data.ca12mois.anneeN} courbeN={data.ca12mois.courbeN} courbeN1={data.ca12mois.courbeN1} />
           </section>
+
+          {/* Graphes KPI : couverture magasins + objectifs */}
+          <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
+            <section className={card}>
+              <h2 className={cardHeader}>
+                <Store size={17} className="text-brand dark:text-accent" />
+                Couverture du mois
+              </h2>
+              <DonutChart
+                segments={[
+                  { label: 'Ont commandé', value: data.kpis.magasinsCommandants, color: '#10b981' },
+                  { label: 'Sans commande', value: Math.max(0, data.kpis.magasinsTotal - data.kpis.magasinsCommandants), color: '#f59e0b' },
+                ]}
+                centerValue={
+                  data.kpis.magasinsTotal > 0
+                    ? `${Math.round((data.kpis.magasinsCommandants / data.kpis.magasinsTotal) * 100)}%`
+                    : '—'
+                }
+                centerLabel="couverture"
+              />
+            </section>
+            <section className={card}>
+              <h2 className={cardHeader}>
+                <Target size={17} className="text-brand dark:text-accent" />
+                Objectifs du mois
+              </h2>
+              <DonutChart
+                segments={[
+                  { label: 'Atteints', value: data.objectifs.atteints, color: '#10b981' },
+                  { label: 'Manqués', value: data.objectifs.manques, color: '#ef4444' },
+                  { label: 'Sans objectif', value: data.objectifs.sansObjectif, color: '#d4d4d8' },
+                ]}
+                centerValue={`${data.objectifs.atteints}/${data.objectifs.definis}`}
+                centerLabel="atteints"
+              />
+            </section>
+          </div>
 
           <div className="grid grid-cols-1 gap-5 xl:grid-cols-5">
             {/* Classement des promoteurs — en xl, le contenu est calé en absolu pour remplir
@@ -235,7 +277,7 @@ export default async function Home({
                 </h2>
                 {data.caParSecteur.length === 0 ? (
                   <p className="px-5 py-4 text-sm text-neutral-400">
-                    Aucun secteur — crée-les dans <Link href="/secteurs" className="text-brand underline dark:text-accent">Secteurs</Link>.
+                    Aucun secteur défini pour le moment.
                   </p>
                 ) : (
                   <ul className="divide-y divide-neutral-100 dark:divide-navy-700">

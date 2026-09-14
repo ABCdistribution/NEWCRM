@@ -27,9 +27,6 @@ export default async function QualitePage({
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold">Qualité &amp; Rappels Produits</h1>
-          <p className="text-sm text-neutral-500">
-            Produits en rappel (retour autorisé) — à contrôler sur le terrain.
-          </p>
         </div>
         <SearchBar placeholder="Libellé, code article…" />
       </div>

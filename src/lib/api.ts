@@ -306,8 +306,8 @@ async function list<T>(path: string): Promise<Paginated<T>> {
   return (await res.json()) as Paginated<T>;
 }
 
-export function listUsers(params: { search?: string; role?: string; page?: number }) {
-  return list<UserRow>(`/users${qs({ ...params, limit: 20 })}`);
+export function listUsers(params: { search?: string; role?: string; page?: number; limit?: number }) {
+  return list<UserRow>(`/users${qs({ ...params, limit: params.limit ?? 20 })}`);
 }
 
 export type ClientsResult = Paginated<ClientRow> & {
@@ -327,6 +327,28 @@ export function listArticles(params: { search?: string; page?: number; rappel?: 
       limit: 20,
     })}`,
   );
+}
+
+/** Compte les articles correspondant aux filtres (lit `total`, page allégée à 1 ligne). */
+export async function countArticles(
+  params: { actif?: boolean; rappel?: boolean; search?: string } = {},
+): Promise<number | null> {
+  try {
+    const res = await serverFetch(
+      `/articles${qs({
+        search: params.search,
+        actif: params.actif === undefined ? undefined : String(params.actif),
+        rappel: params.rappel ? 'true' : undefined,
+        page: 1,
+        limit: 1,
+      })}`,
+    );
+    if (!res.ok) return null;
+    const data = (await res.json()) as { total?: number };
+    return data.total ?? 0;
+  } catch {
+    return null;
+  }
 }
 
 export type Dashboard = {
@@ -606,6 +628,205 @@ export async function listPem(): Promise<PemRow[] | null> {
     const res = await serverFetch('/promos/pem');
     if (!res.ok) return null;
     return (await res.json()) as PemRow[];
+  } catch {
+    return null;
+  }
+}
+
+// --- Prospection (pilotage) ---------------------------------------------
+// Contrat aligné sur les DTOs Swagger de l'API. Les réponses n'étant pas
+// typées côté API, la forme des lignes renvoyées suit ses conventions
+// habituelles (pagination + relations) et reste tolérante aux valeurs nulles.
+
+export type ProspectStatut =
+  | 'NOUVEAU'
+  | 'CONTACTE'
+  | 'QUALIFIE'
+  | 'PROPOSITION'
+  | 'NEGOCIATION'
+  | 'GAGNE'
+  | 'PERDU';
+export type ProspectSource = 'SALON' | 'RECOMMANDATION' | 'TERRAIN' | 'WEB';
+export type MotifPerte = 'PRIX' | 'CONCURRENCE' | 'PAS_DE_BESOIN' | 'SANS_REPONSE' | 'AUTRE';
+export type OpportuniteType = 'REFERENCEMENT' | 'OP' | 'MISE_EN_AVANT';
+export type OpportuniteStatut = 'OUVERTE' | 'GAGNEE' | 'PERDUE' | 'ANNULEE';
+
+export const PROSPECT_STATUTS: ProspectStatut[] = [
+  'NOUVEAU',
+  'CONTACTE',
+  'QUALIFIE',
+  'PROPOSITION',
+  'NEGOCIATION',
+  'GAGNE',
+  'PERDU',
+];
+
+export type ProspectRow = {
+  id: string;
+  raisonSociale: string;
+  enseigne: string;
+  ville: string | null;
+  statut: ProspectStatut;
+  probabilite: number | null;
+  potentielCaAnnuel: number | null;
+  source: ProspectSource | null;
+  secteur: { id: string; code: string; nom: string } | null;
+  assignedTo: { id: string; displayName: string } | null;
+  clientId: string | null;
+  createdAt: string;
+  lastActivityAt: string | null;
+};
+
+export type ProspectsResult = Paginated<ProspectRow> & {
+  scope?: { type: string; label?: string };
+};
+
+/** Liste paginée des prospects (scopée par rôle côté API). */
+export function listProspects(params: {
+  search?: string;
+  page?: number;
+  statut?: string;
+  secteur?: string;
+  assignedTo?: string;
+}) {
+  return list<ProspectRow>(
+    `/prospects${qs({ ...params, limit: 20 })}`,
+  ) as Promise<ProspectsResult>;
+}
+
+/** Compte les prospects correspondant aux filtres (lit `total`, page allégée). */
+export async function countProspects(
+  params: { statut?: string; secteur?: string } = {},
+): Promise<number | null> {
+  try {
+    const res = await serverFetch(
+      `/prospects${qs({ statut: params.statut, secteur: params.secteur, page: 1, limit: 1 })}`,
+    );
+    if (!res.ok) return null;
+    const d = (await res.json()) as { total?: number };
+    return d.total ?? 0;
+  } catch {
+    return null;
+  }
+}
+
+export type PipelineColonne = {
+  statut: ProspectStatut;
+  total: number;
+  valeurPonderee: number;
+  prospects: ProspectRow[];
+};
+
+/**
+ * Pipeline groupé par étape (Kanban). Tolérant à la forme exacte du retour :
+ * accepte un tableau de colonnes, un objet { colonnes: [...] } ou une map
+ * { STATUT: {...} }, et normalise toujours vers l'ordre des étapes.
+ */
+export async function getProspectPipeline(): Promise<PipelineColonne[] | null> {
+  try {
+    const res = await serverFetch('/prospects/pipeline');
+    if (!res.ok) return null;
+    const json = (await res.json()) as unknown;
+    const raw: unknown = Array.isArray(json)
+      ? json
+      : (json as { colonnes?: unknown }).colonnes ?? json;
+
+    const byStatut = new Map<string, PipelineColonne>();
+    if (Array.isArray(raw)) {
+      for (const c of raw as PipelineColonne[]) if (c?.statut) byStatut.set(c.statut, c);
+    } else if (raw && typeof raw === 'object') {
+      for (const [statut, c] of Object.entries(raw as Record<string, Partial<PipelineColonne>>)) {
+        byStatut.set(statut, {
+          statut: statut as ProspectStatut,
+          total: c.total ?? c.prospects?.length ?? 0,
+          valeurPonderee: c.valeurPonderee ?? 0,
+          prospects: c.prospects ?? [],
+        });
+      }
+    }
+    return PROSPECT_STATUTS.map(
+      (statut) =>
+        byStatut.get(statut) ?? { statut, total: 0, valeurPonderee: 0, prospects: [] },
+    );
+  } catch {
+    return null;
+  }
+}
+
+export type OpportuniteRow = {
+  id: string;
+  type: OpportuniteType;
+  statut: OpportuniteStatut;
+  libelle: string | null;
+  valeurEstimee: number | null;
+  dateDebut: string | null;
+  dateFin: string | null;
+  articles?: { id: string; codeAs400: string; libelle: string }[];
+  prospectId?: string | null;
+  clientId?: string | null;
+};
+
+// La forme exacte du détail n'étant pas typée côté API, tout est optionnel/nullable
+// hormis l'identité de base — les écrans dégradent proprement si un champ manque.
+export type ProspectDetail = {
+  id: string;
+  raisonSociale: string;
+  enseigne: string;
+  adresse1: string | null;
+  codePostal: string | null;
+  ville: string | null;
+  telephone: string | null;
+  email: string | null;
+  statut: ProspectStatut;
+  probabilite: number | null;
+  potentielCaAnnuel: number | null;
+  source: ProspectSource | null;
+  motifPerte: MotifPerte | null;
+  secteur: { id: string; code: string; nom: string } | null;
+  assignedTo: { id: string; displayName: string } | null;
+  clientId: string | null;
+  createdAt: string;
+  updatedAt: string | null;
+  lastActivityAt: string | null;
+  contacts?: { id: string; prenom: string | null; nom: string; fixe: string | null; portable: string | null; mail: string | null }[];
+  notes?: { id: string; remarque: string; createdAt: string; auteur: { displayName: string } | null }[];
+  opportunites?: OpportuniteRow[];
+};
+
+/** Fiche prospect complète, ou null si introuvable. */
+export async function getProspect(id: string): Promise<ProspectDetail | null> {
+  try {
+    const res = await serverFetch(`/prospects/${id}`);
+    if (!res.ok) return null;
+    return (await res.json()) as ProspectDetail;
+  } catch {
+    return null;
+  }
+}
+
+export type ProspectHistorique = {
+  visites: {
+    id: string;
+    createdAt: string;
+    motif: string | null;
+    commentaire: string | null;
+    promoteur?: { displayName: string } | null;
+  }[];
+  opportunites: OpportuniteRow[];
+};
+
+/** Timeline du prospect (visites de prospection + opportunités). Tolérant à la forme du retour. */
+export async function getProspectHistorique(id: string): Promise<ProspectHistorique | null> {
+  try {
+    const res = await serverFetch(`/prospects/${id}/historique`);
+    if (!res.ok) return null;
+    const json = (await res.json()) as Partial<ProspectHistorique> | unknown[];
+    if (Array.isArray(json)) {
+      // Retour à plat : on répartit visites / opportunités au mieux.
+      return { visites: [], opportunites: [] };
+    }
+    const j = json as Partial<ProspectHistorique>;
+    return { visites: j.visites ?? [], opportunites: j.opportunites ?? [] };
   } catch {
     return null;
   }

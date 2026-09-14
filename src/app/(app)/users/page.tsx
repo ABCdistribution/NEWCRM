@@ -56,27 +56,27 @@ export default async function UsersPage({
             <table className="w-full text-sm">
               <thead className="bg-neutral-50 text-left text-neutral-500 dark:bg-navy-950/50">
                 <tr>
-                  <th className="px-4 py-2.5 font-medium">Utilisateur</th>
-                  <th className="px-4 py-2.5 font-medium">Email</th>
-                  <th className="px-4 py-2.5 font-medium">Code repr.</th>
-                  <th className="px-4 py-2.5 font-medium">Région / Directeur</th>
-                  <th className="px-4 py-2.5 font-medium">Secteur</th>
-                  <th className="px-4 py-2.5 font-medium">Rôle</th>
-                  <th className="px-4 py-2.5 font-medium">Statut</th>
+                  <th className="px-3 py-2.5 font-medium">Utilisateur</th>
+                  <th className="px-3 py-2.5 font-medium">Email</th>
+                  <th className="px-3 py-2.5 font-medium">Code repr.</th>
+                  <th className="px-3 py-2.5 font-medium">Région / Directeur</th>
+                  <th className="px-3 py-2.5 font-medium">Secteur</th>
+                  <th className="px-3 py-2.5 font-medium">Rôle</th>
+                  <th className="px-3 py-2.5 font-medium">Statut</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-neutral-100 dark:divide-navy-700">
                 {result!.data.map((u) => (
                   <tr key={u.id} className="hover:bg-neutral-50 dark:hover:bg-navy-800/50">
-                    <td className="px-4 py-2.5">
+                    <td className="px-3 py-2.5">
                       <p className="font-medium">{u.displayName}</p>
                       <p className="font-mono text-xs text-neutral-400">{u.username}</p>
                     </td>
-                    <td className="px-4 py-2.5 text-neutral-500">{u.email ?? '—'}</td>
-                    <td className="px-4 py-2.5 font-mono text-xs">
+                    <td className="px-3 py-2.5 text-neutral-500">{u.email ?? '—'}</td>
+                    <td className="px-3 py-2.5 font-mono text-xs">
                       {u.idRepr ?? <span className="text-neutral-400">—</span>}
                     </td>
-                    <td className="px-4 py-2.5">
+                    <td className="px-3 py-2.5">
                       {u.region ? (
                         <span className="rounded-md bg-neutral-100 px-1.5 py-0.5 text-xs font-medium dark:bg-navy-800">
                           {u.region.nom}
@@ -88,17 +88,17 @@ export default async function UsersPage({
                         <p className="mt-0.5 text-xs text-neutral-400">DR : {u.directeur.displayName}</p>
                       ) : null}
                     </td>
-                    <td className="px-4 py-2.5">
+                    <td className="px-3 py-2.5">
                       <SecteurSelect
                         userId={u.id}
                         value={u.secteurId}
                         secteurs={secteurs.map((s) => ({ id: s.id, code: s.code, nom: s.nom }))}
                       />
                     </td>
-                    <td className="px-4 py-2.5">
+                    <td className="px-3 py-2.5">
                       <RoleSelect userId={u.id} value={u.role} />
                     </td>
-                    <td className="px-4 py-2.5">
+                    <td className="px-3 py-2.5">
                       <div className="flex items-center gap-2">
                         <ActiveBadge active={u.isActive} />
                         <ActiveToggle userId={u.id} isActive={u.isActive} />
