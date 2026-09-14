@@ -47,7 +47,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     <div className="flex min-h-screen">
       <SideMenu me={me} />
       <main className="min-w-0 flex-1">
-        <div className="mx-auto max-w-6xl px-6 py-6">{children}</div>
+        <div className="mx-auto max-w-[1400px] px-6 py-6">{children}</div>
       </main>
     </div>
   );

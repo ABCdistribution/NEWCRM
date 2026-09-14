@@ -4,15 +4,19 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
   Home,
-  ClipboardList,
   Store,
   Package,
   Route,
   Target,
+  Truck,
+  FileText,
   ShoppingCart,
   ShieldAlert,
   BadgePercent,
   Users,
+  UsersRound,
+  AlertTriangle,
+  Sprout,
   Database,
   Settings,
   LogOut,
@@ -35,9 +39,13 @@ const SECTIONS: Section[] = [
   {
     label: 'Pilotage',
     children: [
+      { href: '/prospects', label: 'Prospection', icon: Sprout, roles: ['ADMIN', 'DIRECTION', 'DIRECTEUR_REGIONAL', 'CHEF_SECTEUR'] },
+      { href: '/alertes', label: 'Alertes', icon: AlertTriangle, roles: ['ADMIN', 'DIRECTION', 'DIRECTEUR_REGIONAL', 'CHEF_SECTEUR'] },
+      { href: '/mon-equipe', label: 'Mon équipe', icon: UsersRound, roles: ['ADMIN', 'DIRECTION', 'DIRECTEUR_REGIONAL'] },
+      { href: '/rapports', label: 'Rapports d’activité', icon: FileText, roles: ['ADMIN', 'DIRECTION'] },
+      { href: '/livraisons', label: 'Livraisons & suivi', icon: Truck },
       { href: '/objectifs', label: 'Objectifs', icon: Target, roles: ['ADMIN', 'DIRECTION'] },
       { href: '/tournees', label: 'Planification tournées', icon: Route },
-      { href: '/questionnaire', label: 'Questionnaire visite', icon: ClipboardList, roles: ['ADMIN', 'DIRECTION'] },
     ],
   },
   {

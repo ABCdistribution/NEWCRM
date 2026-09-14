@@ -21,10 +21,12 @@
   --color-navy-700: #3f2373; /* bordures */
   --color-navy-600: #533391; /* axes / bordures appuyées */
 
-  /* Ombre douce lilas autour des cartes */
+  /* Cartes façon panneau CRM : liseré hairline lilas + ombre posée et subtile
+     (on garde la teinte violette/lilas de Helios, on gagne en netteté). */
   --shadow-card:
-    0 2px 8px -2px rgb(216 198 244 / 0.4),
-    0 8px 28px -6px rgb(216 198 244 / 0.5);
+    0 0 0 1px rgb(124 91 192 / 0.12),
+    0 1px 2px rgb(60 30 100 / 0.05),
+    0 10px 30px -16px rgb(124 91 192 / 0.30);
 }
 
 :root {
@@ -101,4 +103,34 @@ body {
 }
 .dark :where(.text-neutral-600, .text-neutral-700) {
   color: #e0d7f4;
+}
+
+/*
+ * Tables dans les cartes — look CRM épuré, en gardant la teinte violette/lilas.
+ * Ciblage global (`.shadow-card thead th`) : s'applique à toutes les tables
+ * du portail sans toucher chaque page. On ne touche NI l'alignement NI le
+ * padding (laissés aux classes des colonnes) pour ne rien décaler.
+ */
+.shadow-card thead th {
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #7c6ba8;
+  background: #f6f4fb; /* opaque : sûr pour les en-têtes collants (sticky) */
+  border-bottom: 1px solid rgb(124 91 192 / 0.14);
+}
+.shadow-card tbody tr {
+  transition: background-color 0.12s ease;
+}
+.shadow-card tbody tr:hover td {
+  background: rgb(124 91 192 / 0.05);
+}
+.dark .shadow-card thead th {
+  color: #b5a3dd;
+  background: #2a1550; /* opaque, un cran au-dessus de la carte violette */
+  border-bottom: 1px solid rgb(167 139 218 / 0.18);
+}
+.dark .shadow-card tbody tr:hover td {
+  background: rgb(167 139 218 / 0.06);
 }

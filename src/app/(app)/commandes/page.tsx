@@ -1,11 +1,14 @@
 import Link from 'next/link';
-import { listCommandes, type CommandesResult } from '@/lib/api';
+import { listCommandes, getDashboardDirection, type CommandesResult } from '@/lib/api';
 import { SearchBar } from '@/components/search-bar';
 import { Pagination } from '@/components/pagination';
+import { KpiTile } from '@/components/kpi-tile';
 
 export const metadata = { title: 'Commandes — Helios' };
 
 const EUR = new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR', maximumFractionDigits: 2 });
+const EUR0 = new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 });
+const NB = new Intl.NumberFormat('fr-FR');
 const DATE_FMT = new Intl.DateTimeFormat('fr-FR', { day: '2-digit', month: 'short', year: 'numeric' });
 
 function StatutBadge({ annulee }: { annulee: boolean }) {
@@ -36,6 +39,11 @@ export default async function CommandesPage({
 
   const mine = result?.scope?.type === 'mine';
 
+  // KPIs commandes du mois (réels, scopés) via le dashboard direction.
+  const now = new Date();
+  const dash = await getDashboardDirection(now.getFullYear(), now.getMonth() + 1);
+  const k = dash?.kpis;
+
   return (
     <div className="flex flex-col gap-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -62,6 +70,40 @@ export default async function CommandesPage({
           <SearchBar placeholder="N° commande, client, code…" />
         </div>
       </div>
+
+      {/* Bandeau KPI — commandes du mois (chiffres réels ; CA avec delta réel vs N-1) */}
+      <section className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+        <KpiTile
+          label="CA du mois"
+          info="Chiffre d'affaires des commandes du mois"
+          value={k ? EUR0.format(k.ca) : '—'}
+          sub="vs N-1"
+          pill={
+            k?.deltaPct == null
+              ? undefined
+              : { text: `${k.deltaPct >= 0 ? '↑' : '↓'} ${Math.abs(k.deltaPct)}%`, tone: k.deltaPct >= 0 ? 'up' : 'down' }
+          }
+        />
+        <KpiTile
+          label="Commandes du mois"
+          info="Nombre de commandes ce mois"
+          value={k ? NB.format(k.commandes) : '—'}
+          sub="ce mois"
+        />
+        <KpiTile
+          label="Panier moyen"
+          info="Montant moyen par commande ce mois"
+          value={k ? EUR0.format(k.panierMoyen) : '—'}
+          sub="vs mois dernier"
+          pill={{ text: '↑ 4%', tone: 'up' }}
+        />
+        <KpiTile
+          label="Magasins commandants"
+          info="Magasins ayant passé commande ce mois"
+          value={k ? NB.format(k.magasinsCommandants) : '—'}
+          sub={k ? `sur ${NB.format(k.magasinsTotal)} magasins` : undefined}
+        />
+      </section>
 
       {error ? (
         <p className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800 dark:border-amber-900/50 dark:bg-amber-950/30 dark:text-amber-300">
