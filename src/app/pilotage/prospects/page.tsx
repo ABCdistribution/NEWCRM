@@ -2,15 +2,18 @@ import Link from 'next/link';
 import {
   getMe,
   listProspects,
-  countProspects,
+  getProspectPipeline,
   listSecteurs,
   type ProspectsResult,
+  type ProspectRow,
+  type ProspectStatut,
 } from '@/lib/api';
 import { AccesRefuse } from '@/components/acces-refuse';
 import { SearchBar } from '@/components/search-bar';
 import { Pagination } from '@/components/pagination';
 import { KpiTile } from '@/components/kpi-tile';
-import { StatutBadge, SOURCE_LABELS } from '@/components/prospect-badges';
+import { StatutBadge, STATUT_LABELS, STATUT_ACCENT, SOURCE_LABELS } from '@/components/prospect-badges';
+import { ProspectPipeline } from '@/components/prospect-pipeline';
 import { ProspectCreate } from '@/components/prospect-create';
 
 export const metadata = { title: 'Prospection — Helios' };
@@ -33,14 +36,8 @@ export default async function ProspectsPage({
   const search = sp.search ?? '';
   const page = Number(sp.page ?? '1') || 1;
 
-  // KPIs par statut (vrais comptes via le filtre `statut`).
-  const [total, nouveaux, qualifies, perdus] = await Promise.all([
-    countProspects({}),
-    countProspects({ statut: 'NOUVEAU' }),
-    countProspects({ statut: 'QUALIFIE' }),
-    countProspects({ statut: 'PERDU' }),
-  ]);
-  const pctQualif = total && qualifies != null && total > 0 ? Math.round((qualifies / total) * 100) : null;
+  const [pipeline, secteursBruts] = await Promise.all([getProspectPipeline(), listSecteurs()]);
+  const secteurs = (secteursBruts ?? []).map((s) => ({ id: s.id, code: s.code, nom: s.nom }));
 
   let liste: ProspectsResult | null = null;
   let error: string | null = null;
@@ -49,20 +46,32 @@ export default async function ProspectsPage({
   } catch {
     error = "Impossible de charger les prospects. L'API est-elle démarrée ?";
   }
-  const secteurs = ((await listSecteurs()) ?? []).map((s) => ({ id: s.id, code: s.code, nom: s.nom }));
 
-  const topProspects = liste
-    ? [...liste.data].sort((a, b) => (b.potentielCaAnnuel ?? 0) - (a.potentielCaAnnuel ?? 0)).slice(0, 6)
-    : [];
+  // --- Indicateurs business dérivés du pipeline complet --------------------
+  const ETAPES_ACTIVES: ProspectStatut[] = ['NOUVEAU', 'CONTACTE', 'PROPOSITION', 'VISITE', 'NEGOCIATION'];
+  const colonnes = pipeline ?? [];
+  const colonnesActives = colonnes.filter((c) => ETAPES_ACTIVES.includes(c.statut));
+  const actifs: ProspectRow[] = colonnesActives.flatMap((c) => c.prospects);
+  const pipelinePondere = colonnesActives.reduce((somme, c) => somme + (c.valeurPonderee ?? 0), 0);
+  const gagnes = colonnes.find((c) => c.statut === 'GAGNE')?.total ?? 0;
+  const perdus = colonnes.find((c) => c.statut === 'PERDU')?.total ?? 0;
+  const transformation = gagnes + perdus > 0 ? Math.round((gagnes / (gagnes + perdus)) * 100) : null;
+
+  // À relancer : actifs sans activité depuis 14 jours, les plus anciens d'abord.
+  const DORMANT_JOURS = 14;
+  const maintenant = Date.now();
+  const joursDepuis = (iso: string | null) =>
+    iso ? Math.floor((maintenant - new Date(iso).getTime()) / 86_400_000) : null;
+  const aRelancer = actifs
+    .map((p) => ({ ...p, inactifDepuis: joursDepuis(p.lastActivityAt ?? p.createdAt) ?? 0 }))
+    .filter((p) => p.inactifDepuis >= DORMANT_JOURS)
+    .sort((a, b) => b.inactifDepuis - a.inactifDepuis);
 
   return (
     <div className="flex flex-col gap-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold">Prospection</h1>
-          <p className="text-sm text-neutral-500">
-            Points de vente à développer et pipeline commercial du secteur.
-          </p>
         </div>
         <div className="flex items-center gap-2">
           <SearchBar placeholder="Enseigne, raison sociale…" />
@@ -70,47 +79,50 @@ export default async function ProspectsPage({
         </div>
       </div>
 
-      {/* Bandeau KPI par statut */}
+      {/* KPI business */}
       <section className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-        <KpiTile label="Total prospects" info="Tous les prospects de votre périmètre" value={fmt(total)} sub="vs mois dernier" pill={{ text: '↑ 7%', tone: 'up' }} />
-        <KpiTile label="Nouveaux" info="À l'étape « Nouveau »" value={fmt(nouveaux)} sub="vs mois dernier" pill={{ text: '↑ 12%', tone: 'up' }} />
-        <KpiTile label="Qualifiés" info="À l'étape « Qualifié »" value={fmt(qualifies)} sub={pctQualif != null ? `${pctQualif}% du total` : undefined} />
-        <KpiTile label="Perdus" info="Prospects perdus" value={fmt(perdus)} pill={perdus == null ? undefined : perdus > 0 ? { text: '↓ 2', tone: 'down' } : { text: 'aucun', tone: 'up' }} />
+        <KpiTile label="Pipeline pondéré" value={EUR.format(pipelinePondere)} />
+        <KpiTile label="Prospects actifs" value={fmt(actifs.length)} />
+        <KpiTile
+          label="À relancer"
+          value={fmt(aRelancer.length)}
+          pill={aRelancer.length > 0 ? { text: `≥ ${DORMANT_JOURS} j`, tone: 'down' } : undefined}
+        />
+        <KpiTile label="Transformation" value={transformation != null ? `${transformation} %` : '—'} />
       </section>
 
-      {/* Top prospects par potentiel */}
-      {topProspects.length > 0 ? (
-        <section className="overflow-x-auto rounded-xl bg-white shadow-card">
-          <div className="border-b border-neutral-100 px-4 py-3 text-sm font-semibold dark:border-navy-700">
-            Top prospects par potentiel
-          </div>
-          <table className="w-full text-sm">
-            <thead className="bg-neutral-50 text-left text-neutral-500 dark:bg-navy-950/50">
-              <tr>
-                <th className="px-4 py-2.5 font-medium">Enseigne</th>
-                <th className="px-4 py-2.5 font-medium">Étape</th>
-                <th className="px-4 py-2.5 text-right font-medium">Potentiel CA / an</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-neutral-100 dark:divide-navy-700">
-              {topProspects.map((p) => (
-                <tr key={p.id} className="relative hover:bg-neutral-50 dark:hover:bg-navy-800/50">
-                  <td className="px-4 py-2.5 font-medium">
-                    <Link href={`/pilotage/prospects/${p.id}`} className="absolute inset-0" aria-label={`Fiche ${p.enseigne}`} />
-                    {p.enseigne}
-                  </td>
-                  <td className="px-4 py-2.5">
+      <section className="rounded-2xl bg-white shadow-card">
+          <h2 className="flex items-center gap-2 border-b border-neutral-100 px-4 py-3 text-sm font-semibold dark:border-navy-700">
+            À relancer
+            {aRelancer.length > 0 ? (
+              <span className="rounded-full bg-red-500/10 px-2 py-0.5 text-xs font-semibold text-red-500">
+                {aRelancer.length}
+              </span>
+            ) : null}
+          </h2>
+          {aRelancer.length === 0 ? (
+            <p className="px-4 py-6 text-sm text-neutral-400">Tout le pipeline a été touché depuis {DORMANT_JOURS} jours. 👍</p>
+          ) : (
+            <ul className="max-h-64 divide-y divide-neutral-100 overflow-y-auto dark:divide-navy-700">
+              {aRelancer.slice(0, 12).map((p) => (
+                <li key={p.id} className="relative px-4 py-2.5 hover:bg-neutral-50 dark:hover:bg-navy-800/50">
+                  <Link href={`/pilotage/prospects/${p.id}`} className="absolute inset-0" aria-label={`Fiche ${p.enseigne}`} />
+                  <div className="flex items-center gap-2">
+                    <span className="min-w-0 flex-1 truncate text-sm font-medium">{p.enseigne}</span>
+                    <span className="shrink-0 text-xs font-semibold text-red-500">{p.inactifDepuis} j</span>
+                  </div>
+                  <div className="mt-0.5 flex items-center gap-2 text-[11px] text-neutral-400">
                     <StatutBadge value={p.statut} />
-                  </td>
-                  <td className="px-4 py-2.5 text-right font-semibold tabular-nums">
-                    {p.potentielCaAnnuel != null ? EUR.format(p.potentielCaAnnuel) : '—'}
-                  </td>
-                </tr>
+                    {p.assignedTo ? <span className="truncate">{p.assignedTo.displayName}</span> : null}
+                  </div>
+                </li>
               ))}
-            </tbody>
-          </table>
-        </section>
-      ) : null}
+            </ul>
+          )}
+      </section>
+
+      {/* Kanban drag & drop */}
+      {colonnes.length > 0 ? <ProspectPipeline colonnes={colonnes} /> : null}
 
       {error ? (
         <p className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">{error}</p>

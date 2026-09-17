@@ -1,9 +1,9 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import { Users, TrendingUp, TrendingDown, Minus, Search } from 'lucide-react';
+import { Users, TrendingUp, Search, Sprout, Footprints } from 'lucide-react';
 import { StatTile } from './stat-tile';
-import { ActiveBadge, ROLE_LABELS } from './badges';
+import { ActiveBadge } from './badges';
 import { PromoteurModal } from './promoteur-modal';
 
 export type Membre = {
@@ -16,24 +16,22 @@ export type Membre = {
   secteur: { id: string; code: string; nom: string } | null;
   region: { id: string; code: string; nom: string } | null;
   ca: number | null;
-  deltaPct: number | null;
   tauxPct: number | null;
+  // Activité du chef de secteur
+  prospects: number | null; // prospects assignés (pipeline)
+  prospectsGagnes: number | null;
+  visites30j: number; // visites clients existants sur 30 jours
+  derniereVisite: string | null; // ISO
 };
+
+/** « il y a Nj » depuis une date ISO. */
+function ilYaJours(iso: string): number {
+  return Math.max(0, Math.floor((Date.now() - new Date(iso).getTime()) / 86_400_000));
+}
 
 const EUR = new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 });
 const card = 'rounded-2xl bg-white shadow-card overflow-hidden';
 const cardHeader = 'flex flex-wrap items-center gap-x-3 gap-y-1 border-b border-neutral-100 px-5 py-3 dark:border-navy-700';
-
-function Delta({ pct }: { pct: number | null }) {
-  if (pct == null) return <span className="inline-flex items-center gap-1 text-xs text-neutral-400"><Minus size={12} /> n/d</span>;
-  const up = pct >= 0;
-  return (
-    <span className={`inline-flex items-center gap-1 text-xs font-semibold ${up ? 'text-emerald-500' : 'text-red-400'}`}>
-      {up ? <TrendingUp size={13} /> : <TrendingDown size={13} />}
-      {up ? '+' : ''}{pct}%
-    </span>
-  );
-}
 
 function Taux({ pct }: { pct: number | null }) {
   if (pct == null) return <span className="text-xs text-neutral-400">—</span>;
@@ -44,7 +42,7 @@ function Taux({ pct }: { pct: number | null }) {
   );
 }
 
-export function MonEquipeBoard({ team, meName }: { team: Membre[]; meName: string }) {
+export function MonEquipeBoard({ team }: { team: Membre[] }) {
   const [q, setQ] = useState('');
   const [actifsOnly, setActifsOnly] = useState(false);
   const [sortKey, setSortKey] = useState<'ca' | 'objectif' | 'nom'>('ca');
@@ -52,13 +50,12 @@ export function MonEquipeBoard({ team, meName }: { team: Membre[]; meName: strin
 
   // KPIs — calculés sur toute l'équipe (indépendants des filtres).
   const kpis = useMemo(() => {
-    const zones = new Set(team.map((m) => m.secteur?.id ?? m.region?.id ?? '—'));
     return {
       effectif: team.length,
       actifs: team.filter((m) => m.isActive).length,
       caEquipe: team.reduce((s, m) => s + (m.ca ?? 0), 0),
-      enBaisse: team.filter((m) => m.deltaPct != null && m.deltaPct < 0).length,
-      zones: zones.size,
+      prospects: team.reduce((s, m) => s + (m.prospects ?? 0), 0),
+      visites30j: team.reduce((s, m) => s + m.visites30j, 0),
     };
   }, [team]);
 
@@ -88,7 +85,6 @@ export function MonEquipeBoard({ team, meName }: { team: Membre[]; meName: strin
         ...g,
         membres: [...g.membres].sort(sortFn),
         caSecteur: g.membres.reduce((s, m) => s + (m.ca ?? 0), 0),
-        enBaisse: g.membres.filter((m) => m.deltaPct != null && m.deltaPct < 0).length,
       }))
       .sort((a, b) => a.nom.localeCompare(b.nom));
   }, [team, q, actifsOnly, sortFn]);
@@ -99,22 +95,21 @@ export function MonEquipeBoard({ team, meName }: { team: Membre[]; meName: strin
     <div className="flex flex-col gap-5">
       <div>
         <h1 className="text-2xl font-bold">Mon équipe</h1>
-        <p className="text-sm text-neutral-500">Vos collaborateurs directs et leur performance du mois — {meName}.</p>
       </div>
 
       {/* KPIs */}
       <section className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-        <StatTile icon={Users} label="Collaborateurs" value={String(kpis.effectif)} hint={`${kpis.actifs} actif(s)`} />
-        <StatTile icon={TrendingUp} label="CA équipe (mois)" value={EUR.format(kpis.caEquipe)} hint="Somme des codes repr." />
-        <StatTile icon={TrendingDown} label="En baisse vs N-1" value={String(kpis.enBaisse)} hint="À suivre en priorité" />
-        <StatTile icon={Users} label="Territoires" value={String(kpis.zones)} hint="Secteurs / régions couverts" />
+        <StatTile icon={Users} label="Chefs de secteur" value={String(kpis.effectif)} hint={`${kpis.actifs} actif(s)`} />
+        <StatTile icon={TrendingUp} label="CA équipe (mois)" value={EUR.format(kpis.caEquipe)} />
+        <StatTile icon={Sprout} label="Prospects en pipeline" value={String(kpis.prospects)} />
+        <StatTile icon={Footprints} label="Visites clients (30 j)" value={String(kpis.visites30j)} />
       </section>
 
       {/* Barre d'outils */}
       <div className="flex flex-wrap items-center gap-2">
         <div className="flex min-w-56 flex-1 items-center gap-2 rounded-xl border border-neutral-200 bg-white px-3 py-2 shadow-card dark:border-navy-700 dark:bg-navy-950">
           <Search size={15} className="shrink-0 text-neutral-400" />
-          <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Nom ou code représentant…" className="w-full bg-transparent text-sm outline-none placeholder:text-neutral-400" />
+          <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Nom du chef de secteur…" className="w-full bg-transparent text-sm outline-none placeholder:text-neutral-400" />
         </div>
         <label className="inline-flex cursor-pointer items-center gap-2 rounded-lg border border-neutral-200 px-3 py-2 text-sm text-neutral-600 dark:border-navy-700 dark:text-neutral-300">
           <input type="checkbox" checked={actifsOnly} onChange={(e) => setActifsOnly(e.target.checked)} className="accent-brand" />
@@ -140,26 +135,19 @@ export function MonEquipeBoard({ team, meName }: { team: Membre[]; meName: strin
               <span className="text-xs font-normal text-neutral-400">
                 {g.membres.length} membre{g.membres.length > 1 ? 's' : ''}
               </span>
-              <span className="ml-auto flex items-center gap-3 text-xs">
-                <span className="text-neutral-500">
-                  CA secteur <span className="font-semibold text-brand dark:text-accent">{EUR.format(g.caSecteur)}</span>
-                </span>
-                {g.enBaisse > 0 ? (
-                  <span className="inline-flex items-center gap-1 rounded-full bg-red-500/10 px-2 py-0.5 font-semibold text-red-500">
-                    <TrendingDown size={12} /> {g.enBaisse} en baisse
-                  </span>
-                ) : null}
+              <span className="ml-auto text-xs text-neutral-500">
+                CA secteur <span className="font-semibold text-brand dark:text-accent">{EUR.format(g.caSecteur)}</span>
               </span>
             </h2>
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead className="text-left text-xs text-neutral-400">
                   <tr>
-                    <th className="px-5 py-2 font-medium">Collaborateur</th>
-                    <th className="px-2 py-2 font-medium">Rôle</th>
+                    <th className="px-5 py-2 font-medium">Chef de secteur</th>
                     <th className="px-2 py-2 text-right font-medium">CA</th>
-                    <th className="px-2 py-2 text-right font-medium">vs N-1</th>
                     <th className="px-2 py-2 text-right font-medium">Objectif</th>
+                    <th className="px-2 py-2 font-medium">Prospection</th>
+                    <th className="px-2 py-2 font-medium">Suivi clients</th>
                     <th className="px-5 py-2 text-right font-medium">Statut</th>
                   </tr>
                 </thead>
@@ -172,17 +160,35 @@ export function MonEquipeBoard({ team, meName }: { team: Membre[]; meName: strin
                     >
                       <td className="px-5 py-2.5">
                         <p className="font-medium">{m.displayName}</p>
-                        <p className="font-mono text-[11px] text-neutral-400">
-                          {m.username}
-                          {m.idRepr ? ` · code ${m.idRepr}` : ''}
-                        </p>
                       </td>
-                      <td className="px-2 py-2.5 text-xs text-neutral-500">{ROLE_LABELS[m.role] ?? m.role}</td>
                       <td className="px-2 py-2.5 text-right font-semibold dark:text-accent">
                         {m.ca != null ? EUR.format(m.ca) : <span className="text-xs text-neutral-400">—</span>}
                       </td>
-                      <td className="px-2 py-2.5 text-right"><Delta pct={m.deltaPct} /></td>
                       <td className="px-2 py-2.5 text-right"><Taux pct={m.tauxPct} /></td>
+                      <td className="px-2 py-2.5">
+                        {m.prospects == null ? (
+                          <span className="text-xs text-neutral-400">n/d</span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1.5 text-xs">
+                            <Sprout size={13} className="text-emerald-500" />
+                            <span className="font-semibold">{m.prospects}</span>
+                            <span className="text-neutral-400">
+                              prospect{m.prospects > 1 ? 's' : ''}
+                              {m.prospectsGagnes ? ` · ${m.prospectsGagnes} gagné${m.prospectsGagnes > 1 ? 's' : ''}` : ''}
+                            </span>
+                          </span>
+                        )}
+                      </td>
+                      <td className="px-2 py-2.5">
+                        <span className="inline-flex items-center gap-1.5 text-xs">
+                          <Footprints size={13} className="text-sky-500" />
+                          <span className="font-semibold">{m.visites30j}</span>
+                          <span className="text-neutral-400">
+                            visite{m.visites30j > 1 ? 's' : ''} / 30 j
+                            {m.derniereVisite ? ` · dern. il y a ${ilYaJours(m.derniereVisite)} j` : ''}
+                          </span>
+                        </span>
+                      </td>
                       <td className="px-5 py-2.5 text-right"><ActiveBadge active={m.isActive} /></td>
                     </tr>
                   ))}

@@ -4,7 +4,7 @@ import { RapportsBoard } from '@/components/rapports-board';
 
 export const metadata = { title: 'Rapports d’activité — Helios' };
 
-const ALLOWED = ['ADMIN', 'DIRECTION'];
+const ALLOWED = ['ADMIN', 'DIRECTION', 'DIRECTEUR_REGIONAL'];
 
 export default async function RapportsPage() {
   const me = await getMe();

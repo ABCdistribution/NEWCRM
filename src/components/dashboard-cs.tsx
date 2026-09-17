@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { SeliosLink } from './selios-link';
 import {
   Wallet,
   Store,
@@ -14,6 +15,7 @@ import { ClassBadge } from '@/components/class-badge';
 import { CaChart } from '@/components/ca-chart';
 import { DonutChart } from '@/components/donut-chart';
 import type { DashboardDirection } from '@/lib/api';
+import { ProspectionObjectifCard } from './prospection-objectif-card';
 
 const EUR = new Intl.NumberFormat('fr-FR', {
   style: 'currency',
@@ -144,12 +146,12 @@ export function DashboardCS({ data }: { data: DashboardDirection }) {
                     ? `… et ${data.sansCommande.total - data.sansCommande.exemples.length} autres`
                     : 'Liste complète des magasins'}
                 </span>
-                <Link
-                  href="/pilotage/tournees"
+                <SeliosLink
+                  path="/planification"
                   className="inline-flex items-center gap-1 font-medium text-brand hover:underline dark:text-accent"
                 >
                   Planifier une tournée <Route size={13} />
-                </Link>
+                </SeliosLink>
               </div>
             </>
           )}
@@ -189,6 +191,9 @@ export function DashboardCS({ data }: { data: DashboardDirection }) {
       </div>
 
       {/* Mon équipe (classement du secteur) */}
+      {/* CA réalisé vs objectif côté prospection */}
+      <ProspectionObjectifCard p={data.prospection} />
+
       <section className={card}>
         <h2 className={cardHeader}>
           <Users size={17} className="text-brand dark:text-accent" />

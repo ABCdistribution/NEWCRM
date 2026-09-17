@@ -1,6 +1,6 @@
 import { cookies } from 'next/headers';
 
-// Cookie de session PARTAGÉ entre Helios (pilotage) et Kratos (terrain).
+// Cookie de session PARTAGÉ entre Helios (pilotage) et Selios (terrain).
 // Les cookies ne sont pas isolés par port : un nom commun suffit à partager le JWT
 // entre :3001 et :3002 sur le même hôte → SSO, une seule connexion pour les deux univers.
 const COOKIE = 'crm_session';

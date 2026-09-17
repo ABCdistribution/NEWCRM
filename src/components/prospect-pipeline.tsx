@@ -1,10 +1,11 @@
 'use client';
 
-import { useState, useTransition } from 'react';
+import { useEffect, useRef, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Target, X } from 'lucide-react';
 import { setProspectStatut } from '@/lib/prospect-actions';
+import { ClassBadge } from './class-badge';
 import type { PipelineColonne, ProspectRow, ProspectStatut } from '@/lib/api';
 import { STATUT_LABELS, STATUT_ACCENT } from './prospect-badges';
 
@@ -14,6 +15,13 @@ export function ProspectPipeline({ colonnes }: { colonnes: PipelineColonne[] }) 
   const router = useRouter();
   const [cols, setCols] = useState<PipelineColonne[]>(colonnes);
   const [hover, setHover] = useState<ProspectStatut | null>(null);
+  // Carte en cours de drag — plus fiable que dataTransfer seul (certains navigateurs
+  // le vident quand le drag démarre sur un élément nativement draggable comme un lien).
+  const dragRef = useRef<{ id: string; statut: ProspectStatut } | null>(null);
+
+  useEffect(() => {
+    setCols(colonnes);
+  }, [colonnes]);
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
 
@@ -79,15 +87,16 @@ export function ProspectPipeline({ colonnes }: { colonnes: PipelineColonne[] }) 
               onDrop={(e) => {
                 e.preventDefault();
                 setHover(null);
-                try {
-                  const d = JSON.parse(e.dataTransfer.getData('application/json')) as {
-                    id: string;
-                    statut: ProspectStatut;
-                  };
-                  move(d.id, d.statut, c.statut);
-                } catch {
-                  /* ignore */
+                let d = dragRef.current;
+                dragRef.current = null;
+                if (!d) {
+                  try {
+                    d = JSON.parse(e.dataTransfer.getData('application/json'));
+                  } catch {
+                    d = null;
+                  }
                 }
+                if (d) move(d.id, d.statut, c.statut);
               }}
               className={`flex w-72 shrink-0 flex-col rounded-2xl bg-white shadow-card transition ${
                 isHover ? 'ring-2 ring-brand/40 dark:ring-accent/40' : ''
@@ -114,14 +123,21 @@ export function ProspectPipeline({ colonnes }: { colonnes: PipelineColonne[] }) 
                       key={p.id}
                       draggable
                       onDragStart={(e) => {
+                        dragRef.current = { id: p.id, statut: c.statut };
                         e.dataTransfer.setData('application/json', JSON.stringify({ id: p.id, statut: c.statut }));
                         e.dataTransfer.effectAllowed = 'move';
                       }}
+                      onDragEnd={() => {
+                        dragRef.current = null;
+                      }}
                       className="cursor-grab rounded-lg border border-neutral-100 bg-neutral-50 px-2.5 py-2 active:cursor-grabbing dark:border-navy-700 dark:bg-navy-800/40"
                     >
-                      <Link href={`/pilotage/prospects/${p.id}`} className="truncate text-xs font-medium hover:underline">
-                        {p.enseigne}
-                      </Link>
+                      <div className="flex items-center gap-1.5">
+                        <ClassBadge value={p.niveauClass} size="xs" />
+                        <Link href={`/pilotage/prospects/${p.id}`} draggable={false} className="truncate text-xs font-medium hover:underline">
+                          {p.enseigne}
+                        </Link>
+                      </div>
                       {p.ville ? <p className="truncate text-[10px] text-neutral-400">{p.ville}</p> : null}
                       <div className="mt-1 flex items-center justify-between text-[10px] text-neutral-400">
                         <span>{p.potentielCaAnnuel != null ? EUR.format(p.potentielCaAnnuel) : '—'}</span>

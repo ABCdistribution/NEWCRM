@@ -27,7 +27,8 @@ export function KpiTile({
   pill?: KpiPill;
 }) {
   return (
-    <div className="rounded-2xl bg-white p-5 shadow-card">
+    <div className="relative overflow-hidden rounded-2xl bg-white p-5 shadow-card">
+      <span className="absolute inset-x-0 top-0 h-0.5 bg-gradient-to-r from-violet-400 to-violet-500" />
       <div className="flex items-center gap-1.5 text-sm text-neutral-500">
         <span>{label}</span>
         {info ? (

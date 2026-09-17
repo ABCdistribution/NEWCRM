@@ -90,6 +90,17 @@ export function ProspectCreate({ secteurs }: { secteurs: { id: string; code: str
               </select>
             </label>
             <label className="flex flex-col gap-1">
+              <span className={labelCls}>Classe du magasin</span>
+              <select name="niveauClass" defaultValue="" className={field}>
+                <option value="">— non renseignée —</option>
+                {(['A', 'B', 'C', 'D', 'E', 'F', 'G'] as const).map((c) => (
+                  <option key={c} value={c}>
+                    Classe {c}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="flex flex-col gap-1">
               <span className={labelCls}>Étape</span>
               <select name="statut" defaultValue="NOUVEAU" className={field}>
                 {STATUTS.map((s) => (

@@ -9,23 +9,53 @@ import {
   Target,
   TrendingUp,
   CalendarClock,
+  PhoneCall,
+  Footprints,
   Sparkles,
   CheckCircle2,
 } from 'lucide-react';
 import {
   getProspect,
-  getProspectHistorique,
+  getProspectTimeline,
   PROSPECT_STATUTS,
   type OpportuniteRow,
+  type ResultatAppel,
 } from '@/lib/api';
 import { StatutBadge, STATUT_LABELS, SOURCE_LABELS } from '@/components/prospect-badges';
-import { updateProspect, convertProspect } from '@/lib/prospect-actions';
+import { ClassBadge } from '@/components/class-badge';
+import { convertProspect } from '@/lib/prospect-actions';
+import { ProspectContactActions } from '@/components/prospect-contact-actions';
+import {
+  ProspectEtapesStepper,
+  ProspectNoteForm,
+  ProspectPlanifierButton,
+} from '@/components/prospect-fiche-actions';
+import { ProspectCoordonnees } from '@/components/prospect-coordonnees';
 
 export const metadata = { title: 'Fiche prospect — Helios' };
 
 const EUR = new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 });
-const DT = new Intl.DateTimeFormat('fr-FR', { day: '2-digit', month: 'short', year: 'numeric' });
+const DT = new Intl.DateTimeFormat('fr-FR', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
 const fmt = (d: string | null | undefined) => (d ? DT.format(new Date(d)) : '—');
+
+const APPEL_LABELS: Record<ResultatAppel, string> = {
+  REPONDU: 'Répondu',
+  SANS_REPONSE: 'Sans réponse',
+  MESSAGERIE: 'Messagerie',
+  RAPPEL_PREVU: 'Rappel prévu',
+};
+const APPEL_BADGE: Record<ResultatAppel, string> = {
+  REPONDU: 'bg-emerald-500/12 text-emerald-600 dark:text-emerald-400',
+  SANS_REPONSE: 'bg-red-500/12 text-red-500',
+  MESSAGERIE: 'bg-amber-500/15 text-amber-600 dark:text-amber-400',
+  RAPPEL_PREVU: 'bg-sky-500/12 text-sky-600 dark:text-sky-400',
+};
+/** « 4 min 30 » à partir d'une durée en secondes. */
+function duree(sec: number): string {
+  const m = Math.floor(sec / 60);
+  const r = sec % 60;
+  return m > 0 ? `${m} min${r ? ` ${r.toString().padStart(2, '0')}` : ''}` : `${sec} s`;
+}
 
 const MOTIF_LABELS: Record<string, string> = {
   PRIX: 'Prix', CONCURRENCE: 'Concurrence', PAS_DE_BESOIN: 'Pas de besoin', SANS_REPONSE: 'Sans réponse', AUTRE: 'Autre',
@@ -79,11 +109,12 @@ function OpportuniteLine({ o }: { o: OpportuniteRow }) {
 
 export default async function ProspectDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const [p, histo] = await Promise.all([getProspect(id), getProspectHistorique(id)]);
+  const [p, timeline] = await Promise.all([getProspect(id), getProspectTimeline(id)]);
   if (!p) notFound();
 
-  const opportunites = p.opportunites ?? histo?.opportunites ?? [];
-  const visites = histo?.visites ?? [];
+  const opportunites = p.opportunites ?? [];
+  // Timeline unifiée : appels (mobile) + visites de prospection — les opportunités ont leur carte.
+  const evenements = (timeline ?? []).filter((e) => e.type !== 'OPPORTUNITE');
 
   return (
     <div className="flex flex-col gap-5">
@@ -95,8 +126,10 @@ export default async function ProspectDetailPage({ params }: { params: Promise<{
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <div className="flex items-center gap-3">
+            <ClassBadge value={p.niveauClass ?? null} />
             <h1 className="text-2xl font-bold">{p.enseigne}</h1>
             <StatutBadge value={p.statut} />
+            <ProspectContactActions prospectId={p.id} telephone={p.telephone} email={p.email} />
             {p.clientId ? (
               <Link href={`/pilotage/clients/${p.clientId}`} className="inline-flex items-center gap-1 rounded-full bg-emerald-500/15 px-2 py-0.5 text-xs font-medium text-emerald-500">
                 <CheckCircle2 size={12} /> Converti en client
@@ -109,25 +142,9 @@ export default async function ProspectDetailPage({ params }: { params: Promise<{
           </p>
         </div>
 
-        {/* Actions : changement d'étape + conversion */}
+        {/* Actions : planification + conversion */}
         <div className="flex items-center gap-2">
-          <form action={updateProspect} className="flex items-center gap-1.5">
-            <input type="hidden" name="id" value={p.id} />
-            <select
-              name="statut"
-              defaultValue={p.statut}
-              className="rounded-lg border border-neutral-200 bg-white px-2 py-1.5 text-sm outline-none focus:border-brand dark:border-navy-700 dark:bg-navy-950"
-            >
-              {PROSPECT_STATUTS.map((s) => (
-                <option key={s} value={s}>
-                  {STATUT_LABELS[s]}
-                </option>
-              ))}
-            </select>
-            <button type="submit" className="rounded-lg bg-neutral-100 px-3 py-1.5 text-sm font-medium transition hover:bg-neutral-200 dark:bg-navy-800 dark:hover:bg-navy-700">
-              Enregistrer
-            </button>
-          </form>
+          <ProspectPlanifierButton prospectId={p.id} />
           {p.statut === 'GAGNE' && !p.clientId ? (
             <form action={convertProspect}>
               <input type="hidden" name="id" value={p.id} />
@@ -138,6 +155,9 @@ export default async function ProspectDetailPage({ params }: { params: Promise<{
           ) : null}
         </div>
       </div>
+
+      {/* Pipeline : étapes cliquables, changement journalisé dans la timeline */}
+      <ProspectEtapesStepper prospectId={p.id} statut={p.statut} />
 
       {/* KPIs */}
       <section className="grid grid-cols-2 gap-4 sm:grid-cols-3">
@@ -177,9 +197,10 @@ export default async function ProspectDetailPage({ params }: { params: Promise<{
         <section className={`${card} lg:col-span-1`}>
           <h2 className={cardHeader}>Coordonnées</h2>
           <div className="flex flex-col gap-4 px-5 py-4">
-            <Info icon={MapPin} label="Adresse" value={[p.adresse1, [p.codePostal, p.ville].filter(Boolean).join(' ')].filter(Boolean).join(', ') || '—'} />
-            <Info icon={Phone} label="Téléphone" value={p.telephone ?? '—'} />
-            <Info icon={Mail} label="Email" value={p.email ?? '—'} />
+            <ProspectCoordonnees
+              prospectId={p.id}
+              coords={{ adresse1: p.adresse1, codePostal: p.codePostal, ville: p.ville, telephone: p.telephone, email: p.email }}
+            />
             <Info icon={User} label="Responsable" value={p.assignedTo?.displayName ?? '—'} />
             <Info icon={MapPin} label="Secteur" value={p.secteur ? `${p.secteur.nom} (${p.secteur.code})` : '—'} />
             {p.statut === 'PERDU' && p.motifPerte ? (
@@ -211,23 +232,123 @@ export default async function ProspectDetailPage({ params }: { params: Promise<{
           <section className={card}>
             <h2 className={cardHeader}>
               <CalendarClock size={16} className="text-brand dark:text-accent" />
-              Visites de prospection
-              <span className="ml-auto text-xs font-normal text-neutral-400">{visites.length}</span>
+              Timeline — activité du prospect
+              <span className="ml-auto text-xs font-normal text-neutral-400">{evenements.length}</span>
             </h2>
-            {visites.length === 0 ? (
-              <p className="px-5 py-6 text-sm text-neutral-400">Aucune visite enregistrée.</p>
+            <div className="border-b border-neutral-100 dark:border-navy-700">
+              <ProspectNoteForm prospectId={p.id} />
+            </div>
+            {evenements.length === 0 ? (
+              <p className="px-5 py-6 text-sm text-neutral-400">
+                Aucune activité — les appels et visites saisis sur l&apos;app mobile apparaîtront ici.
+              </p>
             ) : (
               <ul className="divide-y divide-neutral-100 dark:divide-navy-700">
-                {visites.map((v) => (
-                  <li key={v.id} className="px-5 py-3">
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm font-medium">{v.motif ?? 'Visite'}</span>
-                      <span className="ml-auto text-xs text-neutral-400">{fmt(v.createdAt)}</span>
-                    </div>
-                    {v.commentaire ? <p className="mt-0.5 text-sm text-neutral-500">{v.commentaire}</p> : null}
-                    {v.promoteur ? <p className="mt-0.5 text-xs text-neutral-400">par {v.promoteur.displayName}</p> : null}
-                  </li>
-                ))}
+                {evenements.map((e) =>
+                  e.type === 'APPEL' ? (
+                    <li key={`a-${e.appel.id}`} className="flex gap-3 px-5 py-3">
+                      <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-sky-500/12">
+                        <PhoneCall size={14} className="text-sky-500" />
+                      </span>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="text-sm font-medium">Appel téléphonique</span>
+                          <span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${APPEL_BADGE[e.appel.resultat]}`}>
+                            {APPEL_LABELS[e.appel.resultat]}
+                          </span>
+                          {e.appel.dureeSec != null ? (
+                            <span className="text-xs text-neutral-400">{duree(e.appel.dureeSec)}</span>
+                          ) : null}
+                          <span className="ml-auto text-xs text-neutral-400">{fmt(e.date)}</span>
+                        </div>
+                        {e.appel.commentaire ? (
+                          <p className="mt-0.5 text-sm text-neutral-500">{e.appel.commentaire}</p>
+                        ) : null}
+                        {e.appel.auteur ? (
+                          <p className="mt-0.5 text-xs text-neutral-400">par {e.appel.auteur.displayName}</p>
+                        ) : null}
+                      </div>
+                    </li>
+                  ) : e.type === 'EMAIL' ? (
+                    <li key={`m-${e.email.id}`} className="flex gap-3 px-5 py-3">
+                      <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-violet-500/12">
+                        <Mail size={14} className="text-violet-500" />
+                      </span>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="text-sm font-medium">Email envoyé</span>
+                          {e.email.destinataire ? (
+                            <span className="text-xs text-neutral-400">{e.email.destinataire}</span>
+                          ) : null}
+                          <span className="ml-auto text-xs text-neutral-400">{fmt(e.date)}</span>
+                        </div>
+                        {e.email.sujet ? <p className="mt-0.5 text-sm text-neutral-500">{e.email.sujet}</p> : null}
+                        {e.email.commentaire ? (
+                          <p className="mt-0.5 text-xs text-neutral-400">{e.email.commentaire}</p>
+                        ) : null}
+                        {e.email.auteur ? (
+                          <p className="mt-0.5 text-xs text-neutral-400">par {e.email.auteur.displayName}</p>
+                        ) : null}
+                      </div>
+                    </li>
+                  ) : e.type === 'ETAPE' ? (
+                    <li key={`s-${e.etape.id}`} className="flex gap-3 px-5 py-3">
+                      <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-amber-500/12">
+                        <Target size={14} className="text-amber-500" />
+                      </span>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="text-sm font-medium">Changement d&apos;étape</span>
+                          <span className="text-xs text-neutral-400">
+                            {e.etape.de ? STATUT_LABELS[e.etape.de] : 'Fiche créée'} → <span className="font-semibold text-neutral-600 dark:text-neutral-200">{STATUT_LABELS[e.etape.vers]}</span>
+                          </span>
+                          <span className="ml-auto text-xs text-neutral-400">{fmt(e.date)}</span>
+                        </div>
+                        {e.etape.commentaire ? (
+                          <p className="mt-0.5 text-xs text-neutral-400">Motif : {e.etape.commentaire}</p>
+                        ) : null}
+                        {e.etape.auteur ? (
+                          <p className="mt-0.5 text-xs text-neutral-400">par {e.etape.auteur.displayName}</p>
+                        ) : null}
+                      </div>
+                    </li>
+                  ) : e.type === 'NOTE' ? (
+                    <li key={`n-${e.note.id}`} className="flex gap-3 px-5 py-3">
+                      <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-neutral-500/12">
+                        <User size={14} className="text-neutral-500" />
+                      </span>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="text-sm font-medium">Note</span>
+                          <span className="ml-auto text-xs text-neutral-400">{fmt(e.date)}</span>
+                        </div>
+                        <p className="mt-0.5 text-sm text-neutral-500">{e.note.remarque}</p>
+                        {e.note.auteur ? (
+                          <p className="mt-0.5 text-xs text-neutral-400">par {e.note.auteur.displayName}</p>
+                        ) : null}
+                      </div>
+                    </li>
+                  ) : (
+                    <li key={`v-${e.visite.id}`} className="flex gap-3 px-5 py-3">
+                      <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-emerald-500/12">
+                        <Footprints size={14} className="text-emerald-500" />
+                      </span>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="text-sm font-medium">Visite de prospection</span>
+                          {e.visite.motif ? <span className="text-xs text-neutral-400">{e.visite.motif}</span> : null}
+                          <span className="ml-auto text-xs text-neutral-400">{fmt(e.date)}</span>
+                        </div>
+                        {e.visite.pmcCommentaire ? (
+                          <p className="mt-0.5 text-sm text-neutral-500">{e.visite.pmcCommentaire}</p>
+                        ) : null}
+                        {e.visite.promoteur ? (
+                          <p className="mt-0.5 text-xs text-neutral-400">par {e.visite.promoteur.displayName}</p>
+                        ) : null}
+                      </div>
+                    </li>
+                  ),
+                )}
               </ul>
             )}
           </section>

@@ -1,4 +1,4 @@
-import { getMe, listImportLogs, type ImportLog } from '@/lib/api';
+import { getMe, listImportLogs, listFichiersDepot, type ImportLog } from '@/lib/api';
 import { AccesRefuse } from '@/components/acces-refuse';
 import { ImportTrigger } from '@/components/import-trigger';
 
@@ -34,7 +34,7 @@ export default async function ImportsPage() {
   const me = await getMe();
   if (me?.role !== 'ADMIN') return <AccesRefuse />;
 
-  const logs = await listImportLogs();
+  const [logs, depot] = await Promise.all([listImportLogs(), listFichiersDepot()]);
 
   return (
     <div className="flex flex-col gap-4">
@@ -46,7 +46,7 @@ export default async function ImportsPage() {
         </p>
       </div>
 
-      <ImportTrigger />
+      <ImportTrigger depot={depot} />
 
       <div>
         <h2 className="mb-2 text-sm font-semibold text-neutral-500">Journal des imports</h2>

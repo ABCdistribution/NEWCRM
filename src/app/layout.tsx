@@ -16,14 +16,6 @@ export default function RootLayout({
       {/* suppressHydrationWarning : neutralise les attributs injectés par des extensions
           navigateur (gestionnaires de mots de passe, Grammarly…) sur html/body, qui
           déclenchent un faux avertissement d'hydratation. N'affecte pas le contenu de l'app. */}
-      <head>
-        {/* Applique le thème AVANT le premier rendu (évite le flash clair→sombre). */}
-        <script
-          dangerouslySetInnerHTML={{
-            __html: `try{var t=localStorage.getItem('theme');if(t==='dark'||(!t&&matchMedia('(prefers-color-scheme:dark)').matches))document.documentElement.classList.add('dark')}catch(e){}`,
-          }}
-        />
-      </head>
       <body suppressHydrationWarning>{children}</body>
     </html>
   );
