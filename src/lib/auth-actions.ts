@@ -6,13 +6,13 @@ import { apiBase, setSession, clearSession } from './session';
 
 export type LoginState = { error: string | null };
 
-/** Rôles de l'encadrement → univers Helios (pilotage). Les autres (COMMERCIAL, ADV) → Kratos. */
+/** Rôles de l'encadrement → univers Helios (pilotage). Les autres (COMMERCIAL, ADV) → Selios. */
 const HELIOS_ROLES = ['ADMIN', 'DIRECTION', 'DIRECTEUR_REGIONAL', 'CHEF_SECTEUR'];
 
-/** URL de Kratos sur le même serveur (hôte déduit de la requête, port configurable). */
-async function kratosUrl(): Promise<string> {
+/** URL de Selios sur le même serveur (hôte déduit de la requête, port configurable). */
+async function seliosUrl(): Promise<string> {
   const host = (await headers()).get('host')?.split(':')[0] ?? 'localhost';
-  return `http://${host}:${process.env.KRATOS_PORT ?? '3002'}`;
+  return `http://${host}:${process.env.SELIOS_PORT ?? '3002'}`;
 }
 
 /** N'autorise qu'une redirection interne (évite l'open-redirect via ?from=). */
@@ -55,7 +55,7 @@ export async function login(_prev: LoginState, formData: FormData): Promise<Logi
 
   await setSession(data.accessToken);
 
-  // Oriente selon le rôle : encadrement → Helios, COMMERCIAL/ADV → Kratos.
+  // Oriente selon le rôle : encadrement → Helios, COMMERCIAL/ADV → Selios.
   let role: string | null = null;
   try {
     const meRes = await fetch(`${apiBase()}/auth/me`, {
@@ -68,7 +68,7 @@ export async function login(_prev: LoginState, formData: FormData): Promise<Logi
   }
 
   if (role && !HELIOS_ROLES.includes(role)) {
-    redirect(await kratosUrl());
+    redirect(await seliosUrl());
   }
   redirect(from);
 }

@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 
 /**
- * Voile plein écran affiché pendant la bascule d'univers (Helios ↔ Kratos) :
+ * Voile plein écran affiché pendant la bascule d'univers (Helios ↔ Selios) :
  * le logo de l'univers quitté s'efface pendant que celui de la destination
  * arrive et pulse jusqu'à ce que la navigation aboutisse.
  */
@@ -52,7 +52,7 @@ export function UniverseSwitchOverlay({
         }
       `}</style>
 
-      <div className="relative h-28 w-28">
+      <div className="relative h-44 w-44">
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
           src={fromSrc}

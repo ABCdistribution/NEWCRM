@@ -16,6 +16,7 @@ export type Me = {
   email: string | null;
   role: Role;
   idRepr: string | null;
+  poste: string | null;
 };
 
 /** Formes équivalentes d'un code représentant (AD « 68 » ↔ Minos « 068 »). */
@@ -543,6 +544,14 @@ export type DashboardDirection = {
     tauxPct: number | null;
   }[];
   objectifs: { definis: number; atteints: number; manques: number; sansObjectif: number };
+  prospection: {
+    ouverts: number;
+    pipelinePondere: number;
+    gagnes: number;
+    potentielGagne: number;
+    caRealiseMois: number;
+    tauxPct: number | null;
+  };
   sansCommande: {
     total: number;
     exemples: { id: string; nom: string; ville: string | null; niveauClass: string | null }[];
@@ -639,10 +648,10 @@ export async function listPem(): Promise<PemRow[] | null> {
 // habituelles (pagination + relations) et reste tolérante aux valeurs nulles.
 
 export type ProspectStatut =
-  | 'NOUVEAU'
-  | 'CONTACTE'
-  | 'QUALIFIE'
+  | 'NOUVEAU' // création de la fiche
+  | 'CONTACTE' // prise de contact
   | 'PROPOSITION'
+  | 'VISITE'
   | 'NEGOCIATION'
   | 'GAGNE'
   | 'PERDU';
@@ -654,8 +663,8 @@ export type OpportuniteStatut = 'OUVERTE' | 'GAGNEE' | 'PERDUE' | 'ANNULEE';
 export const PROSPECT_STATUTS: ProspectStatut[] = [
   'NOUVEAU',
   'CONTACTE',
-  'QUALIFIE',
   'PROPOSITION',
+  'VISITE',
   'NEGOCIATION',
   'GAGNE',
   'PERDU',
@@ -666,10 +675,14 @@ export type ProspectRow = {
   raisonSociale: string;
   enseigne: string;
   ville: string | null;
+  codePostal: string | null;
   statut: ProspectStatut;
   probabilite: number | null;
   potentielCaAnnuel: number | null;
   source: ProspectSource | null;
+  niveauClass: string | null; // classe estimée du magasin (A à G)
+  latitude: number | null;
+  longitude: number | null;
   secteur: { id: string; code: string; nom: string } | null;
   assignedTo: { id: string; displayName: string } | null;
   clientId: string | null;
@@ -692,6 +705,45 @@ export function listProspects(params: {
   return list<ProspectRow>(
     `/prospects${qs({ ...params, limit: 20 })}`,
   ) as Promise<ProspectsResult>;
+}
+
+/** Nombre de prospects assignés à un utilisateur (option : par étape) — pour l'activité équipe. */
+export async function countProspectsAssignes(
+  assignedTo: string,
+  statut?: string,
+): Promise<number | null> {
+  try {
+    const res = await serverFetch(`/prospects${qs({ assignedTo, statut, page: 1, limit: 1 })}`);
+    if (!res.ok) return null;
+    const d = (await res.json()) as { total?: number };
+    return d.total ?? 0;
+  } catch {
+    return null;
+  }
+}
+
+export type VisiteActivite = {
+  id: string;
+  createdAt: string;
+  promoteur: { id: string; displayName: string } | null;
+  client: { enseigne: string } | null;
+};
+
+/** Visites récentes (toutes équipes, pages 1..n) — pour le suivi d'activité des CS. */
+export async function listVisitesRecentes(maxPages = 5): Promise<VisiteActivite[] | null> {
+  const rows: VisiteActivite[] = [];
+  try {
+    for (let p = 1; p <= maxPages; p++) {
+      const res = await serverFetch(`/visites${qs({ page: p })}`);
+      if (!res.ok) return p === 1 ? null : rows;
+      const d = (await res.json()) as Paginated<VisiteActivite>;
+      rows.push(...d.data);
+      if (rows.length >= d.total || d.data.length === 0) break;
+    }
+    return rows;
+  } catch {
+    return rows.length ? rows : null;
+  }
 }
 
 /** Compte les prospects correspondant aux filtres (lit `total`, page allégée). */
@@ -782,6 +834,7 @@ export type ProspectDetail = {
   potentielCaAnnuel: number | null;
   source: ProspectSource | null;
   motifPerte: MotifPerte | null;
+  niveauClass: string | null;
   secteur: { id: string; code: string; nom: string } | null;
   assignedTo: { id: string; displayName: string } | null;
   clientId: string | null;
@@ -804,29 +857,208 @@ export async function getProspect(id: string): Promise<ProspectDetail | null> {
   }
 }
 
-export type ProspectHistorique = {
-  visites: {
-    id: string;
-    createdAt: string;
-    motif: string | null;
-    commentaire: string | null;
-    promoteur?: { displayName: string } | null;
-  }[];
-  opportunites: OpportuniteRow[];
+// --- Zone de dépôt AS400 ----------------------------------------------------
+
+export type FichierDepot = { nom: string; chemin: string; taille: number; modifieLe: string };
+
+/** Fichiers présents dans la zone de dépôt AS400 (montage sur le serveur API). */
+export async function listFichiersDepot(): Promise<{ racine: string; fichiers: FichierDepot[] } | null> {
+  try {
+    const res = await serverFetch('/import/minos/fichiers');
+    if (!res.ok) return null;
+    return (await res.json()) as { racine: string; fichiers: FichierDepot[] };
+  } catch {
+    return null;
+  }
+}
+
+// --- Gestion des magasins secteur ------------------------------------------
+
+/** Magasin enrichi (suivi secteur) — champs calculés par l'API (`enrich=1`). */
+export type MagasinSuiviRow = ClientRow & {
+  codePostal: string | null;
+  tel1: string | null;
+  email: string | null;
+  cs: { id: string; displayName: string; idRepr: string | null } | null;
+  caMois: number;
+  deltaPct: number | null;
+  derniereVisiteJours: number | null;
+  periodicite: string | null;
+  enRetard: boolean;
+  enBaisse: boolean;
+  alertes: number;
+  etat: 'ok' | 'attention' | 'alerte';
 };
 
-/** Timeline du prospect (visites de prospection + opportunités). Tolérant à la forme du retour. */
-export async function getProspectHistorique(id: string): Promise<ProspectHistorique | null> {
+export type MagasinGeoPoint = {
+  id: string;
+  enseigne: string;
+  raisonSociale: string;
+  ville: string | null;
+  codePostal: string | null;
+  niveauClass: string | null;
+  latitude: number | null;
+  longitude: number | null;
+};
+
+/** Tous les points de vente géolocalisables (liste légère, pour la carte). */
+export async function listMagasinsGeo(): Promise<MagasinGeoPoint[] | null> {
+  try {
+    const res = await serverFetch('/clients/geo');
+    if (!res.ok) return null;
+    return (await res.json()) as MagasinGeoPoint[];
+  } catch {
+    return null;
+  }
+}
+
+/** Magasins enrichis, paginés (50/page) — pour le tableau de la gestion des magasins secteur. */
+export async function listMagasinsSuivi(params: {
+  search?: string;
+  page?: number;
+}): Promise<Paginated<MagasinSuiviRow> | null> {
+  try {
+    const res = await serverFetch(
+      `/clients${qs({ enrich: 1, avecAdresse: 1, limit: 50, search: params.search, page: params.page ?? 1 })}`,
+    );
+    if (!res.ok) return null;
+    return (await res.json()) as Paginated<MagasinSuiviRow>;
+  } catch {
+    return null;
+  }
+}
+
+export type PlanningMagasin = {
+  id: string;
+  datePassage: string;
+  promoteur: { id: string; displayName: string } | null;
+};
+
+/** Visites planifiées à venir d'un magasin. */
+export async function listPlanningsMagasin(clientId: string): Promise<PlanningMagasin[]> {
+  try {
+    const res = await serverFetch(`/plannings/client/${clientId}`);
+    if (!res.ok) return [];
+    return (await res.json()) as PlanningMagasin[];
+  } catch {
+    return [];
+  }
+}
+
+// --- Mon planning (tournée personnelle de l'encadrement) ---------------------
+
+export type TourneeEtapeRow = {
+  id: string;
+  adm: boolean;
+  datePassage: string;
+  fait: boolean;
+  note: string | null;
+  visiteSimple: boolean;
+  accompagnement: boolean;
+  rdv: boolean;
+  soireeEtape: boolean;
+  soireeLieu: string | null;
+  soireeAdresse: string | null;
+  client: { id: string; codeAs400: string; enseigne: string; ville: string | null; niveauClass: string | null } | null;
+  prospect: { id: string; enseigne: string; ville: string | null; statut: ProspectStatut; niveauClass: string | null } | null;
+};
+
+/** Planning d'activité d'un membre de mon équipe (lecture seule). */
+export async function listPlanningMembre(
+  userId: string,
+  debut: string,
+  fin: string,
+): Promise<{ user: { id: string; displayName: string; poste: string | null }; etapes: TourneeEtapeRow[] } | null> {
+  try {
+    const res = await serverFetch(`/tournees/user/${userId}${qs({ debut, fin })}`);
+    if (!res.ok) return null;
+    return (await res.json()) as { user: { id: string; displayName: string; poste: string | null }; etapes: TourneeEtapeRow[] };
+  } catch {
+    return null;
+  }
+}
+
+/** Mes étapes de tournée sur [debut, fin) — prospects et magasins mêlés. */
+export async function listMaTournee(debut: string, fin: string): Promise<TourneeEtapeRow[] | null> {
+  try {
+    const res = await serverFetch(`/tournees/me${qs({ debut, fin })}`);
+    if (!res.ok) return null;
+    return (await res.json()) as TourneeEtapeRow[];
+  } catch {
+    return null;
+  }
+}
+
+export type ResultatAppel = 'REPONDU' | 'SANS_REPONSE' | 'MESSAGERIE' | 'RAPPEL_PREVU';
+
+/** Événement de la timeline d'un prospect : appel (mobile), visite de prospection ou opportunité. */
+export type ProspectEvenement =
+  | {
+      type: 'VISITE';
+      date: string;
+      visite: {
+        id: string;
+        createdAt: string;
+        motif: string | null;
+        pmcCommentaire: string | null;
+        promoteur: { id: string; displayName: string } | null;
+      };
+    }
+  | {
+      type: 'APPEL';
+      date: string;
+      appel: {
+        id: string;
+        dateAppel: string;
+        dureeSec: number | null;
+        resultat: ResultatAppel;
+        commentaire: string | null;
+        auteur: { id: string; displayName: string } | null;
+      };
+    }
+  | {
+      type: 'EMAIL';
+      date: string;
+      email: {
+        id: string;
+        dateEmail: string;
+        destinataire: string | null;
+        sujet: string | null;
+        commentaire: string | null;
+        auteur: { id: string; displayName: string } | null;
+      };
+    }
+  | {
+      type: 'ETAPE';
+      date: string;
+      etape: {
+        id: string;
+        createdAt: string;
+        de: ProspectStatut | null;
+        vers: ProspectStatut;
+        commentaire: string | null;
+        auteur: { id: string; displayName: string } | null;
+      };
+    }
+  | {
+      type: 'NOTE';
+      date: string;
+      note: {
+        id: string;
+        createdAt: string;
+        remarque: string;
+        auteur: { id: string; displayName: string } | null;
+      };
+    }
+  | { type: 'OPPORTUNITE'; date: string; opportunite: OpportuniteRow };
+
+/** Timeline du prospect (appels + visites de prospection + opportunités), du plus récent au plus ancien. */
+export async function getProspectTimeline(id: string): Promise<ProspectEvenement[] | null> {
   try {
     const res = await serverFetch(`/prospects/${id}/historique`);
     if (!res.ok) return null;
-    const json = (await res.json()) as Partial<ProspectHistorique> | unknown[];
-    if (Array.isArray(json)) {
-      // Retour à plat : on répartit visites / opportunités au mieux.
-      return { visites: [], opportunites: [] };
-    }
-    const j = json as Partial<ProspectHistorique>;
-    return { visites: j.visites ?? [], opportunites: j.opportunites ?? [] };
+    const json = (await res.json()) as { data?: ProspectEvenement[] };
+    return json.data ?? [];
   } catch {
     return null;
   }

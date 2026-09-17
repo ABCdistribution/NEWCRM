@@ -5,12 +5,15 @@ export function Pagination({
   page,
   limit,
   params,
+  unite = 'résultat',
 }: {
   total: number;
   page: number;
   limit: number;
   /** Paramètres de requête à préserver (ex. search). */
   params?: Record<string, string | undefined>;
+  /** Libellé de l'unité comptée (ex. « magasin »). */
+  unite?: string;
 }) {
   const pages = Math.max(1, Math.ceil(total / limit));
   const href = (p: number) => {
@@ -27,7 +30,7 @@ export function Pagination({
   return (
     <div className="flex items-center justify-between text-sm text-neutral-500">
       <span>
-        {total} résultat{total > 1 ? 's' : ''} · page {page}/{pages}
+        {total} {unite}{total > 1 ? 's' : ''} · page {page}/{pages}
       </span>
       <div className="flex gap-2">
         <Link href={href(page - 1)} className={`${btn} ${page <= 1 ? disabled : ''}`} aria-disabled={page <= 1}>

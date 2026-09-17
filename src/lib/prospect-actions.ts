@@ -41,6 +41,7 @@ export async function createProspect(
     secteurId: optStr(formData.get('secteurId')),
     statut: optStr(formData.get('statut')) ?? 'NOUVEAU',
     source: optStr(formData.get('source')),
+    niveauClass: optStr(formData.get('niveauClass')),
     probabilite: optNum(formData.get('probabilite')),
     potentielCaAnnuel: optNum(formData.get('potentielCaAnnuel')),
   };
@@ -115,4 +116,93 @@ export async function convertProspect(formData: FormData): Promise<void> {
   revalidatePath('/pilotage/prospects');
   if (body?.clientId) redirect(`/pilotage/clients/${body.clientId}`);
   redirect(`/pilotage/prospects/${id}`);
+}
+
+
+/** Journalise un appel lancé depuis la fiche (bouton « Appeler »). */
+export async function logAppelFiche(prospectId: string): Promise<void> {
+  await serverFetch(`/prospects/${prospectId}/appels`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ commentaire: 'Appel lancé depuis la fiche Helios.' }),
+  }).catch(() => undefined);
+  revalidatePath(`/pilotage/prospects/${prospectId}`);
+}
+
+/** Journalise un email lancé depuis la fiche (bouton « Envoyer un mail »). */
+export async function logEmailFiche(prospectId: string, destinataire: string): Promise<void> {
+  await serverFetch(`/prospects/${prospectId}/emails`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ destinataire, commentaire: 'Email lancé depuis la fiche Helios.' }),
+  }).catch(() => undefined);
+  revalidatePath(`/pilotage/prospects/${prospectId}`);
+}
+
+/** Change l'étape depuis le stepper de la fiche — journalisé dans la timeline. */
+export async function changerEtapeFiche(
+  id: string,
+  statut: ProspectStatut,
+  motifPerte?: string,
+): Promise<{ error: string | null }> {
+  let res: Response;
+  try {
+    res = await serverFetch(`/prospects/${id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ statut, ...(motifPerte ? { motifPerte } : {}) }),
+    });
+  } catch {
+    return { error: "Impossible de joindre l'API." };
+  }
+  if (!res.ok) {
+    const body = (await res.json().catch(() => null)) as { message?: string | string[] } | null;
+    const msg = Array.isArray(body?.message) ? body.message[0] : body?.message;
+    return { error: msg ?? `Erreur serveur (${res.status}).` };
+  }
+  revalidatePath(`/pilotage/prospects/${id}`);
+  revalidatePath('/pilotage/prospects');
+  return { error: null };
+}
+
+/** Ajoute une note à la fiche — visible dans la timeline. */
+export async function addNoteFiche(id: string, remarque: string): Promise<{ error: string | null }> {
+  if (!remarque.trim()) return { error: 'La note est vide.' };
+  let res: Response;
+  try {
+    res = await serverFetch(`/prospects/${id}/notes`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ remarque }),
+    });
+  } catch {
+    return { error: "Impossible de joindre l'API." };
+  }
+  if (!res.ok) return { error: `Erreur serveur (${res.status}).` };
+  revalidatePath(`/pilotage/prospects/${id}`);
+  return { error: null };
+}
+
+/** Met à jour les coordonnées de la fiche (adresse, téléphone, email). */
+export async function updateCoordonneesFiche(
+  id: string,
+  coords: { adresse1?: string; codePostal?: string; ville?: string; telephone?: string; email?: string },
+): Promise<{ error: string | null }> {
+  let res: Response;
+  try {
+    res = await serverFetch(`/prospects/${id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(coords),
+    });
+  } catch {
+    return { error: "Impossible de joindre l'API." };
+  }
+  if (!res.ok) {
+    const body = (await res.json().catch(() => null)) as { message?: string | string[] } | null;
+    const msg = Array.isArray(body?.message) ? body.message[0] : body?.message;
+    return { error: msg ?? `Erreur serveur (${res.status}).` };
+  }
+  revalidatePath(`/pilotage/prospects/${id}`);
+  return { error: null };
 }

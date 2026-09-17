@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import {
   ArrowLeft,
+  ExternalLink,
   Building2,
   Store,
   Phone,
@@ -102,11 +103,19 @@ export default async function ClientFiche({ params }: { params: Promise<{ id: st
           </div>
         </div>
 
-        {/* Compteurs historique */}
+        {/* Compteurs historique + outil AscendoPilot */}
         <div className="flex gap-2">
+          <a
+            href="https://ascendopilot.abcosmetique.com/magasins"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-1.5 rounded-lg bg-[#0faf6f] px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-[#0c9a61]"
+          >
+            <ExternalLink size={14} /> AscendoPilot
+          </a>
           <span className="inline-flex items-center gap-1.5 rounded-lg border border-neutral-200 px-3 py-1.5 text-xs text-neutral-500 dark:border-navy-700">
             <Footprints size={14} className="text-brand" />
-            {client._count.visites} visite{client._count.visites > 1 ? 's' : ''}
+            {client._count.visites} tournée{client._count.visites > 1 ? 's' : ''}
           </span>
           <span className="inline-flex items-center gap-1.5 rounded-lg border border-neutral-200 px-3 py-1.5 text-xs text-neutral-500 dark:border-navy-700">
             <ShoppingCart size={14} className="text-brand" />
@@ -207,7 +216,7 @@ export default async function ClientFiche({ params }: { params: Promise<{ id: st
           <div className={card}>
             <h2 className={cardHeader}>
               <CalendarClock size={17} className="text-brand" />
-              Périodicité de visite
+              Périodicité de tournée
             </h2>
             <div className="px-5 py-4">
               {client.periodicites.length === 0 ? (
@@ -326,15 +335,15 @@ export default async function ClientFiche({ params }: { params: Promise<{ id: st
               )}
             </section>
 
-            {/* Dernières visites */}
+            {/* Dernières tournées */}
             <section className={card}>
               <h2 className={cardHeader}>
                 <Footprints size={17} className="text-brand" />
-                Dernières visites
+                Dernières tournées
               </h2>
               {histo.visites.length === 0 ? (
                 <p className="px-5 py-4 text-sm text-neutral-400">
-                  Aucune visite enregistrée — elles remonteront de l&apos;app mobile.
+                  Aucune tournée enregistrée — elles remonteront de l&apos;app mobile.
                 </p>
               ) : (
                 <ul className="divide-y divide-neutral-100 dark:divide-navy-700">

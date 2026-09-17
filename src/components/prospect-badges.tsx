@@ -1,10 +1,10 @@
 import type { ProspectStatut, ProspectSource } from '@/lib/api';
 
 export const STATUT_LABELS: Record<ProspectStatut, string> = {
-  NOUVEAU: 'Nouveau',
-  CONTACTE: 'Contacté',
-  QUALIFIE: 'Qualifié',
+  NOUVEAU: 'Fiche créée',
+  CONTACTE: 'Prise de contact',
   PROPOSITION: 'Proposition',
+  VISITE: 'Visite',
   NEGOCIATION: 'Négociation',
   GAGNE: 'Gagné',
   PERDU: 'Perdu',
@@ -13,8 +13,8 @@ export const STATUT_LABELS: Record<ProspectStatut, string> = {
 const STATUT_STYLES: Record<ProspectStatut, string> = {
   NOUVEAU: 'bg-neutral-400/15 text-neutral-500',
   CONTACTE: 'bg-sky-500/15 text-sky-500',
-  QUALIFIE: 'bg-indigo-500/15 text-indigo-400',
   PROPOSITION: 'bg-amber-500/15 text-amber-500',
+  VISITE: 'bg-indigo-500/15 text-indigo-400',
   NEGOCIATION: 'bg-orange-500/15 text-orange-500',
   GAGNE: 'bg-emerald-500/15 text-emerald-500',
   PERDU: 'bg-red-500/15 text-red-400',
@@ -24,8 +24,8 @@ const STATUT_STYLES: Record<ProspectStatut, string> = {
 export const STATUT_ACCENT: Record<ProspectStatut, string> = {
   NOUVEAU: 'bg-neutral-400',
   CONTACTE: 'bg-sky-500',
-  QUALIFIE: 'bg-indigo-500',
   PROPOSITION: 'bg-amber-500',
+  VISITE: 'bg-indigo-500',
   NEGOCIATION: 'bg-orange-500',
   GAGNE: 'bg-emerald-500',
   PERDU: 'bg-red-400',

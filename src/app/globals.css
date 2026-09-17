@@ -2,19 +2,19 @@
 
 /*
  * Thème : contenu clair (fond blanc) ; sidebar et cartes en surfaces sombres
- * via la classe `.dark` posée localement. Même structure que kratos —
+ * via la classe `.dark` posée localement. Même structure que selios —
  * seules les teintes changent : HELIOS (direction) = violet profond + or.
  */
 @custom-variant dark (&:where(.dark, .dark *));
 
-/* Palette helios (direction) — mêmes noms de tokens que kratos, teintes différentes */
+/* Palette helios (direction) — mêmes noms de tokens que selios, teintes différentes */
 @theme {
   --color-brand: #3b0764; /* violet profond — couleur principale */
   --color-accent: #ffc94d; /* or — chiffres, actifs, boutons en contexte sombre */
   --color-brand-light: #a78bda; /* mauve — série secondaire des graphes sur violet */
 
   /* Surfaces sombres, dérivées du violet (les noms `navy-*` sont conservés
-     pour que tous les composants copiés de kratos fonctionnent tels quels) */
+     pour que tous les composants copiés de selios fonctionnent tels quels) */
   --color-navy-950: #14052b; /* fond des cartes et de la sidebar */
   --color-navy-900: #200a40; /* variante plus claire */
   --color-navy-800: #2e1458; /* survols, chips, en-têtes de tableau */

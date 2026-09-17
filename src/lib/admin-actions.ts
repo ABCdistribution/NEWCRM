@@ -42,50 +42,22 @@ export async function setUserSecteur(formData: FormData): Promise<void> {
   revalidatePath('/pilotage/users');
 }
 
-export type ObjectifState = { error: string | null; ok: boolean };
-
-/** Enregistre (ou supprime si vide) l'objectif CA d'un représentant pour un mois. */
-export async function saveObjectif(
-  _prev: ObjectifState,
-  formData: FormData,
-): Promise<ObjectifState> {
-  const clientId = String(formData.get('clientId') ?? '');
-  const annee = Number(formData.get('annee'));
-  const raw = String(formData.get('cibleCa') ?? '').trim().replace(',', '.');
-  const cibleCa = raw === '' ? null : Number(raw);
-
-  if (!clientId || !annee) return { error: 'Paramètres manquants.', ok: false };
-  if (cibleCa !== null && !(cibleCa >= 0)) return { error: 'Montant invalide.', ok: false };
-
-  let res: Response;
-  try {
-    res = await serverFetch('/objectifs', {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ clientId, annee, cibleCa }),
-    });
-  } catch {
-    return { error: "Impossible de joindre l'API.", ok: false };
-  }
-  if (!res.ok) return { error: `Erreur serveur (${res.status}).`, ok: false };
-
-  revalidatePath('/pilotage/objectifs');
-  return { error: null, ok: true };
-}
 
 export type ImportState = { error: string | null; ok: boolean };
 
-/** Déclenche un import Minos clients (POST /import/minos/clients). */
+/** Déclenche un import Minos (clients ou articles selon le champ `type`). */
 export async function triggerImportClients(
   _prev: ImportState,
   formData: FormData,
 ): Promise<ImportState> {
   const filePath = String(formData.get('filePath') ?? '').trim();
+  const brut = String(formData.get('type') ?? 'clients');
+  const type = brut === 'articles' || brut === 'centrales' ? brut : 'clients';
   if (!filePath) return { error: 'Chemin du fichier requis.', ok: false };
 
   let res: Response;
   try {
-    res = await serverFetch('/import/minos/clients', {
+    res = await serverFetch(`/import/minos/${type}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ filePath }),
@@ -110,6 +82,7 @@ export type AdSyncState = {
     lus: number;
     crees: number;
     maj: number;
+    photos?: number;
     directeursLies: number;
     sansRegion: string[];
     sansManager: string[];

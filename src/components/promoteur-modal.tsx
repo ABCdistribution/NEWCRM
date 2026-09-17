@@ -1,18 +1,18 @@
 'use client';
 
-import { useEffect, useState } from 'react';
 import Link from 'next/link';
+import { useEffect, useState } from 'react';
 import {
   X,
   CalendarDays,
   CheckCircle2,
   AlertCircle,
-  TrendingDown,
+  FileText,
   Target,
   Wallet,
   Route,
 } from 'lucide-react';
-import { getPromoteurSemaine } from '@/lib/equipe-actions';
+import { getPromoteurSemaine, getRapportsMembre, type RapportHebdo } from '@/lib/equipe-actions';
 import type { PlanningItem } from '@/lib/api';
 import type { Membre } from './mon-equipe-board';
 import { ClassBadge } from './class-badge';
@@ -32,7 +32,19 @@ function statut(v: PlanningItem, today: string): 'faite' | 'manquee' | 'prevue' 
   return jour < today ? 'manquee' : 'prevue';
 }
 
-function Stat({ icon: Icon, label, value, tone }: { icon: typeof Wallet; label: string; value: string; tone?: string }) {
+const WEEK_FMT = new Intl.DateTimeFormat('fr-FR', { day: 'numeric', month: 'long' });
+
+function Stat({
+  icon: Icon,
+  label,
+  value,
+  tone,
+}: {
+  icon: typeof Wallet;
+  label: string;
+  value: string;
+  tone?: string;
+}) {
   return (
     <div className="rounded-xl border border-neutral-100 bg-neutral-50 px-3 py-2.5 dark:border-navy-700 dark:bg-navy-800/40">
       <div className="flex items-center gap-1.5 text-[11px] uppercase tracking-wide text-neutral-400">
@@ -45,17 +57,20 @@ function Stat({ icon: Icon, label, value, tone }: { icon: typeof Wallet; label: 
 
 export function PromoteurModal({ membre, onClose }: { membre: Membre; onClose: () => void }) {
   const [items, setItems] = useState<PlanningItem[] | null>(null);
+  const [rapports, setRapports] = useState<RapportHebdo[] | null>(null);
   const [error, setError] = useState(false);
 
   useEffect(() => {
     let alive = true;
     setItems(null);
+    setRapports(null);
     setError(false);
     getPromoteurSemaine(membre.id).then((r) => {
       if (!alive) return;
       setItems(r.items);
       setError(r.error);
     });
+    getRapportsMembre(membre.id).then((r) => alive && setRapports(r));
     return () => {
       alive = false;
     };
@@ -73,10 +88,7 @@ export function PromoteurModal({ membre, onClose }: { membre: Membre; onClose: (
         <div className="flex items-start justify-between border-b border-neutral-100 px-5 py-4 dark:border-navy-700">
           <div>
             <h2 className="text-lg font-bold">{membre.displayName}</h2>
-            <p className="text-xs text-neutral-400">
-              {membre.idRepr ? `Code ${membre.idRepr} · ` : ''}
-              {zone}
-            </p>
+            <p className="text-xs text-neutral-400">{zone}</p>
           </div>
           <button type="button" onClick={onClose} className="text-neutral-400 hover:text-neutral-600" aria-label="Fermer">
             <X size={18} />
@@ -85,11 +97,6 @@ export function PromoteurModal({ membre, onClose }: { membre: Membre; onClose: (
 
         <div className="flex flex-col gap-4 px-5 py-4">
           {/* Alertes */}
-          {membre.deltaPct != null && membre.deltaPct < 0 ? (
-            <p className="flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700 dark:border-red-900/50 dark:bg-red-950/30 dark:text-red-300">
-              <TrendingDown size={15} /> CA en baisse de {Math.abs(membre.deltaPct)} % vs N-1.
-            </p>
-          ) : null}
           {manquees > 0 ? (
             <p className="flex items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800 dark:border-amber-900/50 dark:bg-amber-950/30 dark:text-amber-300">
               <AlertCircle size={15} /> {manquees} visite{manquees > 1 ? 's' : ''} manquée{manquees > 1 ? 's' : ''} cette semaine.
@@ -104,12 +111,55 @@ export function PromoteurModal({ membre, onClose }: { membre: Membre; onClose: (
             <Stat icon={CheckCircle2} label="Effectuées" value={items ? String(faites) : '…'} tone="text-emerald-500" />
           </div>
 
+          {/* Rapports d'activité du chef de secteur */}
+          <div>
+            <h3 className="mb-2 flex items-center gap-1.5 text-sm font-semibold">
+              <FileText size={14} className="text-brand dark:text-accent" /> Rapports d&apos;activité
+            </h3>
+            {rapports === null ? (
+              <p className="py-3 text-center text-sm text-neutral-400">Chargement…</p>
+            ) : rapports.length === 0 ? (
+              <p className="rounded-lg border border-dashed border-neutral-200 px-3 py-3 text-sm text-neutral-400 dark:border-navy-700">
+                Aucune activité planifiée sur les 4 dernières semaines.
+              </p>
+            ) : (
+            <ul className="flex flex-col gap-1.5">
+              {rapports.map((r) => (
+                <li key={r.semaine}>
+                <Link
+                  href={`/pilotage/mon-equipe/${membre.id}/planning?semaine=${r.semaine}`}
+                  className="block rounded-lg border border-neutral-100 px-3 py-2 transition hover:border-brand hover:bg-neutral-50 dark:border-navy-700 dark:hover:border-accent dark:hover:bg-navy-800/50"
+                  title="Ouvrir cette semaine dans le planning"
+                >
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="text-sm font-medium">Semaine du {WEEK_FMT.format(new Date(r.semaine))}</span>
+                    {r.statut === 'PREVISION' ? (
+                      <span className="rounded-full bg-sky-500/12 px-2 py-0.5 text-[11px] font-semibold text-sky-600 dark:text-sky-400">
+                        Prévision · {r.prevus} magasins prévus
+                      </span>
+                    ) : (
+                      <span className="rounded-full bg-emerald-500/12 px-2 py-0.5 text-[11px] font-semibold text-emerald-600 dark:text-emerald-400">
+                        Rapport complet · {r.realises}/{r.prevus} réalisés
+                      </span>
+                    )}
+                  </div>
+                  {r.synthese ? <p className="mt-1 text-xs text-neutral-500">{r.synthese}</p> : null}
+                </Link>
+                </li>
+              ))}
+            </ul>
+            )}
+          </div>
+
           {/* Visites de la semaine */}
           <div>
             <div className="mb-2 flex items-center justify-between">
               <h3 className="text-sm font-semibold">Visites planifiées cette semaine</h3>
-              <Link href={`/pilotage/tournees?promoteur=${membre.id}`} className="inline-flex items-center gap-1 text-xs font-medium text-brand hover:underline dark:text-accent">
-                Ouvrir la tournée <Route size={12} />
+              <Link
+                href={`/pilotage/mon-equipe/${membre.id}/planning`}
+                className="inline-flex items-center gap-1 text-xs font-medium text-brand hover:underline dark:text-accent"
+              >
+                Voir le planning <Route size={12} />
               </Link>
             </div>
 

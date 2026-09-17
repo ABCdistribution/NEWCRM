@@ -15,7 +15,8 @@ import {
 } from 'lucide-react';
 import { getMe, getDashboardDirection } from '@/lib/api';
 import { StatTile } from '@/components/stat-tile';
-import { CaChart } from '@/components/ca-chart';
+import { ObjectifsProgress } from '@/components/objectifs-progress';
+import { ProspectionObjectifCard } from '@/components/prospection-objectif-card';
 import { DonutChart } from '@/components/donut-chart';
 import { ClassBadge } from '@/components/class-badge';
 import { DashboardCS } from '@/components/dashboard-cs';
@@ -155,14 +156,17 @@ export default async function Home({
             />
           </section>
 
-          {/* Courbe CA consolidé 12 mois */}
+          {/* Atteinte des objectifs du mois — le pilotage se fait sur l'objectif, pas sur N-1 */}
           <section className={card}>
             <h2 className={cardHeader}>
-              <Wallet size={17} className="text-brand" />
-              CA mensuel consolidé — {data.ca12mois.anneeN - 1} vs {data.ca12mois.anneeN}
+              <Target size={17} className="text-brand dark:text-accent" />
+              Atteinte des objectifs du mois
             </h2>
-            <CaChart anneeN={data.ca12mois.anneeN} courbeN={data.ca12mois.courbeN} courbeN1={data.ca12mois.courbeN1} />
+            <ObjectifsProgress classement={data.classement} />
           </section>
+
+          {/* CA réalisé vs objectif côté prospection */}
+          <ProspectionObjectifCard p={data.prospection} />
 
           {/* Graphes KPI : couverture magasins + objectifs */}
           <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">

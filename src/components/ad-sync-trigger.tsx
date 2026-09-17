@@ -24,7 +24,7 @@ export function AdSyncTrigger() {
       {state.ok && state.stats ? (
         <p className="max-w-md text-right text-xs text-emerald-600">
           ✅ {state.stats.lus} comptes lus · {state.stats.crees} créés · {state.stats.maj} mis à
-          jour · {state.stats.directeursLies} rattachés à un directeur
+          jour · {state.stats.photos ?? 0} photos rapatriées · {state.stats.directeursLies} rattachés à un directeur
           {state.stats.conflitsIdRepr.length > 0
             ? ` · ⚠️ codes en conflit : ${state.stats.conflitsIdRepr.join(', ')}`
             : ''}
