@@ -26,7 +26,7 @@ export function UniverseSwitchOverlay({
     <div
       className="fixed inset-0 z-[100] flex flex-col items-center justify-center"
       style={{
-        background: 'radial-gradient(80% 80% at 50% 40%, #16204a 0%, #0a1130 60%, #060a1f 100%)',
+        background: 'radial-gradient(80% 80% at 50% 40%, #141414 0%, #050505 55%, #000000 100%)',
         animation: 'us-fade .18s ease-out both',
       }}
       role="status"

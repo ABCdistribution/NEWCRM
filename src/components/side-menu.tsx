@@ -24,6 +24,7 @@ import { logout } from '@/lib/auth-actions';
 import { Avatar } from './avatar';
 import { UniverseSwitchOverlay } from './universe-switch-overlay';
 import type { Me } from '@/lib/api';
+import { UniverseSwitcher } from './universe-switcher';
 
 type Leaf = { href: string; label: string; icon: LucideIcon; roles?: string[] };
 type Section = { label: string | null; children: Leaf[] };
@@ -86,6 +87,15 @@ export function SideMenu({ me, seliosPort }: { me: Me; seliosPort: string }) {
       setVersAscendo(false);
     }, 1100);
   };
+  const [versGoBack, setVersGoBack] = useState(false);
+  const goGoBack = () => {
+    if (versGoBack) return;
+    setVersGoBack(true);
+    window.setTimeout(() => {
+      window.open('https://goback.abcosmetique.com/', '_blank', 'noopener');
+      setVersGoBack(false);
+    }, 1100);
+  };
   // Selios tourne sur le même serveur : on reprend l'hôte utilisé pour accéder à Helios.
   // L'animation de bascule joue d'abord, puis la navigation part (le voile reste jusqu'au déchargement).
   const goSelios = () => {
@@ -100,57 +110,59 @@ export function SideMenu({ me, seliosPort }: { me: Me; seliosPort: string }) {
     <aside className="sticky top-0 z-20 flex h-screen w-64 shrink-0 flex-col border-r border-neutral-200 bg-white text-neutral-800 dark:border-navy-700 dark:bg-navy-950 dark:text-neutral-100">
       {switching ? (
         <UniverseSwitchOverlay
-          fromSrc="/helios.png"
-          toSrc="/logo-selios-white.png"
+          fromSrc="/logo-helios.png"
+          toSrc="/logo-sellios.png"
           toName="Selios"
         />
       ) : null}
       {versAscendo ? (
         <UniverseSwitchOverlay
-          fromSrc="/helios.png"
-          toSrc="/Ascendo-pilot.png"
+          fromSrc="/logo-helios.png"
+          toSrc="/logo-ascendo.png"
           toName="AscendoPilot"
+        />
+      ) : null}
+      {versGoBack ? (
+        <UniverseSwitchOverlay
+          fromSrc="/logo-helios.png"
+          toSrc="/logo-goback.png"
+          toName="GoBack"
         />
       ) : null}
       {/* Marque */}
       <Link href="/pilotage" className="flex items-center justify-center px-4 py-5">
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src="/logo-helios-black.png" alt="Helios" className="h-32 w-auto" />
+        <img src="/logo-helios.png" alt="Helios" className="h-32 w-auto rounded-2xl" />
       </Link>
 
-      {/* Bascule vers l'univers terrain (Selios) — encadrement uniquement */}
-      {canSwitch ? (
-        <button
-          type="button"
-          onClick={goSelios}
-          className="mx-3 mb-3 flex items-center gap-2.5 rounded-xl border border-neutral-200 bg-white p-2.5 text-left transition hover:border-brand hover:bg-neutral-50"
-          title="Basculer sur l'espace terrain (Selios)"
-        >
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/Selios-logo.png" alt="" className="h-10 w-10 shrink-0 object-contain" />
-          <div className="min-w-0 flex-1">
-            <p className="text-xs font-semibold">Espace terrain</p>
-            <p className="text-[11px] text-neutral-400">Basculer sur Selios</p>
-          </div>
-          <ArrowLeftRight size={15} className="shrink-0 text-neutral-400" />
-        </button>
-      ) : null}
-
-      {/* Outil externe AscendoPilot — animation de bascule puis nouvel onglet */}
-      <button
-        type="button"
-        onClick={goAscendo}
-        className="mx-3 mb-3 flex w-[calc(100%-1.5rem)] items-center gap-2.5 rounded-xl border border-neutral-200 bg-white p-2.5 text-left transition hover:border-brand hover:bg-neutral-50"
-        title="Ouvrir AscendoPilot (nouvel onglet)"
-      >
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src="/Ascendo-pilot.png" alt="" className="h-10 w-10 shrink-0 object-contain" />
-        <div className="min-w-0 flex-1">
-          <p className="text-xs font-semibold">AscendoPilot</p>
-          <p className="text-[11px] text-neutral-400">Outil statistique</p>
-        </div>
-        <ExternalLink size={15} className="shrink-0 text-neutral-400" />
-      </button>
+      {/* Sélecteur d'univers & d'outils (façon Slack) */}
+      <UniverseSwitcher
+        actuel={{ logo: '/logo-helios.png', nom: 'Helios', sousTitre: 'Pilotage & encadrement' }}
+        items={[
+          ...(canSwitch
+            ? [{
+                logo: '/logo-sellios.png',
+                nom: 'Sellios',
+                description: 'Espace terrain — promoteurs',
+                onClick: goSelios,
+              }]
+            : []),
+          {
+            logo: '/logo-ascendo.png',
+            nom: 'AscendoPilot',
+            description: 'Outil statistique (nouvel onglet)',
+            onClick: goAscendo,
+            externe: true,
+          },
+          {
+            logo: '/logo-goback.png',
+            nom: 'GoBack',
+            description: 'Outil retours (nouvel onglet)',
+            onClick: goGoBack,
+            externe: true,
+          },
+        ]}
+      />
 
       {/* Navigation */}
       <nav className="flex-1 overflow-y-auto px-3 pb-4">
@@ -174,12 +186,12 @@ export function SideMenu({ me, seliosPort }: { me: Me; seliosPort: string }) {
                         href={c.href}
                         className={`group flex items-center gap-2.5 rounded-lg px-3 py-2.5 text-[15px] transition ${
                           active
-                            ? 'bg-brand font-medium text-white shadow-sm dark:bg-accent dark:text-brand'
-                            : 'text-neutral-600 hover:bg-neutral-100 hover:text-neutral-900 dark:text-white dark:hover:bg-accent/20'
+                            ? 'bg-neutral-100 font-semibold text-neutral-900 dark:bg-accent dark:text-brand'
+                            : 'text-neutral-500 hover:bg-neutral-50 hover:text-neutral-900 dark:text-white dark:hover:bg-accent/20'
                         }`}
                       >
                         {/* Surbrillance or translucide au survol ; texte blanc et icônes mauves conservés. */}
-                        <Icon size={19} className={`shrink-0 ${active ? '' : 'text-[#A78BDA]'}`} />
+                        <Icon size={19} className={`shrink-0 ${active ? 'text-brand' : 'text-neutral-400'}`} />
                         {c.label}
                       </Link>
                     </li>
@@ -197,7 +209,7 @@ export function SideMenu({ me, seliosPort }: { me: Me; seliosPort: string }) {
           <Avatar src={`/avatar/${me.id}`} initials={initials(me.displayName)} size={36} />
           <div className="min-w-0 flex-1">
             <p className="text-sm font-medium">{me.displayName}</p>
-            <p className="text-xs text-neutral-400">{me.poste ?? me.email ?? ""}</p>
+            <p className="text-xs text-neutral-400">{me.poste ?? ROLE_LABELS[me.role] ?? ""}</p>
           </div>
         </div>
         <div className="mt-2 flex items-center justify-end gap-1 px-1">
@@ -216,6 +228,16 @@ export function SideMenu({ me, seliosPort }: { me: Me; seliosPort: string }) {
     </aside>
   );
 }
+
+const ROLE_LABELS: Record<string, string> = {
+  ADMIN: 'Administrateur',
+  DIRECTION: 'Direction',
+  DIRECTEUR_REGIONAL: 'Directeur régional',
+  CHEF_SECTEUR: 'Chef de secteur',
+  COMMERCIAL: 'Promoteur des ventes',
+  ADV: 'ADV',
+  MARKETING: 'Marketing',
+};
 
 function initials(displayName: string): string {
   return displayName

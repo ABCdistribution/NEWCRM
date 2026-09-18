@@ -31,6 +31,8 @@ import {
   ProspectPlanifierButton,
 } from '@/components/prospect-fiche-actions';
 import { ProspectCoordonnees } from '@/components/prospect-coordonnees';
+import { ProspectPiecesJointes } from '@/components/prospect-pieces-jointes';
+import { listPiecesJointes } from '@/lib/prospect-actions';
 
 export const metadata = { title: 'Fiche prospect — Helios' };
 
@@ -109,7 +111,7 @@ function OpportuniteLine({ o }: { o: OpportuniteRow }) {
 
 export default async function ProspectDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const [p, timeline] = await Promise.all([getProspect(id), getProspectTimeline(id)]);
+  const [p, timeline, pieces] = await Promise.all([getProspect(id), getProspectTimeline(id), listPiecesJointes(id)]);
   if (!p) notFound();
 
   const opportunites = p.opportunites ?? [];
@@ -207,6 +209,12 @@ export default async function ProspectDetailPage({ params }: { params: Promise<{
               <Info icon={Target} label="Motif de perte" value={MOTIF_LABELS[p.motifPerte] ?? p.motifPerte} />
             ) : null}
             <Info icon={CalendarClock} label="Créé le" value={fmt(p.createdAt)} />
+          </div>
+
+          {/* Pièces jointes (plaquettes, devis, photos…) */}
+          <div className="border-t border-neutral-100 dark:border-navy-700">
+            <h3 className="px-5 pt-3.5 text-sm font-semibold">Pièces jointes</h3>
+            <ProspectPiecesJointes prospectId={p.id} pieces={pieces ?? []} />
           </div>
         </section>
 

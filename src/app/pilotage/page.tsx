@@ -15,8 +15,8 @@ import {
 } from 'lucide-react';
 import { getMe, getDashboardDirection } from '@/lib/api';
 import { StatTile } from '@/components/stat-tile';
-import { ObjectifsProgress } from '@/components/objectifs-progress';
 import { ProspectionObjectifCard } from '@/components/prospection-objectif-card';
+import { ScatterObjectif } from '@/components/scatter-objectif';
 import { DonutChart } from '@/components/donut-chart';
 import { ClassBadge } from '@/components/class-badge';
 import { DashboardCS } from '@/components/dashboard-cs';
@@ -156,17 +156,17 @@ export default async function Home({
             />
           </section>
 
-          {/* Atteinte des objectifs du mois — le pilotage se fait sur l'objectif, pas sur N-1 */}
+          {/* CA réalisé vs objectif côté prospection */}
+          <ProspectionObjectifCard p={data.prospection} />
+
+          {/* Nuage objectif vs réalisé : sous la diagonale = à relancer */}
           <section className={card}>
             <h2 className={cardHeader}>
               <Target size={17} className="text-brand dark:text-accent" />
-              Atteinte des objectifs du mois
+              Objectif vs CA réalisé — par magasin
             </h2>
-            <ObjectifsProgress classement={data.classement} />
+            <ScatterObjectif points={data.scatterMagasins} />
           </section>
-
-          {/* CA réalisé vs objectif côté prospection */}
-          <ProspectionObjectifCard p={data.prospection} />
 
           {/* Graphes KPI : couverture magasins + objectifs */}
           <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">

@@ -206,3 +206,47 @@ export async function updateCoordonneesFiche(
   revalidatePath(`/pilotage/prospects/${id}`);
   return { error: null };
 }
+
+export type PieceJointe = {
+  id: string;
+  nom: string;
+  mime: string;
+  taille: number;
+  createdAt: string;
+  auteur: { displayName: string } | null;
+};
+
+/** Pièces jointes de la fiche prospect. */
+export async function listPiecesJointes(prospectId: string): Promise<PieceJointe[] | null> {
+  try {
+    const res = await serverFetch(`/prospects/${prospectId}/pieces-jointes`);
+    if (!res.ok) return null;
+    return (await res.json()) as PieceJointe[];
+  } catch {
+    return null;
+  }
+}
+
+/** Dépose une pièce jointe (FormData avec le champ « fichier »). */
+export async function uploadPieceJointe(prospectId: string, formData: FormData): Promise<{ error: string | null }> {
+  const fichier = formData.get('fichier');
+  if (!(fichier instanceof File) || fichier.size === 0) return { error: 'Aucun fichier sélectionné.' };
+  if (fichier.size > 10 * 1024 * 1024) return { error: 'Fichier trop volumineux (10 Mo maximum).' };
+  let res: Response;
+  try {
+    res = await serverFetch(`/prospects/${prospectId}/pieces-jointes`, { method: 'POST', body: formData });
+  } catch {
+    return { error: "Impossible de joindre l'API." };
+  }
+  if (!res.ok) return { error: `Erreur serveur (${res.status}).` };
+  revalidatePath(`/pilotage/prospects/${prospectId}`);
+  return { error: null };
+}
+
+/** Supprime une pièce jointe de la fiche. */
+export async function deletePieceJointe(prospectId: string, pjId: string): Promise<{ error: string | null }> {
+  const res = await serverFetch(`/prospects/${prospectId}/pieces-jointes/${pjId}`, { method: 'DELETE' }).catch(() => null);
+  if (!res?.ok) return { error: 'Suppression impossible.' };
+  revalidatePath(`/pilotage/prospects/${prospectId}`);
+  return { error: null };
+}

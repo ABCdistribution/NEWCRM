@@ -16,6 +16,7 @@ import { CaChart } from '@/components/ca-chart';
 import { DonutChart } from '@/components/donut-chart';
 import type { DashboardDirection } from '@/lib/api';
 import { ProspectionObjectifCard } from './prospection-objectif-card';
+import { ScatterObjectif } from './scatter-objectif';
 
 const EUR = new Intl.NumberFormat('fr-FR', {
   style: 'currency',
@@ -193,6 +194,14 @@ export function DashboardCS({ data }: { data: DashboardDirection }) {
       {/* Mon équipe (classement du secteur) */}
       {/* CA réalisé vs objectif côté prospection */}
       <ProspectionObjectifCard p={data.prospection} />
+
+      {/* Nuage objectif vs réalisé : sous la diagonale = à relancer */}
+      <section className={card}>
+        <h2 className="flex items-center gap-2 border-b border-neutral-100 px-5 py-3.5 text-sm font-semibold dark:border-navy-700">
+          Objectif vs CA réalisé — par magasin
+        </h2>
+        <ScatterObjectif points={data.scatterMagasins} />
+      </section>
 
       <section className={card}>
         <h2 className={cardHeader}>
