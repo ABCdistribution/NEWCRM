@@ -552,6 +552,14 @@ export type DashboardDirection = {
     caRealiseMois: number;
     tauxPct: number | null;
   };
+  scatterMagasins: {
+    id: string;
+    nom: string;
+    ville: string | null;
+    niveauClass: string | null;
+    objectifMensuel: number;
+    caMois: number;
+  }[];
   sansCommande: {
     total: number;
     exemples: { id: string; nom: string; ville: string | null; niveauClass: string | null }[];

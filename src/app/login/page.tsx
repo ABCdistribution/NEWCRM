@@ -28,7 +28,7 @@ export default async function LoginPage({
           <div className="mb-8 flex flex-col items-center text-center">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
-              src="/abc-logo.jpg"
+              src="/logo-helios.png"
               alt="ABC Distribution"
               className="mb-5 h-28 w-auto rounded-2xl object-contain"
             />
@@ -62,7 +62,7 @@ export default async function LoginPage({
         />
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
-          src="/Selios.png"
+          src="/logo-sellios.png"
           alt=""
           aria-hidden
           className="absolute right-[8%] top-[38%] w-[38%] object-contain drop-shadow-[0_0_40px_rgba(59,130,246,.35)]"
@@ -70,7 +70,7 @@ export default async function LoginPage({
         />
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
-          src="/Ascendo-pilot.png"
+          src="/logo-ascendo.png"
           alt=""
           aria-hidden
           className="absolute bottom-[8%] left-[12%] w-[38%] object-contain drop-shadow-[0_0_40px_rgba(16,185,129,.35)]"

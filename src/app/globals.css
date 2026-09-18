@@ -21,12 +21,9 @@
   --color-navy-700: #3f2373; /* bordures */
   --color-navy-600: #533391; /* axes / bordures appuyées */
 
-  /* Cartes façon panneau CRM : liseré hairline lilas + ombre posée et subtile
-     (on garde la teinte violette/lilas de Helios, on gagne en netteté). */
-  --shadow-card:
-    0 0 0 1px rgb(124 91 192 / 0.12),
-    0 1px 2px rgb(60 30 100 / 0.05),
-    0 10px 30px -16px rgb(124 91 192 / 0.30);
+  /* Style Advisian aux couleurs Helios : cartes bordées de lilas très clair,
+     ombre à peine perceptible. */
+  --shadow-card: 0 1px 2px 0 rgb(60 30 100 / 0.04);
 }
 
 :root {
@@ -43,20 +40,21 @@
  * deviennent violet foncé. Le reste bascule via les variantes `dark:`.
  */
 :root.dark {
-  /* Dark mode « slate-bleu + violet » (façon SaaS moderne). */
-  --background: #0e1320;         /* fond du contenu — slate très sombre */
+  /* Dark permanent « noir bleuté + violet » — le fond des logos (noir pur)
+     se fond dans les surfaces. */
+  --background: #0b0e14;         /* fond du contenu — noir bleuté */
   --color-brand: #8b5cf6;        /* accent violet (boutons, actifs, emphase) */
   --color-brand-light: #2dd4bf;  /* secondaire teal (2ᵉ série des graphes) */
   --color-accent: #8b5cf6;
-  --color-navy-950: #141a27;     /* fond du menu (sidebar) */
-  --color-navy-900: #171e2d;     /* modales */
-  --color-navy-800: #1e2637;     /* survols, puces */
-  --color-navy-700: #293143;     /* bordures */
-  --color-navy-600: #3b455e;
+  --color-navy-950: #000000;     /* fond du menu (sidebar) — noir pur, comme le fond des logos */
+  --color-navy-900: #12151f;     /* modales */
+  --color-navy-800: #1a1f2c;     /* survols, puces */
+  --color-navy-700: #252b3a;     /* bordures */
+  --color-navy-600: #37405a;
 }
 .dark .shadow-card {
-  background-color: #171e2d; /* carte slate, un cran au-dessus du fond */
-  border: 1px solid #262f42;
+  background-color: #12151f; /* carte, un cran au-dessus du fond */
+  border: 1px solid #232938;
 }
 
 /*
@@ -73,6 +71,11 @@
 .dark .bg-accent,
 .dark .bg-brand {
   color: #ffffff;
+}
+
+/* Cartes façon Advisian : liseré lilas très clair à la place de l'ombre. */
+.shadow-card {
+  border: 1px solid #eae6f4;
 }
 
 body {
