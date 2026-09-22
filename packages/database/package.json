@@ -1,0 +1,30 @@
+{
+  "name": "@crm/database",
+  "version": "0.0.0",
+  "private": true,
+  "main": "./generated/prisma/index.js",
+  "types": "./generated/prisma/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./generated/prisma/index.d.ts",
+      "default": "./generated/prisma/index.js"
+    }
+  },
+  "scripts": {
+    "db:generate": "prisma generate",
+    "db:migrate": "prisma migrate dev",
+    "db:seed": "node prisma/seed.cjs",
+    "db:studio": "prisma studio"
+  },
+  "dependencies": {
+    "@prisma/client": "^7",
+    "@prisma/client-runtime-utils": "7.9.1"
+  },
+  "devDependencies": {
+    "@prisma/adapter-pg": "^7",
+    "dotenv": "^17.4.2",
+    "pg": "^8",
+    "prisma": "^7",
+    "prisma-erd-generator": "^2.4.4"
+  }
+}

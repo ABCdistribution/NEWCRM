@@ -1,0 +1,65 @@
+services:
+  db:
+    image: postgres:16
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: crm
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: crm
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U crm -d crm"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+
+  api:
+    build:
+      context: .
+      dockerfile: crm-api/Dockerfile
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    environment:
+      PORT: 4000
+      DATABASE_URL: postgresql://crm:${POSTGRES_PASSWORD}@db:5432/crm?schema=public
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_EXPIRES_IN: ${JWT_EXPIRES_IN}
+      LDAP_URL: ${LDAP_URL}
+      LDAP_BIND_DN: ${LDAP_BIND_DN}
+      LDAP_BIND_PASSWORD: ${LDAP_BIND_PASSWORD}
+      LDAP_SEARCH_BASE: ${LDAP_SEARCH_BASE}
+      LDAP_SEARCH_FILTER: ${LDAP_SEARCH_FILTER}
+      LDAP_GROUP_ADMIN: ${LDAP_GROUP_ADMIN}
+      LDAP_GROUP_DIRECTION: ${LDAP_GROUP_DIRECTION}
+      LDAP_GROUP_DIRECTEUR_REGIONAL: ${LDAP_GROUP_DIRECTEUR_REGIONAL}
+      LDAP_GROUP_CHEF_SECTEUR: ${LDAP_GROUP_CHEF_SECTEUR}
+      LDAP_GROUP_MARKETING: ${LDAP_GROUP_MARKETING}
+      LDAP_GROUP_ADV: ${LDAP_GROUP_ADV}
+      LDAP_GROUP_COMMERCIAL: ${LDAP_GROUP_COMMERCIAL}
+      ADMIN_USERNAMES: ${ADMIN_USERNAMES}
+      # Répertoire des fichiers déposés par l'AS400 (vu depuis le conteneur).
+      IMPORT_DIR: /imports
+    ports:
+      - "4000:4000"
+    volumes:
+      # Zone de dépôt AS400 : /var/www/imports/as400 sera le point de montage
+      # (CIFS/NFS vers le serveur 192.168.10.3) ; /traites reçoit les fichiers importés.
+      - /var/www/imports:/imports
+
+volumes:
+  pgdata:

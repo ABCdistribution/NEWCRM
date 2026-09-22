@@ -1,0 +1,1321 @@
+// CRM ABC — Schéma de base de données
+//   Entités : Utilisateurs (AD), Clients, Secteurs, Logs d'import ERP
+//   Auth : Active Directory on-premise (LDAP) + RBAC
+//   Import : fichiers de l'ERP Minos (traités en asynchrone via BullMQ)
+//   Le modèle Client est aligné sur l'ancien `ref_client` (cf. page Notion LEGACY),
+//   colonnes mortes écartées (forme_entreprise, code_region).
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../generated/prisma"
+}
+
+/// Génère le MCD (diagramme entité-association) au format Mermaid.
+generator erd {
+  provider = "prisma-erd-generator"
+  output   = "../ERD.md"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// --- Enums -------------------------------------------------------------
+
+/// Rôles applicatifs (RBAC). Repris des profils legacy (secu_profile).
+enum Role {
+  COMMERCIAL // promoteur / représentant terrain
+  CHEF_SECTEUR
+  ADMIN
+  DIRECTEUR_REGIONAL
+  DIRECTION
+  ADV
+  MARKETING
+}
+
+/// Origine d'un fichier importé.
+enum ImportSource {
+  MINOS
+  AS400
+}
+
+/// Cycle de vie d'un import ERP (job BullMQ).
+enum ImportStatus {
+  PENDING
+  PROCESSING
+  SUCCESS
+  FAILED
+}
+
+/// Note CRM d'un client (ex-`niveau_class`, A→G).
+enum NiveauClass {
+  A
+  B
+  C
+  D
+  E
+  F
+  G
+}
+
+/// Type de distribution numérique relevée en visite.
+enum TypeDn {
+  ABC
+  CONCURRENCE
+}
+
+/// Type de réponse attendu pour une question du questionnaire de visite.
+enum TypeQuestion {
+  CASE_A_COCHER
+  TEXTE
+  NOMBRE
+  NOTE_1_5
+}
+
+// --- Prospection & pipeline (module Helios) ----------------------------
+
+/// Étape du pipeline commercial d'un prospect :
+/// création de la fiche → prise de contact → proposition → visite → négociation → gagné / perdu.
+enum PipelineEtape {
+  NOUVEAU // création de la fiche
+  CONTACTE // prise de contact
+  PROPOSITION
+  VISITE
+  NEGOCIATION
+  GAGNE
+  PERDU
+}
+
+/// Origine d'un prospect. Valeurs proposées (à valider métier).
+enum SourceProspect {
+  SALON
+  RECOMMANDATION
+  TERRAIN
+  WEB
+}
+
+/// Motif de perte d'un prospect (statut PERDU). Valeurs proposées (à valider métier).
+enum MotifPerteProspect {
+  PRIX
+  CONCURRENCE
+  PAS_DE_BESOIN
+  SANS_REPONSE
+  AUTRE
+}
+
+/// Issue d'un appel téléphonique passé à un prospect.
+enum ResultatAppel {
+  REPONDU
+  SANS_REPONSE
+  MESSAGERIE
+  RAPPEL_PREVU
+}
+
+/// Type d'opportunité commerciale.
+enum TypeOpportunite {
+  REFERENCEMENT
+  OP
+  MISE_EN_AVANT
+}
+
+/// Suivi de livraison d'une commande ERP — géré dans le CRM (ADV) ;
+/// l'ERP pourra l'alimenter plus tard si un flux le porte.
+enum StatutLivraison {
+  EN_PREPARATION
+  EXPEDIEE
+  LIVREE_PARTIELLE
+  LIVREE
+}
+
+/// Cycle de vie d'une opportunité.
+enum StatutOpportunite {
+  OUVERTE
+  GAGNEE
+  PERDUE
+  ANNULEE
+}
+
+// --- Modèles -----------------------------------------------------------
+
+/// Utilisateur applicatif, provisionné depuis Azure AD.
+model User {
+  id          String  @id @default(uuid()) @db.Uuid
+  username    String  @unique // sAMAccountName (login AD on-premise)
+  email       String? @unique
+  displayName String
+  role        Role    @default(COMMERCIAL)
+  isActive    Boolean @default(true)
+
+  idRepr String? @unique // code représentant hérité (ex-id_repr), pour le mapping ETL
+  poste  String?
+  photo  Bytes? // photo AD (thumbnailPhoto), synchronisée au login
+
+  // Secteur d'appartenance (cas d'un commercial).
+  secteurId String?  @db.Uuid
+  secteur   Secteur? @relation("SecteurMembres", fields: [secteurId], references: [id])
+
+  // Région commerciale (synchronisée depuis l'AD au login — attribut `st`).
+  regionId String? @db.Uuid
+  region   Region? @relation("RegionMembres", fields: [regionId], references: [id])
+
+  // Secteurs gérés (cas d'un chef de secteur : 1 chef → N secteurs).
+  secteursGeres Secteur[] @relation("SecteurManager")
+
+  // Hiérarchie : directeur régional de cet utilisateur, et son équipe (ex-table `hierarchie`).
+  directeurId String? @db.Uuid
+  directeur   User?   @relation("HierarchieDR", fields: [directeurId], references: [id])
+  equipe      User[]  @relation("HierarchieDR")
+
+  // Clients suivis (commercial ↔ clients : N-N).
+  clientsSuivis Client[] @relation("ClientCommerciaux")
+
+  // Clients créés manuellement par cet utilisateur (ex-`id_createur`).
+  clientsCrees Client[] @relation("ClientsCrees")
+
+  // Satellites CRM saisis par cet utilisateur.
+  contactsCrees         ClientContact[]     @relation("ContactCreePar")
+  notesRedigees         ClientNote[]        @relation("NoteAuteur")
+  periodicitesAffectees ClientPeriodicite[] @relation("PeriodiciteAffectePar")
+  switchsCrees          ArticleSwitch[]     @relation("SwitchCreePar")
+  objectifsCrees        Objectif[]          @relation("ObjectifsCrees")
+  questionsCreees       QuestionVisite[]    @relation("QuestionsCreees")
+
+  // Terrain
+  visites         Visite[]
+  plannings       Planning[]
+  plannifications Plannification[]
+  tournees        Tournee[]
+  tourneesPerso   TourneeEtape[]   @relation("TourneesPerso")
+  commandesApk    CommandeApk[]
+
+  // Prospection
+  prospectsAssignes     Prospect[]      @relation("ProspectsAssignes")
+  prospectsCrees        Prospect[]      @relation("ProspectsCrees")
+  opportunitesAssignees Opportunite[]   @relation("OpportunitesAssignees")
+  appelsProspects       ProspectAppel[] @relation("AppelsProspect")
+  emailsProspects       ProspectEmail[] @relation("EmailsProspect")
+  piecesJointesProspects ProspectPieceJointe[] @relation("PiecesJointesProspect")
+  appelsClients         ClientAppel[]   @relation("AppelsClient")
+  emailsClients         ClientEmail[]   @relation("EmailsClient")
+  etapesProspects       ProspectEtape[] @relation("EtapesProspect")
+
+  // Notifications
+  notificationsRecues Notification[] @relation("NotificationsRecues")
+  notificationsEmises Notification[] @relation("NotificationsEmises")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([secteurId])
+  @@index([directeurId])
+  @@map("users")
+}
+
+/// Région commerciale (niveau au-dessus du secteur). Ex-`ref_region`.
+model Region {
+  id   String @id @default(uuid()) @db.Uuid
+  code String @unique
+  nom  String
+
+  secteurs Secteur[]
+  membres  User[]    @relation("RegionMembres")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("regions")
+}
+
+/// Secteur commercial (territoire), rattaché à une région. Ex-`ref_secteur`.
+model Secteur {
+  id   String @id @default(uuid()) @db.Uuid
+  code String @unique
+  nom  String
+
+  // Région de rattachement.
+  regionId String? @db.Uuid
+  region   Region? @relation(fields: [regionId], references: [id])
+
+  // Chef de secteur responsable.
+  managerId String? @db.Uuid
+  manager   User?   @relation("SecteurManager", fields: [managerId], references: [id])
+
+  // Commerciaux rattachés au secteur.
+  membres User[] @relation("SecteurMembres")
+
+  // Clients du secteur.
+  clients Client[]
+
+  // Prospects du secteur (pipeline de prospection).
+  prospects Prospect[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([regionId])
+  @@index([managerId])
+  @@map("secteurs")
+}
+
+/// Client / magasin, identifié par son code ERP (AS/400). Aligné sur `ref_client`.
+model Client {
+  id            String @id @default(uuid()) @db.Uuid
+  codeAs400     String @unique // ex-`id_as400` : clé métier stable issue de l'ERP
+  enseigne      String
+  raisonSociale String
+
+  // --- Adresse (éclatée comme dans Minos) ---
+  adresse1    String?
+  adresse2    String?
+  adresse3    String?
+  codePostal  String?
+  codePostal2 String? // CP scindé en 2 par Minos
+  ville       String?
+  pays        String? @default("France")
+  langue      String?
+  devise      String?
+
+  // --- Identité / contacts ---
+  siret           String?
+  formeEntreprise String? // forme juridique (SAS, SARL…) — ex-FRMENT
+  eanClient       String?
+  tel1            String?
+  tel2            String?
+  contact1        String? // correspondants Minos
+  contact2        String?
+  contact3        String?
+  email           String?
+
+  // Codes représentants Minos (ex-id_commercial_1/2) — à résoudre vers `commerciaux` (User.idRepr)
+  idCommercial1 String?
+  idCommercial2 String?
+
+  // --- Géolocalisation (géocodage BAN de l'adresse — champ CRM, hors import Minos) ---
+  latitude  Float?
+  longitude Float?
+
+  // --- Champs CRM / statuts ---
+  actif          Boolean      @default(true) // repersisté après import Minos
+  niveauClass    NiveauClass? // note CRM A→G
+  statutCommande String?
+  statutLivre    String?
+  statutFacture  String?
+
+  // --- Relations ---
+  secteurId String?  @db.Uuid
+  secteur   Secteur? @relation(fields: [secteurId], references: [id])
+
+  // Hiérarchie d'achat (rattachement à la sous-sous-centrale, feuille de l'arbre).
+  centraleId String?   @db.Uuid
+  centrale   Centrale? @relation(fields: [centraleId], references: [id])
+
+  // Commerciaux qui suivent ce client (ex-`id_commercial_1/2`, modélisé en N-N).
+  commerciaux User[] @relation("ClientCommerciaux")
+
+  // Créateur (clients saisis manuellement, ex-`id_createur`).
+  creeParId String? @db.Uuid
+  creePar   User?   @relation("ClientsCrees", fields: [creeParId], references: [id])
+
+  // Satellites CRM
+  contacts     ClientContact[]
+  notes        ClientNote[]
+  periodicites ClientPeriodicite[]
+  objectifs    Objectif[]
+
+  // Terrain
+  visites         Visite[]
+  plannings       Planning[]
+  plannifications Plannification[]
+  tournees        Tournee[]
+  tourneeEtapes   TourneeEtape[]   @relation("TourneeEtapesClient")
+
+  // Commandes (ERP + mobiles)
+  commandes    Commande[]
+  commandesApk CommandeApk[]
+
+  // Prospection : prospect d'origine (si converti) et opportunités portées.
+  prospectOrigine Prospect?     @relation("ProspectConverti")
+  opportunites    Opportunite[]
+  appels          ClientAppel[]
+  emailsJournal   ClientEmail[]
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime? // soft-delete
+
+  @@index([secteurId])
+  @@index([creeParId])
+  @@index([centraleId])
+  @@map("clients")
+}
+
+/// Hiérarchie d'achat (ex-`ref_centrale`) : centrale → sous-centrale → sous-sous-centrale.
+/// Auto-référencée : le `parent` d'une sous-centrale est sa centrale, etc.
+/// Un client se rattache à la feuille (sous-sous-centrale).
+model Centrale {
+  id   String @id @default(uuid()) @db.Uuid
+  code String @unique
+  nom  String
+
+  parentId String?    @db.Uuid
+  parent   Centrale?  @relation("CentraleHierarchie", fields: [parentId], references: [id])
+  enfants  Centrale[] @relation("CentraleHierarchie")
+
+  clients Client[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([parentId])
+  @@map("centrales")
+}
+
+/// Nomenclature des périodicités de visite (ex-`periodicite`).
+model Periodicite {
+  id      String  @id @default(uuid()) @db.Uuid
+  code    Int?    @unique // valeur legacy 1..6
+  libelle String
+  actif   Boolean @default(true)
+
+  clients ClientPeriodicite[]
+
+  @@map("periodicites")
+}
+
+/// Contact d'un magasin (ex-`ref_client_contact`). Colonne morte `login_createur` écartée.
+model ClientContact {
+  id        String  @id @default(uuid()) @db.Uuid
+  // Magasin OU prospect — exactement l'un des deux (CHECK en base).
+  clientId   String?   @db.Uuid
+  client     Client?   @relation(fields: [clientId], references: [id])
+  prospectId String?   @db.Uuid
+  prospect   Prospect? @relation(fields: [prospectId], references: [id])
+  prenom    String?
+  nom       String
+  poste     String?
+  typePoste String? // PDG, Directeur, Chef de rayon…
+  fixe      String?
+  portable  String?
+  mail      String?
+
+  creeParId String? @db.Uuid
+  creePar   User?   @relation("ContactCreePar", fields: [creeParId], references: [id])
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  @@index([clientId])
+  @@index([prospectId])
+  @@index([creeParId])
+  @@map("client_contacts")
+}
+
+/// Note terrain sur un client (ex-`ref_client_remarque`, saisie mobile).
+model ClientNote {
+  id       String  @id @default(uuid()) @db.Uuid
+  // Magasin OU prospect — exactement l'un des deux (CHECK en base).
+  clientId   String?   @db.Uuid
+  client     Client?   @relation(fields: [clientId], references: [id])
+  prospectId String?   @db.Uuid
+  prospect   Prospect? @relation(fields: [prospectId], references: [id])
+  remarque String
+  idApk    String? // identifiant de la saisie mobile
+
+  auteurId String? @db.Uuid
+  auteur   User?   @relation("NoteAuteur", fields: [auteurId], references: [id])
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  @@index([clientId])
+  @@index([prospectId])
+  @@index([auteurId])
+  @@map("client_notes")
+}
+
+/// Périodicité de visite affectée à un client (ex-`ref_client_periodicite`).
+model ClientPeriodicite {
+  id            String      @id @default(uuid()) @db.Uuid
+  clientId      String      @db.Uuid
+  client        Client      @relation(fields: [clientId], references: [id])
+  periodiciteId String      @db.Uuid
+  periodicite   Periodicite @relation(fields: [periodiciteId], references: [id])
+
+  affecteParId String? @db.Uuid
+  affectePar   User?   @relation("PeriodiciteAffectePar", fields: [affecteParId], references: [id])
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  @@index([clientId])
+  @@index([periodiciteId])
+  @@map("client_periodicites")
+}
+
+// --- Catalogue produits (Module 3) ------------------------------------
+
+/// Marque (ex-`ref_marque`). Racine de la hiérarchie produit.
+model Marque {
+  id   String @id @default(uuid()) @db.Uuid
+  code String @unique
+  nom  String
+
+  gammes Gamme[]
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  articles  Article[]
+
+  @@map("marques")
+}
+
+/// Gamme (ex-`ref_gamme`), rattachée à une marque.
+model Gamme {
+  id   String @id @default(uuid()) @db.Uuid
+  code String @unique
+  nom  String
+
+  marqueId String? @db.Uuid
+  marque   Marque? @relation(fields: [marqueId], references: [id])
+
+  familles Famille[]
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  articles  Article[]
+
+  @@index([marqueId])
+  @@map("gammes")
+}
+
+/// Famille (ex-`ref_famille`), rattachée à une gamme.
+model Famille {
+  id   String @id @default(uuid()) @db.Uuid
+  code String @unique
+  nom  String
+
+  gammeId String? @db.Uuid
+  gamme   Gamme?  @relation(fields: [gammeId], references: [id])
+
+  articles Article[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([gammeId])
+  @@map("familles")
+}
+
+/// Article / produit (ex-`ref_article`, importé Minos). Colonnes mortes écartées (zparm_*, id_famille).
+model Article {
+  id          String  @id @default(uuid()) @db.Uuid
+  codeAs400   String  @unique // ex-id_as400 (code article)
+  libelle     String
+  gencode     String? // code-barres / EAN
+  idIta       String? // code article lié (ITA)
+  typeArticle String? // ex-type_article (TYPART)
+  sousFamille String? // ex-sous_famille (SFAMIL)
+
+  // Classification (relations, ex-codes texte)
+  marqueId  String?  @db.Uuid
+  marque    Marque?  @relation(fields: [marqueId], references: [id])
+  gammeId   String?  @db.Uuid
+  gamme     Gamme?   @relation(fields: [gammeId], references: [id])
+  familleId String?  @db.Uuid
+  famille   Famille? @relation(fields: [familleId], references: [id])
+
+  // Classification ACD (codes métier conservés)
+  familleAcd     String?
+  sousFamilleAcd String?
+  famillePlan    String?
+
+  codeTva        String?
+  pcb            Int? // colisage (ex-zparm_pcb)
+  statut         String?
+  sousStatut     String?
+  retourAutorise Boolean @default(false) // dérivé de sous_statut = 'RAPPE'
+
+  // Données CRM (persistantes, hors import Minos)
+  details   String?
+  avantages String?
+  stock     Int     @default(0)
+
+  actif Boolean @default(true)
+
+  tarifs         Tarif[]
+  promos         Promo[]
+  pem            PemArticle[]
+  switchsSource  ArticleSwitch[] @relation("SwitchArticle")
+  switchsCible   ArticleSwitch[] @relation("SwitchCible")
+  stratLignes       StratPemLigne[]
+  visitePromos      VisitePromo[]
+  commandeLignes    CommandeLigne[]
+  commandeApkLignes CommandeApkLigne[]
+  opportunites      Opportunite[]      @relation("OpportuniteArticles")
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  @@index([marqueId])
+  @@index([gammeId])
+  @@index([familleId])
+  @@map("articles")
+}
+
+/// Tarif d'un article (ex-`ref_tarif`). `code_tarif` (mort) écarté.
+model Tarif {
+  id        String  @id @default(uuid()) @db.Uuid
+  articleId String  @db.Uuid
+  article   Article @relation(fields: [articleId], references: [id])
+  codeTarif String? // base tarifaire (ex-CTAR80, ex. « 80 »)
+  montant   Decimal @db.Decimal(14, 4) // prix Minos, 4 décimales
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  @@unique([articleId, codeTarif])
+  @@index([articleId])
+  @@map("tarifs")
+}
+
+/// Règle de substitution en cas de rupture (ex-`ref_article_switch`). `last_update` écarté.
+model ArticleSwitch {
+  id        String  @id @default(uuid()) @db.Uuid
+  articleId String  @db.Uuid
+  article   Article @relation("SwitchArticle", fields: [articleId], references: [id])
+  cibleId   String  @db.Uuid
+  cible     Article @relation("SwitchCible", fields: [cibleId], references: [id])
+  seuil     Int?
+
+  creeParId String? @db.Uuid
+  creePar   User?   @relation("SwitchCreePar", fields: [creeParId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([articleId])
+  @@index([cibleId])
+  @@index([creeParId])
+  @@map("article_switchs")
+}
+
+/// Promotion sur un article (ex-`ref_promo`).
+model Promo {
+  id        String    @id @default(uuid()) @db.Uuid
+  articleId String    @db.Uuid
+  article   Article   @relation(fields: [articleId], references: [id])
+  libelle   String?
+  dateDebut DateTime?
+  dateFin   DateTime?
+  actif     Boolean   @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([articleId])
+  @@map("promos")
+}
+
+/// Article mis en avant — merchandising PEM (ex-`pem_article`).
+model PemArticle {
+  id        String  @id @default(uuid()) @db.Uuid
+  articleId String  @db.Uuid
+  article   Article @relation(fields: [articleId], references: [id])
+  actif     Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([articleId])
+  @@map("pem_articles")
+}
+
+/// Stratégie PEM / merchandising (ex-`strats_pem`).
+model StratPem {
+  id    String  @id @default(uuid()) @db.Uuid
+  nom   String
+  actif Boolean @default(true)
+
+  lignes StratPemLigne[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("strat_pems")
+}
+
+/// Ligne d'une stratégie PEM (ex-`strats_pem_line`).
+model StratPemLigne {
+  id         String   @id @default(uuid()) @db.Uuid
+  stratPemId String   @db.Uuid
+  stratPem   StratPem @relation(fields: [stratPemId], references: [id])
+  articleId  String?  @db.Uuid
+  article    Article? @relation(fields: [articleId], references: [id])
+  ordre      Int?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([stratPemId])
+  @@index([articleId])
+  @@map("strat_pem_lignes")
+}
+
+// --- Terrain : visites & planning (Module 4) --------------------------
+
+/// Visite d'un magasin par un promoteur (ex-`visite`).
+model Visite {
+  id          String  @id @default(uuid()) @db.Uuid
+  promoteurId String  @db.Uuid
+  promoteur   User    @relation(fields: [promoteurId], references: [id])
+  // Magasin visité OU prospect visité — exactement l'un des deux (CHECK en base).
+  clientId    String?   @db.Uuid
+  client      Client?   @relation(fields: [clientId], references: [id])
+  prospectId  String?   @db.Uuid
+  prospect    Prospect? @relation(fields: [prospectId], references: [id])
+  idApk       String? @unique // identifiant généré côté mobile — clé d'idempotence de la sync
+
+  // Motif de la saisie (planifiée, appel client, passage d'opportunité, urgence…).
+  motif String?
+
+  pmcEtat        String?
+  pmcCommentaire String?
+  dnAbc          Int?
+  dnConcurrence  Int?
+  // Relevé linéaire (compte-rendu de réunion) : DN en gondole haute / basse.
+  dnGondoleHaute Int?
+  dnGondoleBasse Int?
+  pem            Boolean   @default(false)
+  queueDate      DateTime?
+  alerteRaison   String?
+  alerteObs      String?
+
+  // Visite liée (ex-id_visite_linked)
+  visiteLieeId String?  @db.Uuid
+  visiteLiee   Visite?  @relation("VisiteLiee", fields: [visiteLieeId], references: [id])
+  visitesLiees Visite[] @relation("VisiteLiee")
+
+  dns      VisiteDN[]
+  photos   VisitePhoto[]
+  steps    VisiteStep[]
+  promos   VisitePromo[]
+  reponses VisiteReponse[]
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  @@index([promoteurId])
+  @@index([clientId])
+  @@index([prospectId])
+  @@index([visiteLieeId])
+  @@map("visites")
+}
+
+/// Distribution numérique relevée en visite (ex-`visite_dn`).
+model VisiteDN {
+  id       String   @id @default(uuid()) @db.Uuid
+  visiteId String   @db.Uuid
+  visite   Visite   @relation(fields: [visiteId], references: [id])
+  type     TypeDn
+  marque   String?
+  gamme    String?
+  metrage  Decimal? @db.Decimal(10, 2)
+
+  createdAt DateTime @default(now())
+
+  @@index([visiteId])
+  @@map("visite_dns")
+}
+
+/// Photo prise en visite (ex-`visite_photo`).
+model VisitePhoto {
+  id          String  @id @default(uuid()) @db.Uuid
+  visiteId    String  @db.Uuid
+  visite      Visite  @relation(fields: [visiteId], references: [id])
+  fichier     String
+  taille      Int?
+  idVisiteApk String?
+  appName     String?
+
+  createdAt DateTime @default(now())
+
+  @@index([visiteId])
+  @@map("visite_photos")
+}
+
+/// Étape / chronométrage de visite (ex-`visite_step`).
+model VisiteStep {
+  id         String    @id @default(uuid()) @db.Uuid
+  visiteId   String    @db.Uuid
+  visite     Visite    @relation(fields: [visiteId], references: [id])
+  etape      String?
+  horodatage DateTime?
+
+  createdAt DateTime @default(now())
+
+  @@index([visiteId])
+  @@map("visite_steps")
+}
+
+/// Question du questionnaire de FIN DE VISITE — structure administrable dans helios
+/// (libellé, type, ordre, obligatoire, actif) ; rendue par l'app mobile.
+model QuestionVisite {
+  id          String       @id @default(uuid()) @db.Uuid
+  libelle     String
+  type        TypeQuestion @default(CASE_A_COCHER)
+  ordre       Int
+  obligatoire Boolean      @default(false)
+  actif       Boolean      @default(true)
+
+  creeParId String? @db.Uuid
+  creePar   User?   @relation("QuestionsCreees", fields: [creeParId], references: [id])
+
+  reponses VisiteReponse[]
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  @@index([ordre])
+  @@map("questions_visite")
+}
+
+/// Réponse d'un promoteur à une question, pour une visite (remontée par l'app mobile).
+/// `valeur` est sérialisée selon le type : "true"/"false", texte libre, nombre, note 1-5.
+model VisiteReponse {
+  id         String         @id @default(uuid()) @db.Uuid
+  visiteId   String         @db.Uuid
+  visite     Visite         @relation(fields: [visiteId], references: [id])
+  questionId String         @db.Uuid
+  question   QuestionVisite @relation(fields: [questionId], references: [id])
+  valeur     String
+
+  createdAt DateTime @default(now())
+
+  @@unique([visiteId, questionId])
+  @@index([questionId])
+  @@map("visite_reponses")
+}
+
+/// Promo vue en visite (ex-`visite_promo`).
+model VisitePromo {
+  id        String   @id @default(uuid()) @db.Uuid
+  visiteId  String   @db.Uuid
+  visite    Visite   @relation(fields: [visiteId], references: [id])
+  articleId String?  @db.Uuid
+  article   Article? @relation(fields: [articleId], references: [id])
+
+  createdAt DateTime @default(now())
+
+  @@index([visiteId])
+  @@index([articleId])
+  @@map("visite_promos")
+}
+
+/// Visite planifiée, occurrence datée (ex-`planning`). `id_repr` unifié en FK User.
+model Planning {
+  id          String   @id @default(uuid()) @db.Uuid
+  promoteurId String   @db.Uuid
+  promoteur   User     @relation(fields: [promoteurId], references: [id])
+  clientId    String   @db.Uuid
+  client      Client   @relation(fields: [clientId], references: [id])
+  datePassage DateTime
+  fait        Boolean  @default(false) // ex-green
+  raison      String?
+
+  plannificationId String?         @db.Uuid
+  plannification   Plannification? @relation(fields: [plannificationId], references: [id])
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  @@index([promoteurId])
+  @@index([clientId])
+  @@index([plannificationId])
+  @@map("plannings")
+}
+
+/// Récurrence de planning (ex-`plannification`).
+model Plannification {
+  id          String   @id @default(uuid()) @db.Uuid
+  promoteurId String   @db.Uuid
+  promoteur   User     @relation(fields: [promoteurId], references: [id])
+  clientId    String   @db.Uuid
+  client      Client   @relation(fields: [clientId], references: [id])
+  jours       String // jours de passage, CSV ISO (1=lundi … 6=samedi), ex. "1,4"
+  recurrence  Int      @default(1) // fréquence en semaines (1 = chaque semaine)
+  dateDebut   DateTime // ancre de la récurrence (les occurrences démarrent ici)
+  dateFin     DateTime? // fin optionnelle de la règle
+
+  plannings Planning[]
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  @@index([promoteurId])
+  @@index([clientId])
+  @@map("plannifications")
+}
+
+/// Étape datée de la TOURNÉE PERSONNELLE d'un utilisateur Helios (chef de secteur,
+/// DR, direction) : visite d'un PROSPECT ou suivi d'un MAGASIN existant — exactement
+/// l'un des deux. Distinct des visites planifiées des promoteurs (Planning).
+model TourneeEtape {
+  id     String @id @default(uuid()) @db.Uuid
+  userId String @db.Uuid
+  user   User   @relation("TourneesPerso", fields: [userId], references: [id])
+
+  clientId   String?   @db.Uuid
+  client     Client?   @relation("TourneeEtapesClient", fields: [clientId], references: [id])
+  prospectId String?   @db.Uuid
+  prospect   Prospect? @relation("TourneeEtapesProspect", fields: [prospectId], references: [id])
+
+  datePassage DateTime
+  fait        Boolean @default(false)
+  note        String? // observations
+
+  // Étape administrative (ADM) : journée sans cible magasin/prospect.
+  adm Boolean @default(false)
+
+  // Qualification de l'étape (reprise de l'outil historique).
+  visiteSimple   Boolean @default(true) // visite simple (vs accompagnement)
+  accompagnement Boolean @default(false) // accompagnement promoteur
+  rdv            Boolean @default(false) // passage sur rendez-vous
+  soireeEtape    Boolean @default(false) // soirée étape (découcher)
+  soireeLieu     String? // lieu de l'étape (si soirée étape)
+  soireeAdresse  String? // adresse de l'étape (si soirée étape)
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  @@index([userId, datePassage])
+  @@index([clientId])
+  @@index([prospectId])
+  @@map("tournee_etapes")
+}
+
+/// Tournée type d'un représentant (ex-`tournee`).
+model Tournee {
+  id           String  @id @default(uuid()) @db.Uuid
+  promoteurId  String  @db.Uuid
+  promoteur    User    @relation(fields: [promoteurId], references: [id])
+  clientId     String  @db.Uuid
+  client       Client  @relation(fields: [clientId], references: [id])
+  jours        String?
+  semaines     String? // ex-weeks
+  semaineDebut Int?
+  annee        Int?
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  @@index([promoteurId])
+  @@index([clientId])
+  @@map("tournees")
+}
+
+// --- Commandes ERP (Module 5) -----------------------------------------
+
+/// Commande remontée de l'ERP (ex-`commandes_as400`), en-tête (une par numéro).
+/// Gérée ligne par ligne (flux 10 min), jamais vidée : upsert + annulation datée.
+model Commande {
+  id               String    @id @default(uuid()) @db.Uuid
+  numero           String    @unique
+  clientId         String?   @db.Uuid
+  client           Client?   @relation(fields: [clientId], references: [id])
+  raisonSocialeCmd String? // snapshot ERP du client commandeur
+  idRepr           String? // code représentant (à résoudre vers User)
+  typeCmd          String?
+  idCommandeApk    String? // pont avec la commande mobile (commande_apk)
+  dateCommande     DateTime? // date de la commande (AAANN/MMANN/JJANN)
+  dateAnnulation   DateTime? // checky/m/d renseigné = commande annulée
+
+  // --- Suivi de livraison (saisi par l'ADV ; sans objet si commande annulée) ---
+  statutLivraison      StatutLivraison @default(EN_PREPARATION)
+  dateExpedition       DateTime?
+  dateLivraison        DateTime?
+  transporteur         String?
+  noSuivi              String? // n° de suivi transporteur
+  commentaireLivraison String?
+
+  lignes CommandeLigne[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([clientId])
+  @@index([idCommandeApk])
+  @@index([statutLivraison])
+  @@map("commandes")
+}
+
+/// Ligne de commande : un article dans une commande.
+model CommandeLigne {
+  id             String   @id @default(uuid()) @db.Uuid
+  commandeId     String   @db.Uuid
+  commande       Commande @relation(fields: [commandeId], references: [id])
+  noLigne        String
+  articleId      String?  @db.Uuid
+  article        Article? @relation(fields: [articleId], references: [id])
+  libelleArticle String? // snapshot ERP
+  quantite       Decimal  @db.Decimal(14, 4)
+  montant        Decimal  @db.Decimal(14, 4)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([commandeId, noLigne])
+  @@index([commandeId])
+  @@index([articleId])
+  @@map("commande_lignes")
+}
+
+/// Commande saisie sur l'app mobile (ex-`commande_apk`), transmise à l'ERP hors CRM.
+/// `idCommandeApk` : clé d'idempotence de la sync mobile ET pont avec la commande
+/// Minos qui reviendra par l'import (champ IDCRM, 10 caractères max).
+model CommandeApk {
+  id            String  @id @default(uuid()) @db.Uuid
+  idCommandeApk String  @unique @db.VarChar(10)
+  promoteurId   String  @db.Uuid
+  promoteur     User    @relation(fields: [promoteurId], references: [id])
+  clientId      String  @db.Uuid
+  client        Client  @relation(fields: [clientId], references: [id])
+  commentaire   String?
+  dateCommande  DateTime // date de saisie sur le terrain (pas de réception serveur)
+
+  lignes CommandeApkLigne[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([promoteurId])
+  @@index([clientId])
+  @@map("commandes_apk")
+}
+
+/// Ligne d'une commande mobile. Le prix est indicatif (tarif affiché à la
+/// saisie) — la facturation réelle reste faite par l'ERP.
+model CommandeApkLigne {
+  id            String      @id @default(uuid()) @db.Uuid
+  commandeApkId String      @db.Uuid
+  commandeApk   CommandeApk @relation(fields: [commandeApkId], references: [id])
+  ordre         Int
+  articleId     String      @db.Uuid
+  article       Article     @relation(fields: [articleId], references: [id])
+  quantite      Int
+  prixIndicatif Decimal?    @db.Decimal(14, 4)
+
+  @@unique([commandeApkId, ordre])
+  @@index([articleId])
+  @@map("commande_apk_lignes")
+}
+
+// --- Prospection & pipeline (module Helios) ----------------------------
+
+/// Point de vente pas encore client. Se convertit en Client quand il est gagné
+/// (POST /prospects/:id/convert) — `clientId` est alors posé et le statut passe à GAGNE.
+model Prospect {
+  id            String  @id @default(uuid()) @db.Uuid
+  raisonSociale String
+  enseigne      String
+  adresse1      String?
+  codePostal    String?
+  ville         String?
+  telephone     String?
+  email         String?
+
+  // Territoire — base du scoping (CS : ses secteurs ; DR : sa région).
+  secteurId String?  @db.Uuid
+  secteur   Secteur? @relation(fields: [secteurId], references: [id])
+
+  // Chef de secteur responsable + créateur.
+  assignedToId String? @db.Uuid
+  assignedTo   User?   @relation("ProspectsAssignes", fields: [assignedToId], references: [id])
+  createdById  String? @db.Uuid
+  createdBy    User?   @relation("ProspectsCrees", fields: [createdById], references: [id])
+
+  // Géolocalisation (géocodage BAN de l'adresse).
+  latitude  Float?
+  longitude Float?
+
+  statut            PipelineEtape       @default(NOUVEAU)
+  probabilite       Int                 @default(10) // % — défaut selon l'étape
+  potentielCaAnnuel Decimal?            @db.Decimal(14, 2)
+  source            SourceProspect?
+  motifPerte        MotifPerteProspect? // renseigné si statut = PERDU
+  niveauClass       NiveauClass? // classe estimée du magasin, saisie à la création de la fiche
+
+  // Rempli à la conversion (un client provient d'au plus un prospect).
+  clientId String? @unique @db.Uuid
+  client   Client? @relation("ProspectConverti", fields: [clientId], references: [id])
+
+  idApk String? @unique // clé d'idempotence de la création offline (mobile)
+
+  // Satellites réutilisés du modèle client (contact/note : client OU prospect).
+  contacts     ClientContact[]
+  notes        ClientNote[]
+  visites      Visite[]
+  opportunites Opportunite[]
+  appels       ProspectAppel[]
+  emails       ProspectEmail[]
+  etapesHisto  ProspectEtape[]
+  piecesJointes ProspectPieceJointe[]
+  tourneeEtapes TourneeEtape[] @relation("TourneeEtapesProspect")
+
+  lastActivityAt DateTime  @default(now())
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+  deletedAt      DateTime?
+
+  @@index([secteurId])
+  @@index([assignedToId])
+  @@index([statut])
+  @@map("prospects")
+}
+
+/// Appel téléphonique passé à un prospect — saisi depuis l'app mobile (idApk =
+/// clé d'idempotence de la sync) et affiché dans la timeline de la fiche.
+model ProspectAppel {
+  id         String   @id @default(uuid()) @db.Uuid
+  prospectId String   @db.Uuid
+  prospect   Prospect @relation(fields: [prospectId], references: [id])
+
+  auteurId String? @db.Uuid
+  auteur   User?   @relation("AppelsProspect", fields: [auteurId], references: [id])
+
+  dateAppel   DateTime      @default(now())
+  dureeSec    Int? // durée de l'appel en secondes
+  resultat    ResultatAppel @default(REPONDU)
+  commentaire String?
+
+  idApk String? @unique // identifiant généré côté mobile — idempotence de la sync
+
+  createdAt DateTime  @default(now())
+  deletedAt DateTime?
+
+  @@index([prospectId])
+  @@index([auteurId])
+  @@map("prospect_appels")
+}
+
+/// Email envoyé à un prospect (action « Envoyer un mail » de la fiche, ou mobile) —
+/// journalisé dans la timeline. idApk = idempotence de la sync mobile.
+model ProspectEmail {
+  id         String   @id @default(uuid()) @db.Uuid
+  prospectId String   @db.Uuid
+  prospect   Prospect @relation(fields: [prospectId], references: [id])
+
+  auteurId String? @db.Uuid
+  auteur   User?   @relation("EmailsProspect", fields: [auteurId], references: [id])
+
+  dateEmail   DateTime @default(now())
+  destinataire String?
+  sujet       String?
+  commentaire String?
+
+  idApk String? @unique
+
+  createdAt DateTime  @default(now())
+  deletedAt DateTime?
+
+  @@index([prospectId])
+  @@index([auteurId])
+  @@map("prospect_emails")
+}
+
+/// Changement d'étape du pipeline d'un prospect — journalisé dans la timeline.
+model ProspectEtape {
+  id         String   @id @default(uuid()) @db.Uuid
+  prospectId String   @db.Uuid
+  prospect   Prospect @relation(fields: [prospectId], references: [id])
+
+  auteurId String? @db.Uuid
+  auteur   User?   @relation("EtapesProspect", fields: [auteurId], references: [id])
+
+  de          PipelineEtape?
+  vers        PipelineEtape
+  commentaire String?
+
+  createdAt DateTime @default(now())
+
+  @@index([prospectId])
+  @@map("prospect_etapes")
+}
+
+/// Pièce jointe d'une fiche prospect (plaquette, devis, photo…) — stockée en base.
+model ProspectPieceJointe {
+  id         String   @id @default(uuid()) @db.Uuid
+  prospectId String   @db.Uuid
+  prospect   Prospect @relation(fields: [prospectId], references: [id])
+
+  auteurId String? @db.Uuid
+  auteur   User?   @relation("PiecesJointesProspect", fields: [auteurId], references: [id])
+
+  nom     String // nom de fichier d'origine
+  mime    String
+  taille  Int // octets
+  donnees Bytes
+
+  createdAt DateTime  @default(now())
+  deletedAt DateTime?
+
+  @@index([prospectId])
+  @@map("prospect_pieces_jointes")
+}
+
+/// Appel téléphonique passé à un magasin (client) — journalisé depuis Helios ou le mobile.
+model ClientAppel {
+  id       String @id @default(uuid()) @db.Uuid
+  clientId String @db.Uuid
+  client   Client @relation(fields: [clientId], references: [id])
+
+  auteurId String? @db.Uuid
+  auteur   User?   @relation("AppelsClient", fields: [auteurId], references: [id])
+
+  dateAppel   DateTime      @default(now())
+  dureeSec    Int?
+  resultat    ResultatAppel @default(REPONDU)
+  commentaire String?
+
+  idApk String? @unique // identifiant généré côté mobile — idempotence de la sync
+
+  createdAt DateTime  @default(now())
+  deletedAt DateTime?
+
+  @@index([clientId])
+  @@index([auteurId])
+  @@map("client_appels")
+}
+
+/// Email envoyé à un magasin (client) — journalisé comme les appels.
+model ClientEmail {
+  id       String @id @default(uuid()) @db.Uuid
+  clientId String @db.Uuid
+  client   Client @relation(fields: [clientId], references: [id])
+
+  auteurId String? @db.Uuid
+  auteur   User?   @relation("EmailsClient", fields: [auteurId], references: [id])
+
+  dateEmail    DateTime @default(now())
+  destinataire String?
+  sujet        String?
+  commentaire  String?
+
+  idApk String? @unique
+
+  createdAt DateTime  @default(now())
+  deletedAt DateTime?
+
+  @@index([clientId])
+  @@index([auteurId])
+  @@map("client_emails")
+}
+
+/// Opportunité commerciale (référencement, OP, mise en avant) — portée par un
+/// prospect OU un client existant (exactement l'un des deux).
+model Opportunite {
+  id   String          @id @default(uuid()) @db.Uuid
+  type TypeOpportunite
+
+  prospectId String?   @db.Uuid
+  prospect   Prospect? @relation(fields: [prospectId], references: [id])
+  clientId   String?   @db.Uuid
+  client     Client?   @relation(fields: [clientId], references: [id])
+
+  // Produits visés.
+  articles Article[] @relation("OpportuniteArticles")
+
+  libelle       String?
+  valeurEstimee Decimal?          @db.Decimal(14, 2)
+  statut        StatutOpportunite @default(OUVERTE)
+  dateDebut     DateTime? // période OP / mise en avant
+  dateFin       DateTime?
+
+  assignedToId String? @db.Uuid
+  assignedTo   User?   @relation("OpportunitesAssignees", fields: [assignedToId], references: [id])
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  @@index([prospectId])
+  @@index([clientId])
+  @@index([statut])
+  @@map("opportunites")
+}
+
+// --- Système -----------------------------------------------------------
+
+/// Journal des imports de fichiers ERP (Minos), un enregistrement par fichier traité.
+model ErpImportLog {
+  id       String       @id @default(uuid()) @db.Uuid
+  fileName String
+  source   ImportSource @default(MINOS)
+  status   ImportStatus @default(PENDING)
+  jobId    String? // identifiant du job BullMQ
+
+  rowsTotal     Int  @default(0)
+  rowsOk        Int  @default(0)
+  rowsFailed    Int  @default(0)
+  fileSizeBytes Int?
+
+  errorMessage String?
+  startedAt    DateTime?
+  finishedAt   DateTime?
+  createdAt    DateTime  @default(now())
+
+  @@index([status])
+  @@map("minos_import_logs")
+}
+
+/// Objectif mensuel de CA d'un représentant (ex-`objectifs` legacy).
+/// Rattaché au code représentant (comme les commandes Minos), pas à l'utilisateur :
+/// l'objectif survit aux changements de compte AD.
+/// Objectif de CA ANNUEL par magasin, saisi par la direction (helios).
+/// L'objectif d'un commercial = somme des objectifs de son portefeuille (/12 pour le mensuel).
+model Objectif {
+  id       String @id @default(uuid()) @db.Uuid
+  clientId String @db.Uuid
+  client   Client @relation(fields: [clientId], references: [id])
+  annee    Int
+  cibleCa  Decimal @db.Decimal(14, 2)
+
+  creeParId String? @db.Uuid
+  creePar   User?   @relation("ObjectifsCrees", fields: [creeParId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([clientId, annee])
+  @@index([annee])
+  @@map("objectifs")
+}
+
+/// Notification applicative (relance de visite, messages direction…).
+/// Consommée par kratos aujourd'hui ; l'app mobile lira la même API (+ push plus tard).
+model Notification {
+  id         String    @id @default(uuid()) @db.Uuid
+  userId     String    @db.Uuid
+  user       User      @relation("NotificationsRecues", fields: [userId], references: [id])
+  emetteurId String?   @db.Uuid
+  emetteur   User?     @relation("NotificationsEmises", fields: [emetteurId], references: [id])
+  type       String // ex. RELANCE_VISITE
+  titre      String
+  message    String
+  lien       String? // chemin dans l'app (ex. /tournees)
+  luAt       DateTime?
+  createdAt  DateTime  @default(now())
+
+  @@index([userId, luAt])
+  @@map("notifications")
+}

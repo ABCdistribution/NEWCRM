@@ -1,0 +1,124 @@
+@import 'tailwindcss';
+
+/*
+ * Thème : clair par défaut, sombre via la classe `.dark` sur <html>
+ * (posée par le bouton de bascule, mémorisée en localStorage).
+ * La variante `dark:` de Tailwind est en mode « classe », pas média.
+ */
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* Palette de marque ABC */
+@theme {
+  --color-brand: #2952e3; /* bleu royal (maquette Advisian) — couleur principale */
+  --color-navy: #08184d; /* bleu marine historique (texte sur accent en sombre) */
+  --color-accent: #2952e3; /* même bleu pour les graphes & accents */
+  --color-brand-light: #9db1f7; /* bleu clair (série secondaire des graphes) */
+
+  /* Surfaces du mode sombre, dérivées du marine (pas de noir neutre) */
+  --color-navy-950: #050f33; /* fond des cartes et de la sidebar */
+  --color-navy-900: #0b1b4f; /* variante plus claire */
+  --color-navy-800: #14276b; /* survols, chips, en-têtes de tableau */
+  --color-navy-700: #22367c; /* bordures */
+  --color-navy-600: #31479c; /* bordures appuyées / axes */
+
+  /* Style Advisian : cartes bordées, ombre à peine perceptible */
+  --shadow-card: 0 1px 2px 0 rgb(16 24 40 / 0.04);
+}
+
+:root {
+  /* Fond gris très clair (maquette Advisian) — cartes blanches bordées par-dessus. */
+  --background: #f6f7fb;
+  --foreground: #1e2337;
+}
+
+/*
+ * Dark mode global : `.dark` sur <html> (posé par le bouton de bascule).
+ * Le fond passe en marine profond et les cartes (`.shadow-card`, blanches en
+ * clair) deviennent navy. Le reste bascule via les variantes `dark:` déjà
+ * présentes dans les composants (texte, bordures, boutons cyan…).
+ */
+:root.dark {
+  /* Dark permanent, surfaces ALIGNÉES sur Helios (noir bleuté) — seule
+     l'accentuation reste propre à Selios (indigo #7B7FE8). */
+  --background: #0b0e14; /* fond du contenu — noir bleuté (identique Helios) */
+  --color-brand: #7b7fe8; /* indigo — boutons, actifs, emphase */
+  --color-accent: #7b7fe8;
+  --color-brand-light: #b9bcf4; /* série secondaire des graphes */
+  --color-navy-950: #000000; /* fond du menu (sidebar) — noir pur, comme le fond des logos */
+  --color-navy-900: #12151f; /* modales */
+  --color-navy-800: #1a1f2c; /* survols, puces */
+  --color-navy-700: #252b3a; /* bordures */
+  --color-navy-600: #37405a;
+}
+.dark .shadow-card {
+  background-color: #12151f; /* carte, un cran au-dessus du fond (identique Helios) */
+  border: 1px solid #232938;
+}
+/* Sur un bouton/élément à fond accent (bleu vif) en sombre, le texte marine
+   serait illisible → on le force en blanc. */
+.dark .dark\:bg-accent {
+  color: #fff;
+}
+
+/*
+ * `.dark` est posé LOCALEMENT sur les surfaces navy (sidebar, cartes) :
+ * le texte y bascule en clair par défaut, le reste du site reste blanc.
+ */
+.dark {
+  --foreground: #e8ecf8;
+  color: var(--foreground);
+  color-scheme: dark;
+}
+
+/* Cartes façon Advisian : liseré gris très clair à la place de l'ombre. */
+.shadow-card {
+  border: 1px solid #eceef5;
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+}
+
+/*
+ * Effet gloss sur les cartes navy : liseré lumineux en haut + reflet dégradé
+ * qui s'estompe vers le milieu. Purement décoratif (pointer-events: none).
+ */
+.dark.shadow-card {
+  position: relative;
+  box-shadow:
+    var(--shadow-card),
+    inset 0 1px 0 rgb(255 255 255 / 0.14);
+}
+.dark.shadow-card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: linear-gradient(
+    180deg,
+    rgb(255 255 255 / 0.09),
+    rgb(255 255 255 / 0.03) 35%,
+    transparent 55%
+  );
+  pointer-events: none;
+}
+
+/*
+ * Lisibilité sur les surfaces navy (.dark) : les gris neutres y sont trop sombres,
+ * on les remonte en tons périwinkle clairs. Hors des cartes (fond blanc), ils
+ * restent gris. Les variantes explicites `dark:text-*` gardent la priorité.
+ */
+.dark :where(.text-neutral-300) {
+  color: #8fa3da;
+}
+.dark :where(.text-neutral-400) {
+  color: #9db0e4;
+}
+.dark :where(.text-neutral-500) {
+  color: #b3c1ec;
+}
+.dark :where(.text-neutral-600, .text-neutral-700) {
+  color: #d2dbf6;
+}
