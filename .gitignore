@@ -2,13 +2,16 @@
 node_modules/
 .pnpm-store/
 
-# Next.js / build
+# Builds
 .next/
+dist/
 out/
 build/
-dist/
 *.tsbuildinfo
 next-env.d.ts
+
+# Prisma (client généré)
+packages/database/generated/
 
 # Env & secrets
 .env
@@ -17,8 +20,9 @@ next-env.d.ts
 
 # Logs
 *.log
-npm-debug.log*
-pnpm-debug.log*
+
+# Données montées (dépôt AS400/Minos)
+imports/
 
 # Editor / OS
 .DS_Store
