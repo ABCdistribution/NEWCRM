@@ -44,6 +44,32 @@ export class NotificationsService {
     });
   }
 
+  /**
+   * Relance d'un membre de l'équipe (Helios Mobile — « Mon équipe »).
+   * Un DR ne peut relancer que ses propres collaborateurs (directeurId AD).
+   */
+  async relancerMembre(userId: string, message: string, emetteur: { id: string; role: string }) {
+    const cible = await this.prisma.user.findFirst({
+      where: { id: userId, isActive: true },
+      select: { id: true, directeurId: true },
+    });
+    const encadreTout = emetteur.role === 'ADMIN' || emetteur.role === 'DIRECTION';
+    if (!cible || (!encadreTout && cible.directeurId !== emetteur.id)) {
+      throw new NotFoundException('Membre introuvable dans votre équipe');
+    }
+    return this.prisma.notification.create({
+      data: {
+        userId: cible.id,
+        emetteurId: emetteur.id,
+        type: 'RELANCE_MEMBRE',
+        titre: 'Relance de votre responsable',
+        message: message.trim(),
+        lien: '/pilotage/ma-tournee',
+      },
+      select: { id: true, userId: true, titre: true, message: true, createdAt: true },
+    });
+  }
+
   /** Boîte de réception de l'utilisateur courant : 20 dernières + compteur non lues. */
   async boite(userId: string) {
     const [items, nonLues] = await Promise.all([

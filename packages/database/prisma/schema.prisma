@@ -743,6 +743,11 @@ model VisitePhoto {
   idVisiteApk String?
   appName     String?
 
+  // Helios Mobile : photo stockée en base (comme les pièces jointes prospect)
+  mime    String?
+  donnees Bytes?
+  idApk   String? @unique // clé d'idempotence de l'outbox mobile
+
   createdAt DateTime @default(now())
 
   @@index([visiteId])
@@ -892,6 +897,8 @@ model TourneeEtape {
   soireeEtape    Boolean @default(false) // soirée étape (découcher)
   soireeLieu     String? // lieu de l'étape (si soirée étape)
   soireeAdresse  String? // adresse de l'étape (si soirée étape)
+
+  idApk String? @unique // identifiant généré côté mobile — idempotence de la sync (Helios Mobile)
 
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt

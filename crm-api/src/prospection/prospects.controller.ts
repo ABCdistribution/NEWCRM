@@ -19,6 +19,7 @@ import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { ProspectsService } from './prospects.service';
+import { CreateContactDto, UpdateContactDto } from '../clients/dto/contact.dto';
 import {
   CreateAppelDto,
   CreateEmailDto,
@@ -131,6 +132,36 @@ export class ProspectsController {
     return this.prospects.removePieceJointe(user, id, pjId);
   }
 
+  @Post(':id/contacts')
+  @Roles(Role.CHEF_SECTEUR, Role.DIRECTEUR_REGIONAL, Role.ADMIN)
+  @ApiOperation({ summary: 'Ajouter un contact nommé à la fiche prospect' })
+  addContact(@Param('id', ParseUUIDPipe) id: string, @Body() dto: CreateContactDto, @CurrentUser() user: User) {
+    return this.prospects.addContact(user, id, dto);
+  }
+
+  @Patch(':id/contacts/:contactId')
+  @Roles(Role.CHEF_SECTEUR, Role.DIRECTEUR_REGIONAL, Role.ADMIN)
+  @ApiOperation({ summary: 'Modifier un contact du prospect' })
+  updateContact(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Param('contactId', ParseUUIDPipe) contactId: string,
+    @Body() dto: UpdateContactDto,
+    @CurrentUser() user: User,
+  ) {
+    return this.prospects.updateContact(user, id, contactId, dto);
+  }
+
+  @Delete(':id/contacts/:contactId')
+  @Roles(Role.CHEF_SECTEUR, Role.DIRECTEUR_REGIONAL, Role.ADMIN)
+  @ApiOperation({ summary: 'Supprimer (logiquement) un contact du prospect' })
+  removeContact(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Param('contactId', ParseUUIDPipe) contactId: string,
+    @CurrentUser() user: User,
+  ) {
+    return this.prospects.removeContact(user, id, contactId);
+  }
+
   @Post(':id/notes')
   @Roles(Role.CHEF_SECTEUR, Role.DIRECTEUR_REGIONAL, Role.DIRECTION, Role.ADMIN, Role.COMMERCIAL)
   @ApiOperation({ summary: 'Ajouter une note à la fiche prospect (timeline)' })
@@ -139,7 +170,7 @@ export class ProspectsController {
     @Body() dto: CreateNoteProspectDto,
     @CurrentUser() user: User,
   ) {
-    return this.prospects.addNote(user, id, dto.remarque);
+    return this.prospects.addNote(user, id, dto.remarque, dto.idApk);
   }
 
   @Post(':id/appels')

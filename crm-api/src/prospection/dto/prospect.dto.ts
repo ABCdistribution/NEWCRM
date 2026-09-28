@@ -223,4 +223,10 @@ export class CreateNoteProspectDto {
   @IsNotEmpty()
   @MaxLength(2000)
   remarque!: string;
+
+  @ApiPropertyOptional({ description: "Clé d'idempotence générée côté mobile (rejeu de l'outbox sans doublon)" })
+  @IsOptional()
+  @IsString()
+  @MaxLength(64)
+  idApk?: string;
 }

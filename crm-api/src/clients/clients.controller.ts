@@ -11,7 +11,7 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiProperty, ApiPropertyOptional, ApiTags } from '@nestjs/swagger';
-import { IsNotEmpty, IsOptional, IsString, IsUUID, MaxLength, ValidateIf } from 'class-validator';
+import { IsDateString, IsIn, IsInt, IsNotEmpty, IsOptional, IsString, IsUUID, MaxLength, Min, ValidateIf } from 'class-validator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { ClientsService } from './clients.service';
@@ -79,6 +79,22 @@ class CreateVisiteCommercialeDto {
   @ApiPropertyOptional({ type: [ReponseVisiteDto] })
   @IsOptional()
   reponses?: ReponseVisiteDto[];
+
+  @ApiPropertyOptional({ description: "Clé d'idempotence générée côté mobile (rejeu de l'outbox sans doublon)" })
+  @IsOptional()
+  @IsString()
+  @MaxLength(64)
+  idApk?: string;
+
+  @ApiPropertyOptional({ description: 'Début de la visite (ISO) — horodatage VisiteStep DEBUT_VISITE_CS' })
+  @IsOptional()
+  @IsDateString()
+  debut?: string;
+
+  @ApiPropertyOptional({ description: 'Fin de la visite (ISO, défaut : maintenant) — horodatage VisiteStep FIN_VISITE_CS' })
+  @IsOptional()
+  @IsDateString()
+  fin?: string;
 }
 
 class CreateAppelClientDto {
@@ -89,8 +105,14 @@ class CreateAppelClientDto {
 
   @ApiPropertyOptional({ enum: ['REPONDU', 'SANS_REPONSE', 'MESSAGERIE', 'RAPPEL_PREVU'] })
   @IsOptional()
-  @IsString()
+  @IsIn(['REPONDU', 'SANS_REPONSE', 'MESSAGERIE', 'RAPPEL_PREVU'])
   resultat?: 'REPONDU' | 'SANS_REPONSE' | 'MESSAGERIE' | 'RAPPEL_PREVU';
+
+  @ApiPropertyOptional({ description: "Durée de l'appel en secondes (journal d'appels du téléphone)" })
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  dureeSec?: number;
 
   @ApiPropertyOptional()
   @IsOptional()

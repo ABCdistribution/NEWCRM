@@ -1,4 +1,4 @@
-import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+import { ConflictException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { Prisma } from '@crm/database';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateClientDto } from './dto/create-client.dto';
@@ -475,40 +475,63 @@ export class ClientsService {
       compteRendu?: string;
       prochaineVisite?: string;
       reponses?: { libelle: string; ok: boolean; remarque?: string }[];
+      idApk?: string;
+      debut?: string;
+      fin?: string;
     },
   ) {
     await this.findOne(clientId);
-    const visite = await this.prisma.visite.create({
-      data: {
-        promoteurId: userId,
-        clientId,
-        motif: `Visite commerciale${dto.avecRdv ? ' avec RDV' : ''}${dto.objets?.length ? ' — ' + dto.objets.join(', ') : ''}`,
-        pmcEtat: dto.remplissage ?? null,
-        pmcCommentaire: dto.compteRendu?.trim() || null,
-        queueDate: dto.prochaineVisite ? new Date(dto.prochaineVisite) : null,
-      },
-      select: { id: true, createdAt: true },
-    });
-    for (const [i, r] of (dto.reponses ?? []).entries()) {
-      // La question est identifiée par son libellé — créée au premier usage.
-      let question = await this.prisma.questionVisite.findFirst({
-        where: { libelle: r.libelle, deletedAt: null },
+    // Rejeu de l'outbox mobile : la visite existe déjà (Visite.idApk est unique).
+    if (dto.idApk) {
+      const existante = await this.prisma.visite.findUnique({
+        where: { idApk: dto.idApk },
+        select: { id: true, createdAt: true, promoteurId: true },
       });
-      question ??= await this.prisma.questionVisite.create({
-        data: { libelle: r.libelle, type: 'CASE_A_COCHER', ordre: 100 + i, creeParId: userId },
-      });
-      await this.prisma.visiteReponse.create({
-        data: {
-          visiteId: visite.id,
-          questionId: question.id,
-          valeur: `${r.ok ? 'oui' : 'non'}${r.remarque?.trim() ? ' — ' + r.remarque.trim() : ''}`,
-        },
-      });
+      if (existante) {
+        if (existante.promoteurId !== userId) throw new ForbiddenException('idApk déjà utilisé par un autre utilisateur');
+        return { id: existante.id, createdAt: existante.createdAt, dejaSynchronisee: true };
+      }
     }
-    await this.prisma.visiteStep.create({
-      data: { visiteId: visite.id, etape: 'FIN_VISITE_CS', horodatage: new Date() },
+    // Transaction : un rejeu après échec partiel ne laisse jamais une visite à moitié écrite.
+    return this.prisma.$transaction(async (tx) => {
+      const visite = await tx.visite.create({
+        data: {
+          promoteurId: userId,
+          clientId,
+          idApk: dto.idApk ?? null,
+          motif: `Visite commerciale${dto.avecRdv ? ' avec RDV' : ''}${dto.objets?.length ? ' — ' + dto.objets.join(', ') : ''}`,
+          pmcEtat: dto.remplissage ?? null,
+          pmcCommentaire: dto.compteRendu?.trim() || null,
+          queueDate: dto.prochaineVisite ? new Date(dto.prochaineVisite) : null,
+        },
+        select: { id: true, createdAt: true },
+      });
+      for (const [i, r] of (dto.reponses ?? []).entries()) {
+        // La question est identifiée par son libellé — créée au premier usage.
+        let question = await tx.questionVisite.findFirst({
+          where: { libelle: r.libelle, deletedAt: null },
+        });
+        question ??= await tx.questionVisite.create({
+          data: { libelle: r.libelle, type: 'CASE_A_COCHER', ordre: 100 + i, creeParId: userId },
+        });
+        await tx.visiteReponse.create({
+          data: {
+            visiteId: visite.id,
+            questionId: question.id,
+            valeur: `${r.ok ? 'oui' : 'non'}${r.remarque?.trim() ? ' — ' + r.remarque.trim() : ''}`,
+          },
+        });
+      }
+      if (dto.debut) {
+        await tx.visiteStep.create({
+          data: { visiteId: visite.id, etape: 'DEBUT_VISITE_CS', horodatage: new Date(dto.debut) },
+        });
+      }
+      await tx.visiteStep.create({
+        data: { visiteId: visite.id, etape: 'FIN_VISITE_CS', horodatage: dto.fin ? new Date(dto.fin) : new Date() },
+      });
+      return { ...visite, dejaSynchronisee: false };
     });
-    return visite;
   }
 
   /** Journalise un appel passé au magasin (bouton « Appeler » de la gestion des magasins secteur). */

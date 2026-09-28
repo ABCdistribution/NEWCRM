@@ -1,4 +1,19 @@
-import { Body, Controller, Get, Post, Query, UseGuards } from '@nestjs/common';
+import {
+  BadRequestException,
+  Body,
+  Controller,
+  Get,
+  Param,
+  ParseUUIDPipe,
+  Post,
+  Query,
+  Res,
+  UploadedFile,
+  UseGuards,
+  UseInterceptors,
+} from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
+import type { Response } from 'express';
 import { ApiBearerAuth, ApiOperation, ApiProperty, ApiPropertyOptional, ApiTags } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 import {
@@ -79,6 +94,14 @@ class CreateVisiteDto {
   reponses?: ReponseDto[];
 }
 
+class PhotoDto {
+  @ApiPropertyOptional({ description: "Clé d'idempotence générée côté mobile (rejeu de l'outbox sans doublon)" })
+  @IsOptional()
+  @IsString()
+  @MaxLength(64)
+  idApk?: string;
+}
+
 @ApiTags('visites')
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard)
@@ -107,5 +130,41 @@ export class VisitesController {
   })
   create(@Body() dto: CreateVisiteDto, @CurrentUser() me: User) {
     return this.visites.create(me, dto);
+  }
+
+  @Post(':id/photos')
+  @UseInterceptors(FileInterceptor('photo', { limits: { fileSize: 10 * 1024 * 1024 } }))
+  @ApiOperation({
+    summary: 'Photo de rayon attachée à une visite (multipart, champ « photo », 10 Mo max) — idempotent par idApk',
+  })
+  addPhoto(
+    @Param('id', ParseUUIDPipe) id: string,
+    @UploadedFile() photo: { originalname: string; mimetype: string; size: number; buffer: Buffer } | undefined,
+    @Body() dto: PhotoDto,
+    @CurrentUser() me: User,
+  ) {
+    if (!photo) throw new BadRequestException('Aucune photo reçue (champ « photo »).');
+    return this.visites.addPhoto(me, id, photo, dto.idApk);
+  }
+
+  @Get(':id/photos')
+  @ApiOperation({ summary: "Photos d'une visite (métadonnées)" })
+  listPhotos(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() me: User) {
+    return this.visites.listPhotos(me, id);
+  }
+
+  @Get(':id/photos/:photoId')
+  @ApiOperation({ summary: "Télécharger une photo de visite" })
+  async getPhoto(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Param('photoId', ParseUUIDPipe) photoId: string,
+    @CurrentUser() me: User,
+    @Res() res: Response,
+  ) {
+    const p = await this.visites.getPhoto(me, id, photoId);
+    res.setHeader('Content-Type', p.mime);
+    res.setHeader('Content-Disposition', `inline; filename="${encodeURIComponent(p.nom)}"`);
+    res.setHeader('Cache-Control', 'private, max-age=3600');
+    res.send(Buffer.from(p.donnees));
   }
 }
