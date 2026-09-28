@@ -165,4 +165,73 @@ export class VisitesService {
 
     return { id: visite.id, idApk: dto.idApk, dejaSynchronisee: false };
   }
+
+  // --- Photos de rayon (Helios Mobile) -----------------------------------
+
+  /** Un promoteur ne voit que ses visites ; l'encadrement voit tout (comme GET /visites). */
+  private async visiteAccessible(me: { id: string; role: string }, visiteId: string) {
+    const visite = await this.prisma.visite.findFirst({
+      where: { id: visiteId, deletedAt: null, ...(me.role === 'COMMERCIAL' ? { promoteurId: me.id } : {}) },
+      select: { id: true, promoteurId: true },
+    });
+    if (!visite) throw new NotFoundException(`Visite ${visiteId} introuvable`);
+    return visite;
+  }
+
+  async addPhoto(
+    me: { id: string; role: string },
+    visiteId: string,
+    photo: { originalname: string; mimetype: string; size: number; buffer: Buffer },
+    idApk?: string,
+  ) {
+    const visite = await this.visiteAccessible(me, visiteId);
+    if (visite.promoteurId !== me.id && me.role !== 'ADMIN') {
+      throw new ForbiddenException("Seul l'auteur de la visite peut y ajouter des photos");
+    }
+    if (!photo.mimetype?.startsWith('image/')) throw new BadRequestException('Le fichier doit être une image.');
+    // Rejeu de l'outbox mobile : la photo existe déjà → on la renvoie.
+    if (idApk) {
+      const existante = await this.prisma.visitePhoto.findUnique({
+        where: { idApk },
+        select: { id: true, visiteId: true, createdAt: true },
+      });
+      if (existante) {
+        if (existante.visiteId !== visiteId) throw new BadRequestException('idApk déjà utilisé pour une autre visite');
+        return { id: existante.id, createdAt: existante.createdAt, dejaSynchronise: true };
+      }
+    }
+    const cree = await this.prisma.visitePhoto.create({
+      data: {
+        visiteId,
+        fichier: photo.originalname || 'photo.jpg',
+        taille: photo.size,
+        mime: photo.mimetype,
+        donnees: Uint8Array.from(photo.buffer),
+        idApk: idApk ?? null,
+        appName: 'helios-mobile',
+      },
+      select: { id: true, createdAt: true },
+    });
+    return { ...cree, dejaSynchronise: false };
+  }
+
+  async listPhotos(me: { id: string; role: string }, visiteId: string) {
+    await this.visiteAccessible(me, visiteId);
+    return this.prisma.visitePhoto.findMany({
+      where: { visiteId },
+      orderBy: { createdAt: 'asc' },
+      select: { id: true, fichier: true, taille: true, mime: true, createdAt: true },
+    });
+  }
+
+  async getPhoto(me: { id: string; role: string }, visiteId: string, photoId: string) {
+    await this.visiteAccessible(me, visiteId);
+    const p = await this.prisma.visitePhoto.findFirst({
+      where: { id: photoId, visiteId },
+      select: { fichier: true, mime: true, donnees: true },
+    });
+    // Les anciennes photos (appli historique) ne sont pas stockées en base.
+    if (!p?.donnees) throw new NotFoundException(`Photo ${photoId} introuvable`);
+    return { nom: p.fichier, mime: p.mime ?? 'image/jpeg', donnees: p.donnees };
+  }
 }

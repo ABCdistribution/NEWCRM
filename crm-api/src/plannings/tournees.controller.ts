@@ -79,6 +79,12 @@ class CreateEtapeDto {
   @IsString()
   @MaxLength(300)
   soireeAdresse?: string;
+
+  @ApiPropertyOptional({ description: "Clé d'idempotence générée côté mobile (rejeu de l'outbox sans doublon)" })
+  @IsOptional()
+  @IsString()
+  @MaxLength(64)
+  idApk?: string;
 }
 
 class UpdateEtapeDto {
@@ -184,7 +190,7 @@ export class TourneesController {
   }
 
   @Post()
-  @ApiOperation({ summary: 'Ajoute une étape à MA tournée (prospect OU magasin existant)' })
+  @ApiOperation({ summary: 'Ajoute une étape à MA tournée (prospect OU magasin existant) — idempotent par idApk' })
   async create(@Body() dto: CreateEtapeDto, @CurrentUser() me: User) {
     if (dto.adm) {
       if (dto.clientId || dto.prospectId) {
@@ -192,6 +198,14 @@ export class TourneesController {
       }
     } else if (!dto.clientId === !dto.prospectId) {
       throw new BadRequestException('Renseigner soit clientId, soit prospectId (exactement un des deux).');
+    }
+    // Rejeu de l'outbox mobile : l'étape existe déjà → on la renvoie telle quelle.
+    if (dto.idApk) {
+      const existante = await this.prisma.tourneeEtape.findFirst({
+        where: { idApk: dto.idApk, userId: me.id },
+        select: etapeSelect,
+      });
+      if (existante) return existante;
     }
     return this.prisma.tourneeEtape.create({
       data: {
@@ -207,6 +221,7 @@ export class TourneesController {
         soireeEtape: dto.soireeEtape ?? false,
         soireeLieu: dto.soireeEtape ? dto.soireeLieu?.trim() || null : null,
         soireeAdresse: dto.soireeEtape ? dto.soireeAdresse?.trim() || null : null,
+        idApk: dto.idApk ?? null,
       },
       select: etapeSelect,
     });

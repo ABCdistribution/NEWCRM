@@ -385,6 +385,9 @@ ANNULEE ANNULEE
     Int taille "❓"
     String idVisiteApk "❓"
     String appName "❓"
+    String mime "❓"
+    Bytes donnees "❓"
+    String idApk "❓"
     DateTime createdAt 
     }
   
@@ -458,6 +461,7 @@ ANNULEE ANNULEE
     Boolean soireeEtape 
     String soireeLieu "❓"
     String soireeAdresse "❓"
+    String idApk "❓"
     DateTime createdAt 
     DateTime updatedAt 
     DateTime deletedAt "❓"

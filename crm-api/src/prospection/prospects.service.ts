@@ -1,6 +1,7 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { PipelineEtape, Prisma, User } from '@crm/database';
 import { PrismaService } from '../prisma/prisma.service';
+import { CreateContactDto, UpdateContactDto } from '../clients/dto/contact.dto';
 import {
   CreateAppelDto,
   CreateEmailDto,
@@ -328,10 +329,18 @@ export class ProspectsService {
   }
 
   /** Ajoute une note à la fiche prospect (timeline). */
-  async addNote(user: User, prospectId: string, remarque: string) {
+  async addNote(user: User, prospectId: string, remarque: string, idApk?: string) {
     await this.findOne(user, prospectId);
+    // Rejeu de l'outbox mobile : la note existe déjà → on la renvoie.
+    if (idApk) {
+      const existante = await this.prisma.clientNote.findFirst({
+        where: { prospectId, idApk, deletedAt: null },
+        select: { id: true, remarque: true, createdAt: true },
+      });
+      if (existante) return existante;
+    }
     const note = await this.prisma.clientNote.create({
-      data: { prospectId, remarque: remarque.trim(), auteurId: user.id },
+      data: { prospectId, remarque: remarque.trim(), auteurId: user.id, idApk: idApk ?? null },
       select: { id: true, remarque: true, createdAt: true },
     });
     await this.prisma.prospect.update({ where: { id: prospectId }, data: { lastActivityAt: note.createdAt } });
@@ -522,5 +531,29 @@ export class ProspectsService {
     });
 
     return { clientId: client.id, client, dejaConverti: false };
+  }
+
+  // --- Contacts nommés du prospect (rattachés au client à la conversion) ---
+
+  async addContact(user: User, prospectId: string, dto: CreateContactDto) {
+    await this.findOne(user, prospectId);
+    const contact = await this.prisma.clientContact.create({ data: { ...dto, prospectId, creeParId: user.id } });
+    await this.prisma.prospect.update({ where: { id: prospectId }, data: { lastActivityAt: new Date() } });
+    return contact;
+  }
+
+  async updateContact(user: User, prospectId: string, contactId: string, dto: UpdateContactDto) {
+    await this.findOne(user, prospectId);
+    const contact = await this.prisma.clientContact.findFirst({ where: { id: contactId, prospectId, deletedAt: null } });
+    if (!contact) throw new NotFoundException(`Contact ${contactId} introuvable pour ce prospect`);
+    return this.prisma.clientContact.update({ where: { id: contactId }, data: dto });
+  }
+
+  async removeContact(user: User, prospectId: string, contactId: string) {
+    await this.findOne(user, prospectId);
+    const contact = await this.prisma.clientContact.findFirst({ where: { id: contactId, prospectId, deletedAt: null } });
+    if (!contact) throw new NotFoundException(`Contact ${contactId} introuvable pour ce prospect`);
+    await this.prisma.clientContact.update({ where: { id: contactId }, data: { deletedAt: new Date() } });
+    return { id: contactId, deleted: true };
   }
 }
