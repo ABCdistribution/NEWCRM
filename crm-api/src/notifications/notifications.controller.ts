@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Param, ParseUUIDPipe, Patch, Post, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiProperty, ApiTags } from '@nestjs/swagger';
 import { IsNotEmpty, IsString, IsUUID, MaxLength } from 'class-validator';
 import { Role } from '@crm/database';
@@ -51,6 +51,12 @@ export class NotificationsController {
   @ApiOperation({ summary: "Boîte de réception de l'utilisateur courant (20 dernières + non lues)" })
   me(@CurrentUser() user: { id: string }) {
     return this.notifications.boite(user.id);
+  }
+
+  @Patch(':id/lu')
+  @ApiOperation({ summary: 'Marquer UNE notification comme lue' })
+  lu(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: { id: string }) {
+    return this.notifications.marquerLu(id, user.id);
   }
 
   @Post('lu-tout')

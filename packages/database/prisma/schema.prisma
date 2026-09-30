@@ -181,23 +181,24 @@ model User {
   questionsCreees       QuestionVisite[]    @relation("QuestionsCreees")
 
   // Terrain
-  visites         Visite[]
-  plannings       Planning[]
-  plannifications Plannification[]
-  tournees        Tournee[]
-  tourneesPerso   TourneeEtape[]   @relation("TourneesPerso")
-  commandesApk    CommandeApk[]
+  visites          Visite[]
+  plannings        Planning[]
+  plannifications  Plannification[]
+  tournees         Tournee[]
+  tourneesPerso    TourneeEtape[]    @relation("TourneesPerso")
+  planningSemaines PlanningSemaine[]
+  commandesApk     CommandeApk[]
 
   // Prospection
-  prospectsAssignes     Prospect[]      @relation("ProspectsAssignes")
-  prospectsCrees        Prospect[]      @relation("ProspectsCrees")
-  opportunitesAssignees Opportunite[]   @relation("OpportunitesAssignees")
-  appelsProspects       ProspectAppel[] @relation("AppelsProspect")
-  emailsProspects       ProspectEmail[] @relation("EmailsProspect")
+  prospectsAssignes      Prospect[]            @relation("ProspectsAssignes")
+  prospectsCrees         Prospect[]            @relation("ProspectsCrees")
+  opportunitesAssignees  Opportunite[]         @relation("OpportunitesAssignees")
+  appelsProspects        ProspectAppel[]       @relation("AppelsProspect")
+  emailsProspects        ProspectEmail[]       @relation("EmailsProspect")
   piecesJointesProspects ProspectPieceJointe[] @relation("PiecesJointesProspect")
-  appelsClients         ClientAppel[]   @relation("AppelsClient")
-  emailsClients         ClientEmail[]   @relation("EmailsClient")
-  etapesProspects       ProspectEtape[] @relation("EtapesProspect")
+  appelsClients          ClientAppel[]         @relation("AppelsClient")
+  emailsClients          ClientEmail[]         @relation("EmailsClient")
+  etapesProspects        ProspectEtape[]       @relation("EtapesProspect")
 
   // Notifications
   notificationsRecues Notification[] @relation("NotificationsRecues")
@@ -384,19 +385,19 @@ model Periodicite {
 
 /// Contact d'un magasin (ex-`ref_client_contact`). Colonne morte `login_createur` écartée.
 model ClientContact {
-  id        String  @id @default(uuid()) @db.Uuid
+  id         String    @id @default(uuid()) @db.Uuid
   // Magasin OU prospect — exactement l'un des deux (CHECK en base).
   clientId   String?   @db.Uuid
   client     Client?   @relation(fields: [clientId], references: [id])
   prospectId String?   @db.Uuid
   prospect   Prospect? @relation(fields: [prospectId], references: [id])
-  prenom    String?
-  nom       String
-  poste     String?
-  typePoste String? // PDG, Directeur, Chef de rayon…
-  fixe      String?
-  portable  String?
-  mail      String?
+  prenom     String?
+  nom        String
+  poste      String?
+  typePoste  String? // PDG, Directeur, Chef de rayon…
+  fixe       String?
+  portable   String?
+  mail       String?
 
   creeParId String? @db.Uuid
   creePar   User?   @relation("ContactCreePar", fields: [creeParId], references: [id])
@@ -413,14 +414,14 @@ model ClientContact {
 
 /// Note terrain sur un client (ex-`ref_client_remarque`, saisie mobile).
 model ClientNote {
-  id       String  @id @default(uuid()) @db.Uuid
+  id         String    @id @default(uuid()) @db.Uuid
   // Magasin OU prospect — exactement l'un des deux (CHECK en base).
   clientId   String?   @db.Uuid
   client     Client?   @relation(fields: [clientId], references: [id])
   prospectId String?   @db.Uuid
   prospect   Prospect? @relation(fields: [prospectId], references: [id])
-  remarque String
-  idApk    String? // identifiant de la saisie mobile
+  remarque   String
+  idApk      String? // identifiant de la saisie mobile
 
   auteurId String? @db.Uuid
   auteur   User?   @relation("NoteAuteur", fields: [auteurId], references: [id])
@@ -545,11 +546,11 @@ model Article {
 
   actif Boolean @default(true)
 
-  tarifs         Tarif[]
-  promos         Promo[]
-  pem            PemArticle[]
-  switchsSource  ArticleSwitch[] @relation("SwitchArticle")
-  switchsCible   ArticleSwitch[] @relation("SwitchCible")
+  tarifs            Tarif[]
+  promos            Promo[]
+  pem               PemArticle[]
+  switchsSource     ArticleSwitch[]    @relation("SwitchArticle")
+  switchsCible      ArticleSwitch[]    @relation("SwitchCible")
   stratLignes       StratPemLigne[]
   visitePromos      VisitePromo[]
   commandeLignes    CommandeLigne[]
@@ -670,15 +671,15 @@ model StratPemLigne {
 
 /// Visite d'un magasin par un promoteur (ex-`visite`).
 model Visite {
-  id          String  @id @default(uuid()) @db.Uuid
-  promoteurId String  @db.Uuid
-  promoteur   User    @relation(fields: [promoteurId], references: [id])
+  id          String    @id @default(uuid()) @db.Uuid
+  promoteurId String    @db.Uuid
+  promoteur   User      @relation(fields: [promoteurId], references: [id])
   // Magasin visité OU prospect visité — exactement l'un des deux (CHECK en base).
   clientId    String?   @db.Uuid
   client      Client?   @relation(fields: [clientId], references: [id])
   prospectId  String?   @db.Uuid
   prospect    Prospect? @relation(fields: [prospectId], references: [id])
-  idApk       String? @unique // identifiant généré côté mobile — clé d'idempotence de la sync
+  idApk       String?   @unique // identifiant généré côté mobile — clé d'idempotence de la sync
 
   // Motif de la saisie (planifiée, appel client, passage d'opportunité, urgence…).
   motif String?
@@ -849,13 +850,13 @@ model Planning {
 
 /// Récurrence de planning (ex-`plannification`).
 model Plannification {
-  id          String   @id @default(uuid()) @db.Uuid
-  promoteurId String   @db.Uuid
-  promoteur   User     @relation(fields: [promoteurId], references: [id])
-  clientId    String   @db.Uuid
-  client      Client   @relation(fields: [clientId], references: [id])
+  id          String    @id @default(uuid()) @db.Uuid
+  promoteurId String    @db.Uuid
+  promoteur   User      @relation(fields: [promoteurId], references: [id])
+  clientId    String    @db.Uuid
+  client      Client    @relation(fields: [clientId], references: [id])
   jours       String // jours de passage, CSV ISO (1=lundi … 6=samedi), ex. "1,4"
-  recurrence  Int      @default(1) // fréquence en semaines (1 = chaque semaine)
+  recurrence  Int       @default(1) // fréquence en semaines (1 = chaque semaine)
   dateDebut   DateTime // ancre de la récurrence (les occurrences démarrent ici)
   dateFin     DateTime? // fin optionnelle de la règle
 
@@ -884,7 +885,7 @@ model TourneeEtape {
   prospect   Prospect? @relation("TourneeEtapesProspect", fields: [prospectId], references: [id])
 
   datePassage DateTime
-  fait        Boolean @default(false)
+  fait        Boolean  @default(false)
   note        String? // observations
 
   // Étape administrative (ADM) : journée sans cible magasin/prospect.
@@ -908,6 +909,25 @@ model TourneeEtape {
   @@index([clientId])
   @@index([prospectId])
   @@map("tournee_etapes")
+}
+
+/// Prévision puis validation du planning d'activité d'une semaine (lundi) pour un
+/// utilisateur Helios. Une ligne par (utilisateur, semaine) ; `valideAt` verrouille.
+model PlanningSemaine {
+  id     String @id @default(uuid()) @db.Uuid
+  userId String @db.Uuid
+  user   User   @relation(fields: [userId], references: [id])
+
+  semaine         DateTime  @db.Date // lundi de la semaine
+  prevuAt         DateTime? // prévision enregistrée
+  valideAt        DateTime? // planning validé
+  nbEtapesPrevues Int? // nombre d'étapes au moment de la prévision
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, semaine])
+  @@map("planning_semaines")
 }
 
 /// Tournée type d'un représentant (ex-`tournee`).
@@ -991,12 +1011,12 @@ model CommandeLigne {
 /// `idCommandeApk` : clé d'idempotence de la sync mobile ET pont avec la commande
 /// Minos qui reviendra par l'import (champ IDCRM, 10 caractères max).
 model CommandeApk {
-  id            String  @id @default(uuid()) @db.Uuid
-  idCommandeApk String  @unique @db.VarChar(10)
-  promoteurId   String  @db.Uuid
-  promoteur     User    @relation(fields: [promoteurId], references: [id])
-  clientId      String  @db.Uuid
-  client        Client  @relation(fields: [clientId], references: [id])
+  id            String   @id @default(uuid()) @db.Uuid
+  idCommandeApk String   @unique @db.VarChar(10)
+  promoteurId   String   @db.Uuid
+  promoteur     User     @relation(fields: [promoteurId], references: [id])
+  clientId      String   @db.Uuid
+  client        Client   @relation(fields: [clientId], references: [id])
   commentaire   String?
   dateCommande  DateTime // date de saisie sur le terrain (pas de réception serveur)
 
@@ -1069,15 +1089,15 @@ model Prospect {
   idApk String? @unique // clé d'idempotence de la création offline (mobile)
 
   // Satellites réutilisés du modèle client (contact/note : client OU prospect).
-  contacts     ClientContact[]
-  notes        ClientNote[]
-  visites      Visite[]
-  opportunites Opportunite[]
-  appels       ProspectAppel[]
-  emails       ProspectEmail[]
-  etapesHisto  ProspectEtape[]
+  contacts      ClientContact[]
+  notes         ClientNote[]
+  visites       Visite[]
+  opportunites  Opportunite[]
+  appels        ProspectAppel[]
+  emails        ProspectEmail[]
+  etapesHisto   ProspectEtape[]
   piecesJointes ProspectPieceJointe[]
-  tourneeEtapes TourneeEtape[] @relation("TourneeEtapesProspect")
+  tourneeEtapes TourneeEtape[]        @relation("TourneeEtapesProspect")
 
   lastActivityAt DateTime  @default(now())
   createdAt      DateTime  @default(now())
@@ -1125,10 +1145,10 @@ model ProspectEmail {
   auteurId String? @db.Uuid
   auteur   User?   @relation("EmailsProspect", fields: [auteurId], references: [id])
 
-  dateEmail   DateTime @default(now())
+  dateEmail    DateTime @default(now())
   destinataire String?
-  sujet       String?
-  commentaire String?
+  sujet        String?
+  commentaire  String?
 
   idApk String? @unique
 
@@ -1291,9 +1311,9 @@ model ErpImportLog {
 /// Objectif de CA ANNUEL par magasin, saisi par la direction (helios).
 /// L'objectif d'un commercial = somme des objectifs de son portefeuille (/12 pour le mensuel).
 model Objectif {
-  id       String @id @default(uuid()) @db.Uuid
-  clientId String @db.Uuid
-  client   Client @relation(fields: [clientId], references: [id])
+  id       String  @id @default(uuid()) @db.Uuid
+  clientId String  @db.Uuid
+  client   Client  @relation(fields: [clientId], references: [id])
   annee    Int
   cibleCa  Decimal @db.Decimal(14, 2)
 

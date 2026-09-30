@@ -119,6 +119,29 @@ export async function moveEtape(id: string, datePassage: string): Promise<{ erro
   return { error: null };
 }
 
+/** Enregistre la prévision ou la validation de la semaine côté serveur. */
+export async function enregistrerSemaine(
+  semaine: string,
+  etape: 'prevision' | 'validation',
+): Promise<{ error: string | null }> {
+  try {
+    const res = await serverFetch(`/tournees/semaine/${etape}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ semaine }),
+    });
+    if (!res.ok) {
+      const body = (await res.json().catch(() => null)) as { message?: string | string[] } | null;
+      const msg = Array.isArray(body?.message) ? body.message[0] : body?.message;
+      return { error: msg ?? `Erreur serveur (${res.status}).` };
+    }
+  } catch {
+    return { error: "Impossible de joindre l'API." };
+  }
+  revalidatePath(PAGE);
+  return { error: null };
+}
+
 /** Retire une étape de mon planning. */
 export async function removeEtape(id: string): Promise<void> {
   await serverFetch(`/tournees/${id}`, { method: 'DELETE' }).catch(() => undefined);
