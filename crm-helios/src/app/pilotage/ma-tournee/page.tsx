@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import { ChevronLeft, ChevronRight, Route, Sprout, Store } from 'lucide-react';
-import { getMe, listMaTournee, listMagasinsGeo, listProspects, type ProspectRow } from '@/lib/api';
+import { getMe, getSemaineEtat, listMaTournee, listMagasinsGeo, listProspects, type ProspectRow } from '@/lib/api';
 import { AccesRefuse } from '@/components/acces-refuse';
 import { MaTourneeBoard } from '@/components/ma-tournee-board';
 import { PlanningValidation } from '@/components/planning-validation';
@@ -50,9 +50,10 @@ export default async function MaTourneePage({
     return { date: iso(d), nom, label: DAY_FMT.format(d) };
   });
 
-  const [etapes, magasins] = await Promise.all([
+  const [etapes, magasins, semaineEtat] = await Promise.all([
     listMaTournee(semaineIso, iso(nextMonday)),
     listMagasinsGeo(),
+    getSemaineEtat(semaineIso),
   ]);
 
   // Mes prospects encore en jeu (à glisser dans la tournée).
@@ -84,7 +85,12 @@ export default async function MaTourneePage({
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <OutlookSyncButton />
-          <PlanningValidation semaine={semaineIso} nbEtapes={(etapes ?? []).length} />
+          <PlanningValidation
+            semaine={semaineIso}
+            nbEtapes={(etapes ?? []).length}
+            prevuAt={semaineEtat?.prevuAt ?? null}
+            valideAt={semaineEtat?.valideAt ?? null}
+          />
         </div>
         <div className="flex items-center gap-0.5 rounded-xl bg-white p-1 shadow-card">
           <Link href={`/pilotage/ma-tournee?semaine=${iso(prevMonday)}`} className={navBtn} aria-label="Semaine précédente">

@@ -468,6 +468,17 @@ ANNULEE ANNULEE
     }
   
 
+  "planning_semaines" {
+    String id "🗝️"
+    DateTime semaine 
+    DateTime prevuAt "❓"
+    DateTime valideAt "❓"
+    Int nbEtapesPrevues "❓"
+    DateTime createdAt 
+    DateTime updatedAt 
+    }
+  
+
   "tournees" {
     String id "🗝️"
     String jours "❓"
@@ -729,6 +740,7 @@ ANNULEE ANNULEE
     "tournee_etapes" }o--|| users : "user"
     "tournee_etapes" }o--|o clients : "client"
     "tournee_etapes" }o--|o prospects : "prospect"
+    "planning_semaines" }o--|| users : "user"
     "tournees" }o--|| users : "promoteur"
     "tournees" }o--|| clients : "client"
     "commandes" }o--|o clients : "client"

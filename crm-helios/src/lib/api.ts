@@ -997,6 +997,19 @@ export async function listMaTournee(debut: string, fin: string): Promise<Tournee
   }
 }
 
+export type SemaineEtat = { prevuAt: string | null; valideAt: string | null };
+
+/** État prévision / validation de MA semaine (lundi ISO). */
+export async function getSemaineEtat(semaine: string): Promise<SemaineEtat | null> {
+  try {
+    const res = await serverFetch(`/tournees/semaine${qs({ semaine })}`);
+    if (!res.ok) return null;
+    return (await res.json()) as SemaineEtat;
+  } catch {
+    return null;
+  }
+}
+
 export type ResultatAppel = 'REPONDU' | 'SANS_REPONSE' | 'MESSAGERIE' | 'RAPPEL_PREVU';
 
 /** Événement de la timeline d'un prospect : appel (mobile), visite de prospection ou opportunité. */

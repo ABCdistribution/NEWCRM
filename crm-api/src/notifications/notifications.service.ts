@@ -101,4 +101,19 @@ export class NotificationsService {
     });
     return { marquees: res.count };
   }
+
+  /** Marque une notification de l'utilisateur comme lue (idempotent). */
+  async marquerLu(id: string, userId: string) {
+    const notif = await this.prisma.notification.findFirst({
+      where: { id, userId },
+      select: { id: true, luAt: true },
+    });
+    if (!notif) throw new NotFoundException('Notification introuvable');
+    if (notif.luAt) return notif;
+    return this.prisma.notification.update({
+      where: { id },
+      data: { luAt: new Date() },
+      select: { id: true, luAt: true },
+    });
+  }
 }

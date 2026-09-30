@@ -1,6 +1,7 @@
 import {
   BadRequestException,
   Body,
+  ConflictException,
   Controller,
   Delete,
   Get,
@@ -103,7 +104,54 @@ class UpdateEtapeDto {
   @IsString()
   @MaxLength(500)
   note?: string;
+
+  @ApiPropertyOptional({ description: 'Requalification : visite simple' })
+  @IsOptional()
+  @IsBoolean()
+  visiteSimple?: boolean;
+
+  @ApiPropertyOptional({ description: 'Requalification : accompagnement promoteur' })
+  @IsOptional()
+  @IsBoolean()
+  accompagnement?: boolean;
+
+  @ApiPropertyOptional({ description: 'Requalification : passage sur rendez-vous' })
+  @IsOptional()
+  @IsBoolean()
+  rdv?: boolean;
+
+  @ApiPropertyOptional({ description: 'Requalification : soirée étape (découcher)' })
+  @IsOptional()
+  @IsBoolean()
+  soireeEtape?: boolean;
+
+  @ApiPropertyOptional({ description: "Lieu de l'étape (si soirée étape)" })
+  @IsOptional()
+  @IsString()
+  @MaxLength(200)
+  soireeLieu?: string;
+
+  @ApiPropertyOptional({ description: "Adresse de l'étape (si soirée étape)" })
+  @IsOptional()
+  @IsString()
+  @MaxLength(300)
+  soireeAdresse?: string;
 }
+
+class SemaineDto {
+  @ApiPropertyOptional({ description: 'Une date de la semaine (yyyy-mm-dd) — normalisée au lundi' })
+  @IsDateString()
+  semaine!: string;
+}
+
+/** Lundi (minuit UTC) de la semaine contenant `d` — colonne @db.Date. */
+function lundiDe(d: string): Date {
+  const x = new Date(d.slice(0, 10) + 'T00:00:00.000Z');
+  x.setUTCDate(x.getUTCDate() - ((x.getUTCDay() + 6) % 7));
+  return x;
+}
+
+const semaineSelect = { semaine: true, prevuAt: true, valideAt: true, nbEtapesPrevues: true } as const;
 
 const etapeSelect = {
   id: true,
@@ -189,6 +237,63 @@ export class TourneesController {
     return { user: { id: cible.id, displayName: cible.displayName, poste: cible.poste }, etapes };
   }
 
+  @Get('semaine')
+  @ApiOperation({ summary: "État (prévision / validation) de MA semaine — `null` si rien d'enregistré" })
+  async semaine(@Query('semaine') semaine: string, @CurrentUser() me: User) {
+    if (!semaine) throw new BadRequestException('Paramètre `semaine` requis (yyyy-mm-dd).');
+    const lundi = lundiDe(semaine);
+    const ligne = await this.prisma.planningSemaine.findUnique({
+      where: { userId_semaine: { userId: me.id, semaine: lundi } },
+      select: semaineSelect,
+    });
+    return ligne ?? { semaine: lundi, prevuAt: null, valideAt: null, nbEtapesPrevues: null };
+  }
+
+  @Post('semaine/prevision')
+  @ApiOperation({ summary: 'Enregistre la prévision de MA semaine (idempotent, refusé si déjà validée)' })
+  async prevision(@Body() dto: SemaineDto, @CurrentUser() me: User) {
+    const lundi = lundiDe(dto.semaine);
+    const existante = await this.prisma.planningSemaine.findUnique({
+      where: { userId_semaine: { userId: me.id, semaine: lundi } },
+    });
+    if (existante?.valideAt) throw new ConflictException('Cette semaine est déjà validée.');
+    const nb = await this.nbEtapes(me.id, lundi);
+    if (nb === 0) throw new BadRequestException('Aucune étape planifiée cette semaine.');
+    return this.prisma.planningSemaine.upsert({
+      where: { userId_semaine: { userId: me.id, semaine: lundi } },
+      create: { userId: me.id, semaine: lundi, prevuAt: new Date(), nbEtapesPrevues: nb },
+      update: { prevuAt: new Date(), nbEtapesPrevues: nb },
+      select: semaineSelect,
+    });
+  }
+
+  @Post('semaine/validation')
+  @ApiOperation({ summary: 'Valide MA semaine (verrouille ; enregistre aussi la prévision si absente)' })
+  async validation(@Body() dto: SemaineDto, @CurrentUser() me: User) {
+    const lundi = lundiDe(dto.semaine);
+    const existante = await this.prisma.planningSemaine.findUnique({
+      where: { userId_semaine: { userId: me.id, semaine: lundi } },
+    });
+    if (existante?.valideAt) throw new ConflictException('Cette semaine est déjà validée.');
+    const nb = await this.nbEtapes(me.id, lundi);
+    if (nb === 0) throw new BadRequestException('Aucune étape planifiée cette semaine.');
+    const maintenant = new Date();
+    return this.prisma.planningSemaine.upsert({
+      where: { userId_semaine: { userId: me.id, semaine: lundi } },
+      create: { userId: me.id, semaine: lundi, prevuAt: maintenant, valideAt: maintenant, nbEtapesPrevues: nb },
+      update: { valideAt: maintenant, prevuAt: existante?.prevuAt ?? maintenant, nbEtapesPrevues: existante?.nbEtapesPrevues ?? nb },
+      select: semaineSelect,
+    });
+  }
+
+  private nbEtapes(userId: string, lundi: Date): Promise<number> {
+    const suivant = new Date(lundi);
+    suivant.setUTCDate(suivant.getUTCDate() + 7);
+    return this.prisma.tourneeEtape.count({
+      where: { userId, deletedAt: null, datePassage: { gte: lundi, lt: suivant } },
+    });
+  }
+
   @Post()
   @ApiOperation({ summary: 'Ajoute une étape à MA tournée (prospect OU magasin existant) — idempotent par idApk' })
   async create(@Body() dto: CreateEtapeDto, @CurrentUser() me: User) {
@@ -228,7 +333,7 @@ export class TourneesController {
   }
 
   @Patch(':id')
-  @ApiOperation({ summary: 'Modifie une étape de MA tournée (fait, date, note)' })
+  @ApiOperation({ summary: 'Modifie une étape de MA tournée (fait, date, note, qualification)' })
   async update(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: UpdateEtapeDto,
@@ -238,12 +343,31 @@ export class TourneesController {
       where: { id, userId: me.id, deletedAt: null },
     });
     if (!etape) throw new NotFoundException(`Étape ${id} introuvable`);
+
+    // Requalification : on ne touche à la qualification que si un de ses champs est fourni.
+    const requalifie = [dto.visiteSimple, dto.accompagnement, dto.rdv, dto.soireeEtape, dto.soireeLieu, dto.soireeAdresse]
+      .some((v) => v !== undefined);
+    let qualif = {};
+    if (requalifie) {
+      const accompagnement = dto.accompagnement ?? etape.accompagnement;
+      const soireeEtape = dto.soireeEtape ?? etape.soireeEtape;
+      qualif = {
+        accompagnement,
+        visiteSimple: dto.visiteSimple ?? (dto.accompagnement !== undefined ? !accompagnement : etape.visiteSimple),
+        rdv: dto.rdv ?? etape.rdv,
+        soireeEtape,
+        soireeLieu: soireeEtape ? (dto.soireeLieu ?? etape.soireeLieu)?.trim() || null : null,
+        soireeAdresse: soireeEtape ? (dto.soireeAdresse ?? etape.soireeAdresse)?.trim() || null : null,
+      };
+    }
+
     return this.prisma.tourneeEtape.update({
       where: { id },
       data: {
         ...(dto.fait !== undefined ? { fait: dto.fait } : {}),
         ...(dto.datePassage ? { datePassage: new Date(dto.datePassage) } : {}),
         ...(dto.note !== undefined ? { note: dto.note.trim() || null } : {}),
+        ...qualif,
       },
       select: etapeSelect,
     });

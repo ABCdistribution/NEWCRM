@@ -1,43 +1,35 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useState, useTransition } from 'react';
 import { BadgeCheck, Save } from 'lucide-react';
-
-type Etat = { prevision?: string; validation?: string }; // ISO des enregistrements
-
-const cle = (semaine: string) => `planning-validation:${semaine}`;
+import { enregistrerSemaine } from '@/lib/tournee-actions';
 
 const FMT = new Intl.DateTimeFormat('fr-FR', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
 
 /**
- * Prévision & validation du planning de la semaine — flux « virtuel » pour
- * l'instant : l'état est mémorisé côté navigateur (par semaine) en attendant
- * le circuit de validation serveur (rapport d'activité).
+ * Prévision & validation du planning de la semaine — enregistrées côté serveur
+ * (`/tournees/semaine`), partagées avec l'app mobile. La validation verrouille.
  */
-export function PlanningValidation({ semaine, nbEtapes }: { semaine: string; nbEtapes: number }) {
-  const [etat, setEtat] = useState<Etat>({});
-  const [monte, setMonte] = useState(false);
+export function PlanningValidation({
+  semaine,
+  nbEtapes,
+  prevuAt,
+  valideAt,
+}: {
+  semaine: string;
+  nbEtapes: number;
+  prevuAt: string | null;
+  valideAt: string | null;
+}) {
+  const [pending, start] = useTransition();
+  const [erreur, setErreur] = useState<string | null>(null);
+  const etat = { prevision: prevuAt ?? undefined, validation: valideAt ?? undefined };
 
-  useEffect(() => {
-    setMonte(true);
-    try {
-      setEtat(JSON.parse(localStorage.getItem(cle(semaine)) ?? '{}') as Etat);
-    } catch {
-      setEtat({});
-    }
-  }, [semaine]);
-
-  const enregistrer = (champ: keyof Etat) => {
-    const suivant = { ...etat, [champ]: new Date().toISOString() };
-    setEtat(suivant);
-    try {
-      localStorage.setItem(cle(semaine), JSON.stringify(suivant));
-    } catch {
-      // stockage indisponible — l'état reste pour la session en cours
-    }
-  };
-
-  if (!monte) return null;
+  const enregistrer = (etape: 'prevision' | 'validation') =>
+    start(async () => {
+      const r = await enregistrerSemaine(semaine, etape);
+      setErreur(r.error);
+    });
 
   return (
     <div className="flex flex-wrap items-center gap-2">
@@ -55,7 +47,7 @@ export function PlanningValidation({ semaine, nbEtapes }: { semaine: string; nbE
             <button
               type="button"
               onClick={() => enregistrer('prevision')}
-              disabled={nbEtapes === 0}
+              disabled={nbEtapes === 0 || pending}
               title={nbEtapes === 0 ? 'Aucune étape planifiée cette semaine' : `Enregistrer la prévision (${nbEtapes} étapes)`}
               className="inline-flex items-center gap-1.5 rounded-xl border border-neutral-200 bg-white px-3 py-1.5 text-xs font-semibold text-neutral-600 shadow-sm transition hover:border-brand hover:text-brand disabled:opacity-40 dark:border-navy-700 dark:bg-navy-950 dark:text-neutral-300 dark:hover:border-accent dark:hover:text-accent"
             >
@@ -65,7 +57,7 @@ export function PlanningValidation({ semaine, nbEtapes }: { semaine: string; nbE
           <button
             type="button"
             onClick={() => enregistrer('validation')}
-            disabled={nbEtapes === 0}
+            disabled={nbEtapes === 0 || pending}
             title={nbEtapes === 0 ? 'Aucune étape planifiée cette semaine' : 'Valider le planning de la semaine'}
             className="inline-flex items-center gap-1.5 rounded-xl bg-brand px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-brand/90 disabled:opacity-40 dark:bg-accent dark:text-brand dark:hover:bg-accent/80"
           >
@@ -73,6 +65,7 @@ export function PlanningValidation({ semaine, nbEtapes }: { semaine: string; nbE
           </button>
         </>
       )}
+      {erreur && <span className="text-xs font-medium text-red-600">{erreur}</span>}
     </div>
   );
 }
