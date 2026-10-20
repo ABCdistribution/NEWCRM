@@ -119,6 +119,35 @@ export async function moveEtape(id: string, datePassage: string): Promise<{ erro
   return { error: null };
 }
 
+/** Requalifie une étape existante (type de passage, RDV, soirée étape, date, note) sans la recréer. */
+export async function requalifierEtape(
+  id: string,
+  datePassage: string,
+  options: OptionsEtape,
+): Promise<{ error: string | null }> {
+  const { heure, note, ...drapeaux } = options;
+  try {
+    const res = await serverFetch(`/tournees/${id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        datePassage: heure ? `${datePassage}T${heure}:00` : datePassage,
+        note: note?.trim() ?? '',
+        ...drapeaux,
+      }),
+    });
+    if (!res.ok) {
+      const body = (await res.json().catch(() => null)) as { message?: string | string[] } | null;
+      const msg = Array.isArray(body?.message) ? body.message[0] : body?.message;
+      return { error: msg ?? `Erreur serveur (${res.status}).` };
+    }
+  } catch {
+    return { error: "Impossible de joindre l'API." };
+  }
+  revalidatePath(PAGE);
+  return { error: null };
+}
+
 /** Enregistre la prévision ou la validation de la semaine côté serveur. */
 export async function enregistrerSemaine(
   semaine: string,

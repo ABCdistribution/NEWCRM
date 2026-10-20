@@ -46,7 +46,12 @@ export async function login(_prev: LoginState, formData: FormData): Promise<Logi
     return { error: "Impossible de joindre le serveur. Vérifie que l'API est démarrée." };
   }
 
-  if (res.status === 401) return { error: 'Identifiant ou mot de passe incorrect.' };
+  if (res.status === 401) {
+    // Trace serveur (jamais le mot de passe) : distingue « identifiants invalides » de « compte désactivé ».
+    const detail = await res.clone().json().catch(() => null);
+    console.warn(`[login] 401 pour « ${username} » (${username.length} car.) — API : ${JSON.stringify(detail?.message ?? detail)}`);
+    return { error: 'Identifiant ou mot de passe incorrect.' };
+  }
   if (res.status === 503) return { error: 'Annuaire (LDAP) momentanément injoignable. Réessaie plus tard.' };
   if (!res.ok) return { error: `Erreur inattendue du serveur (${res.status}).` };
 

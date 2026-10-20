@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { Bell, BellRing, CheckCheck } from 'lucide-react';
-import { marquerToutLu } from '@/lib/notification-actions';
+import { marquerLu, marquerToutLu } from '@/lib/notification-actions';
 import type { NotificationItem } from '@/lib/api';
 
 const TIME_FMT = new Intl.DateTimeFormat('fr-FR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
@@ -64,6 +64,10 @@ export function NotificationsBell({
               <li className="px-2 py-4 text-center text-xs text-neutral-400">Aucune notification.</li>
             ) : (
               items.map((n) => {
+                const ouvrir = () => {
+                  setOpen(false);
+                  if (!n.luAt) void marquerLu(n.id);
+                };
                 const contenu = (
                   <div className={`rounded-lg px-2.5 py-2 transition hover:bg-neutral-100 dark:hover:bg-navy-800 ${n.luAt ? 'opacity-55' : ''}`}>
                     <p className="flex items-baseline gap-2 text-xs font-semibold">
@@ -82,11 +86,13 @@ export function NotificationsBell({
                 return (
                   <li key={n.id}>
                     {n.lien ? (
-                      <Link href={n.lien} onClick={() => setOpen(false)}>
+                      <Link href={n.lien} onClick={ouvrir}>
                         {contenu}
                       </Link>
                     ) : (
-                      contenu
+                      <button type="button" onClick={ouvrir} className="block w-full text-left">
+                        {contenu}
+                      </button>
                     )}
                   </li>
                 );

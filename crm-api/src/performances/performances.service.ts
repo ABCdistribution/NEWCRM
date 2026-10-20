@@ -33,19 +33,17 @@ export class PerformancesService {
     const [caMois, caMoisN1, nbCommandes, commandants, portefeuille, sansCommande, courbe, objectif, classement, visitesMois] =
       await Promise.all([
         // CA du mois
-        this.prisma.commandeLigne.aggregate({
-          _sum: { montant: true },
-          where: { commande: whereMois },
+        this.prisma.commande.aggregate({
+          _sum: { montantTotal: true },
+          where: whereMois,
         }),
         // CA même mois N-1
-        this.prisma.commandeLigne.aggregate({
-          _sum: { montant: true },
+        this.prisma.commande.aggregate({
+          _sum: { montantTotal: true },
           where: {
-            commande: {
-              idRepr: { in: codes },
-              dateAnnulation: null,
-              dateCommande: { gte: debutN1, lt: finN1 },
-            },
+            idRepr: { in: codes },
+            dateAnnulation: null,
+            dateCommande: { gte: debutN1, lt: finN1 },
           },
         }),
         this.prisma.commande.count({ where: whereMois }),
@@ -73,9 +71,8 @@ export class PerformancesService {
         this.prisma.$queryRaw<{ annee: number; mois: number; ca: number }[]>`
           SELECT EXTRACT(YEAR FROM co."dateCommande")::int AS annee,
                  EXTRACT(MONTH FROM co."dateCommande")::int AS mois,
-                 COALESCE(SUM(cl.montant), 0)::float8 AS ca
+                 COALESCE(SUM(co."montantTotal"), 0)::float8 AS ca
           FROM commandes co
-          JOIN commande_lignes cl ON cl."commandeId" = co.id
           WHERE co."idRepr" IN (${Prisma.join(codes)})
             AND co."dateAnnulation" IS NULL
             AND co."dateCommande" IS NOT NULL
@@ -96,9 +93,8 @@ export class PerformancesService {
         }),
         // CA par représentant sur le mois (pour le rang)
         this.prisma.$queryRaw<{ idRepr: string; ca: number }[]>`
-          SELECT co."idRepr", COALESCE(SUM(cl.montant), 0)::float8 AS ca
+          SELECT co."idRepr", COALESCE(SUM(co."montantTotal"), 0)::float8 AS ca
           FROM commandes co
-          JOIN commande_lignes cl ON cl."commandeId" = co.id
           WHERE co."idRepr" IS NOT NULL
             AND co."dateAnnulation" IS NULL
             AND co."dateCommande" >= ${debut} AND co."dateCommande" < ${fin}
@@ -109,8 +105,8 @@ export class PerformancesService {
         }),
       ]);
 
-    const ca = Number(caMois._sum.montant ?? 0);
-    const caN1 = Number(caMoisN1._sum.montant ?? 0);
+    const ca = Number(caMois._sum.montantTotal ?? 0);
+    const caN1 = Number(caMoisN1._sum.montantTotal ?? 0);
 
     // Courbes 12 mois
     const courbeN = Array<number>(12).fill(0);
@@ -137,9 +133,8 @@ export class PerformancesService {
     const topMagasins = await this.prisma.$queryRaw<
       { id: string; enseigne: string; ca: number; nb: number }[]
     >`
-      SELECT c.id, c.enseigne, COALESCE(SUM(cl.montant), 0)::float8 AS ca, COUNT(DISTINCT co.id)::int AS nb
+      SELECT c.id, c.enseigne, COALESCE(SUM(co."montantTotal"), 0)::float8 AS ca, COUNT(*)::int AS nb
       FROM commandes co
-      JOIN commande_lignes cl ON cl."commandeId" = co.id
       JOIN clients c ON c.id = co."clientId"
       WHERE co."idRepr" IN (${Prisma.join(codes)})
         AND co."dateAnnulation" IS NULL

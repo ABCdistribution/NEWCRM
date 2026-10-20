@@ -966,6 +966,8 @@ model Commande {
   idCommandeApk    String? // pont avec la commande mobile (commande_apk)
   dateCommande     DateTime? // date de la commande (AAANN/MMANN/JJANN)
   dateAnnulation   DateTime? // checky/m/d renseigné = commande annulée
+  // Somme des lignes — tenue à jour par un déclencheur SQL sur commande_lignes (ne pas écrire à la main).
+  montantTotal     Decimal   @default(0) @db.Decimal(16, 4)
 
   // --- Suivi de livraison (saisi par l'ADV ; sans objet si commande annulée) ---
   statutLivraison      StatutLivraison @default(EN_PREPARATION)

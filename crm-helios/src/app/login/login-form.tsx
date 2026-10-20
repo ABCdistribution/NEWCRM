@@ -14,7 +14,7 @@ export function LoginForm({ from }: { from: string }) {
     <form action={formAction} className="flex flex-col gap-4">
       <input type="hidden" name="from" value={from} />
 
-      <div className="flex flex-col gap-1.5">
+      <div className="flex flex-col gap-1.5" suppressHydrationWarning>
         <label htmlFor="username" className="text-sm font-semibold text-neutral-800">
           Identifiant
         </label>
@@ -27,25 +27,27 @@ export function LoginForm({ from }: { from: string }) {
           spellCheck={false}
           required
           autoFocus
+          suppressHydrationWarning
           placeholder="prénom.nom"
           className="rounded-lg border border-transparent bg-neutral-100 px-3.5 py-3 text-neutral-900 outline-none transition placeholder:text-neutral-400 focus:border-neutral-300 focus:bg-white focus:ring-2 focus:ring-neutral-200"
         />
       </div>
 
-      <div className="flex flex-col gap-1.5">
+      <div className="flex flex-col gap-1.5" suppressHydrationWarning>
         <div className="flex items-center justify-between">
           <label htmlFor="password" className="text-sm font-semibold text-neutral-800">
             Mot de passe
           </label>
           <span className="text-xs text-neutral-400">Mot de passe oublié ?</span>
         </div>
-        <div className="relative">
+        <div className="relative" suppressHydrationWarning>
           <input
             id="password"
             name="password"
             type={show ? 'text' : 'password'}
             autoComplete="current-password"
             required
+            suppressHydrationWarning
             placeholder="••••••••"
             className="w-full rounded-lg border border-transparent bg-neutral-100 px-3.5 py-3 pr-11 text-neutral-900 outline-none transition placeholder:text-neutral-400 focus:border-neutral-300 focus:bg-white focus:ring-2 focus:ring-neutral-200"
           />
