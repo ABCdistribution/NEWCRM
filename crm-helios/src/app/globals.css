@@ -153,3 +153,11 @@ body {
 .dark .shadow-card tbody tr:hover td {
   background: rgb(255 255 255 / 0.03);
 }
+
+/* Transition légère entre les pages (désactivée si l'utilisateur réduit les animations). */
+@keyframes page-in {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: none; }
+}
+.page-in { animation: page-in 0.2s ease-out both; }
+@media (prefers-reduced-motion: reduce) { .page-in { animation: none; } }

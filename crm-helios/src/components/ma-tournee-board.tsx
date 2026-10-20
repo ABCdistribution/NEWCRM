@@ -1,13 +1,14 @@
 'use client';
 
 import { useEffect, useRef, useState, useTransition } from 'react';
-import { CheckCircle2, Circle, Search, Sprout, Store, Trash2 , FileText } from 'lucide-react';
+import { CheckCircle2, Circle, Search, Sprout, Store, Trash2, FileText, Pencil } from 'lucide-react';
 import { ClassBadge } from './class-badge';
 import { EtapeOptionsDialog, type EtapeOptions } from './etape-options-dialog';
 import {
   addEtape,
   moveEtape,
   removeEtape,
+  requalifierEtape,
   searchCibles,
   toggleEtapeFaite,
   type CibleTournee,
@@ -193,7 +194,27 @@ export function MaTourneeBoard({
   const [drag, setDrag] = useState<Drag | null>(null);
   // Nouvelle étape en attente de qualification (dialogue d'options).
   const [enAttente, setEnAttente] = useState<{ type: 'CLIENT' | 'PROSPECT' | 'ADM'; id?: string; nom: string; date: string } | null>(null);
+  // Étape existante en cours de requalification.
+  const [edition, setEdition] = useState<TourneeEtapeRow | null>(null);
   const aujourdhui = todayIso();
+
+  const requalifier = (opts: EtapeOptions) => {
+    if (!edition) return;
+    const id = edition.id;
+    setEdition(null);
+    startTransition(async () => {
+      await requalifierEtape(id, opts.date, {
+        heure: opts.heure || undefined,
+        visiteSimple: opts.visiteSimple,
+        accompagnement: opts.accompagnement,
+        rdv: opts.rdv,
+        soireeEtape: opts.soireeEtape,
+        soireeLieu: opts.soireeLieu,
+        soireeAdresse: opts.soireeAdresse,
+        note: opts.note,
+      });
+    });
+  };
 
   const confirmer = (opts: EtapeOptions) => {
     if (!enAttente) return;
@@ -232,6 +253,29 @@ export function MaTourneeBoard({
 
   return (
     <div className={`flex flex-col gap-4 lg:flex-row ${pending ? 'opacity-70' : ''}`}>
+      {edition ? (
+        <EtapeOptionsDialog
+          titre={`Requalifier — ${(edition.prospect ?? edition.client)?.enseigne ?? 'ADM'}`}
+          dateInitiale={edition.datePassage.slice(0, 10)}
+          initial={{
+            heure:
+              edition.datePassage.length > 10 && edition.datePassage.slice(11, 16) !== '00:00'
+                ? edition.datePassage.slice(11, 16)
+                : '',
+            visiteSimple: edition.visiteSimple,
+            accompagnement: edition.accompagnement,
+            rdv: edition.rdv,
+            soireeEtape: edition.soireeEtape,
+            soireeLieu: edition.soireeLieu ?? '',
+            soireeAdresse: edition.soireeAdresse ?? '',
+            note: edition.note ?? '',
+          }}
+          confirmLabel="Enregistrer"
+          onConfirm={requalifier}
+          onClose={() => setEdition(null)}
+          pending={pending}
+        />
+      ) : null}
       {enAttente ? (
         <EtapeOptionsDialog
           titre={`Planifier — ${enAttente.nom}`}
@@ -350,6 +394,15 @@ export function MaTourneeBoard({
                       aria-label={e.fait ? 'Marquer non faite' : 'Marquer faite'}
                     >
                       {e.fait ? <CheckCircle2 size={13} className="text-emerald-500" /> : <Circle size={13} />}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setEdition(e)}
+                      className="rounded p-0.5 text-neutral-400 opacity-0 transition hover:text-brand group-hover:opacity-100 dark:hover:text-accent"
+                      title="Requalifier l'étape"
+                      aria-label="Requalifier l'étape"
+                    >
+                      <Pencil size={12} />
                     </button>
                     <button
                       type="button"

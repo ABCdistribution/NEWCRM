@@ -500,6 +500,7 @@ ANNULEE ANNULEE
     String idCommandeApk "❓"
     DateTime dateCommande "❓"
     DateTime dateAnnulation "❓"
+    Decimal montantTotal 
     StatutLivraison statutLivraison 
     DateTime dateExpedition "❓"
     DateTime dateLivraison "❓"

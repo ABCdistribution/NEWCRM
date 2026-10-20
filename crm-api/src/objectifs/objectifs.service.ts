@@ -58,9 +58,8 @@ export class ObjectifsService {
     const fin = new Date(annee + 1, 0, 1);
     const caRows = ids.length
       ? await this.prisma.$queryRaw<{ clientId: string; ca: number }[]>`
-          SELECT co."clientId", COALESCE(SUM(cl.montant), 0)::float8 AS ca
+          SELECT co."clientId", COALESCE(SUM(co."montantTotal"), 0)::float8 AS ca
           FROM commandes co
-          JOIN commande_lignes cl ON cl."commandeId" = co.id
           WHERE co."clientId" IN (${Prisma.join(ids)})
             AND co."dateAnnulation" IS NULL
             AND co."dateCommande" >= ${debut} AND co."dateCommande" < ${fin}

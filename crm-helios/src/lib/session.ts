@@ -17,7 +17,11 @@ export async function setSession(token: string): Promise<void> {
   store.set(COOKIE, token, {
     httpOnly: true,
     sameSite: 'lax',
-    secure: process.env.NODE_ENV === 'production',
+    // Secure exige HTTPS : la prod actuelle est servie en HTTP interne (pas de domaine),
+    // COOKIE_SECURE=false permet donc de garder la session ; à repasser à true avec HTTPS.
+    secure: process.env.COOKIE_SECURE
+      ? process.env.COOKIE_SECURE === 'true'
+      : process.env.NODE_ENV === 'production',
     path: '/',
     maxAge: MAX_AGE,
   });

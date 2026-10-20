@@ -30,3 +30,6 @@ imports/
 .vscode/*
 !.vscode/extensions.json
 Thumbs.db
+
+# Données volumineuses copiées de l'ancien CRM (photos de visite)
+data/

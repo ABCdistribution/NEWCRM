@@ -26,12 +26,17 @@ export function EtapeOptionsDialog({
   onConfirm,
   onClose,
   pending = false,
+  initial,
+  confirmLabel = 'Ajouter au planning',
 }: {
   titre: string;
   dateInitiale: string;
   onConfirm: (options: EtapeOptions) => void;
   onClose: () => void;
   pending?: boolean;
+  /** Valeurs de départ (requalification d'une étape existante). */
+  initial?: Partial<EtapeOptions>;
+  confirmLabel?: string;
 }) {
   const [form, setForm] = useState<EtapeOptions>({
     date: dateInitiale,
@@ -43,6 +48,7 @@ export function EtapeOptionsDialog({
     soireeLieu: '',
     soireeAdresse: '',
     note: '',
+    ...initial,
   });
 
   const caseCls = 'h-4 w-4 accent-[var(--color-brand)]';
@@ -161,7 +167,7 @@ export function EtapeOptionsDialog({
             onClick={() => onConfirm(form)}
             className="inline-flex items-center gap-1.5 rounded-xl bg-brand px-4 py-1.5 text-xs font-semibold text-white transition hover:bg-brand/90 disabled:opacity-40 dark:bg-accent dark:text-brand dark:hover:bg-accent/80"
           >
-            <Check size={13} /> Ajouter au planning
+            <Check size={13} /> {confirmLabel}
           </button>
         </div>
       </div>

@@ -200,15 +200,15 @@ export class ClientsService {
 
     const [caMois, caN1, derniereVisite] = await Promise.all([
       this.prisma.$queryRaw<{ clientId: string; ca: number }[]>`
-        SELECT co."clientId", COALESCE(SUM(cl.montant), 0)::float8 AS ca
-        FROM commandes co JOIN commande_lignes cl ON cl."commandeId" = co.id
+        SELECT co."clientId", COALESCE(SUM(co."montantTotal"), 0)::float8 AS ca
+        FROM commandes co
         WHERE co."clientId" = ANY(${ids}::uuid[])
           AND co."dateAnnulation" IS NULL
           AND co."dateCommande" >= ${debut} AND co."dateCommande" < ${fin}
         GROUP BY 1`,
       this.prisma.$queryRaw<{ clientId: string; ca: number }[]>`
-        SELECT co."clientId", COALESCE(SUM(cl.montant), 0)::float8 AS ca
-        FROM commandes co JOIN commande_lignes cl ON cl."commandeId" = co.id
+        SELECT co."clientId", COALESCE(SUM(co."montantTotal"), 0)::float8 AS ca
+        FROM commandes co
         WHERE co."clientId" = ANY(${ids}::uuid[])
           AND co."dateAnnulation" IS NULL
           AND co."dateCommande" >= ${debutN1} AND co."dateCommande" < ${finN1}
@@ -367,7 +367,8 @@ export class ClientsService {
           dateAnnulation: true,
           idRepr: true, // toutes les commandes du magasin, y compris celles d'autres représentants
           idCommandeApk: true,
-          lignes: { select: { montant: true } },
+          montantTotal: true,
+          _count: { select: { lignes: true } },
         },
       }),
       this.prisma.visite.findMany({
@@ -387,9 +388,8 @@ export class ClientsService {
       this.prisma.$queryRaw<{ annee: number; mois: number; ca: number }[]>`
         SELECT EXTRACT(YEAR FROM c."dateCommande")::int AS annee,
                EXTRACT(MONTH FROM c."dateCommande")::int AS mois,
-               COALESCE(SUM(l.montant), 0)::float8 AS ca
+               COALESCE(SUM(c."montantTotal"), 0)::float8 AS ca
         FROM commandes c
-        JOIN commande_lignes l ON l."commandeId" = c.id
         WHERE c."clientId" = ${id}::uuid
           AND c."dateAnnulation" IS NULL
           AND c."dateCommande" IS NOT NULL
@@ -416,8 +416,8 @@ export class ClientsService {
         annulee: c.dateAnnulation !== null,
         idRepr: c.idRepr,
         viaMobile: c.idCommandeApk !== null,
-        nbLignes: c.lignes.length,
-        total: c.lignes.reduce((s, l) => s + Number(l.montant), 0),
+        nbLignes: c._count.lignes,
+        total: Number(c.montantTotal),
       })),
       visites,
       ca: { anneeN, courbeN: caN, courbeN1: caN1 },

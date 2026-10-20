@@ -60,7 +60,7 @@ export class DashboardService {
       await Promise.all([
         this.prisma.commande.count({ where: whereActives }),
         this.prisma.commande.count({ where: { dateAnnulation: { not: null }, ...repWhere } }),
-        this.prisma.commandeLigne.aggregate({ _sum: { montant: true }, where: { commande: whereActives } }),
+        this.prisma.commande.aggregate({ _sum: { montantTotal: true }, where: whereActives }),
         this.prisma.commande.groupBy({ by: ['clientId'], where: whereActives }),
         this.topClients(idRepr),
         this.prisma.planning.findMany({
@@ -87,9 +87,9 @@ export class DashboardService {
     // CA du mois vs objectif : cible mensuelle = somme des objectifs annuels
     // des magasins du périmètre / 12.
     const [caMoisAgg, objAgg] = await Promise.all([
-      this.prisma.commandeLigne.aggregate({
-        _sum: { montant: true },
-        where: { commande: { ...whereActives, dateCommande: { gte: monthStart } } },
+      this.prisma.commande.aggregate({
+        _sum: { montantTotal: true },
+        where: { ...whereActives, dateCommande: { gte: monthStart } },
       }),
       this.prisma.objectif.aggregate({
         _sum: { cibleCa: true },
@@ -108,7 +108,7 @@ export class DashboardService {
         },
       }),
     ]);
-    const caMois = Number(caMoisAgg._sum.montant ?? 0);
+    const caMois = Number(caMoisAgg._sum.montantTotal ?? 0);
     const cibleMensuelle = objAgg._sum.cibleCa ? Number(objAgg._sum.cibleCa) / 12 : null;
 
     // Magasins ayant commandé ce mois, par promoteur (vue encadrement : tous ;
@@ -170,7 +170,7 @@ export class DashboardService {
       };
     });
 
-    const ca = caAgg._sum.montant ? caAgg._sum.montant.toString() : '0';
+    const ca = caAgg._sum.montantTotal ? caAgg._sum.montantTotal.toString() : '0';
     const clients = clientGroups.filter((g) => g.clientId).length;
     const panierMoyen = commandes > 0 ? (Number(ca) / commandes).toFixed(2) : '0';
 
@@ -257,10 +257,9 @@ export class DashboardService {
       : await this.prisma.$queryRaw<{ idRepr: string; annee: number; ca: number; nb: number }[]>`
           SELECT co."idRepr",
                  EXTRACT(YEAR FROM co."dateCommande")::int AS annee,
-                 COALESCE(SUM(cl.montant), 0)::float8 AS ca,
-                 COUNT(DISTINCT co.id)::int AS nb
+                 COALESCE(SUM(co."montantTotal"), 0)::float8 AS ca,
+                 COUNT(*)::int AS nb
           FROM commandes co
-          JOIN commande_lignes cl ON cl."commandeId" = co.id
           WHERE co."idRepr" IS NOT NULL
             AND co."dateAnnulation" IS NULL
             AND ((co."dateCommande" >= ${debut} AND co."dateCommande" < ${fin})
@@ -275,9 +274,8 @@ export class DashboardService {
       : await this.prisma.$queryRaw<{ annee: number; mois: number; ca: number }[]>`
           SELECT EXTRACT(YEAR FROM co."dateCommande")::int AS annee,
                  EXTRACT(MONTH FROM co."dateCommande")::int AS mois,
-                 COALESCE(SUM(cl.montant), 0)::float8 AS ca
+                 COALESCE(SUM(co."montantTotal"), 0)::float8 AS ca
           FROM commandes co
-          JOIN commande_lignes cl ON cl."commandeId" = co.id
           WHERE co."dateAnnulation" IS NULL
             AND co."dateCommande" IS NOT NULL
             AND EXTRACT(YEAR FROM co."dateCommande") IN (${annee}, ${annee - 1})
@@ -547,8 +545,8 @@ export class DashboardService {
     if (objectifs.length === 0) return [];
     const ids = objectifs.map((o) => o.client.id);
     const caRows = await this.prisma.$queryRaw<{ clientId: string; ca: number }[]>`
-      SELECT co."clientId", COALESCE(SUM(cl.montant), 0)::float8 AS ca
-      FROM commandes co JOIN commande_lignes cl ON cl."commandeId" = co.id
+      SELECT co."clientId", COALESCE(SUM(co."montantTotal"), 0)::float8 AS ca
+      FROM commandes co
       WHERE co."clientId" = ANY(${ids}::uuid[])
         AND co."dateAnnulation" IS NULL
         AND co."dateCommande" >= ${debut} AND co."dateCommande" < ${fin}
@@ -574,14 +572,12 @@ export class DashboardService {
         where: { deletedAt: null, statut: 'GAGNE' },
         select: { potentielCaAnnuel: true },
       }),
-      this.prisma.commandeLigne.aggregate({
-        _sum: { montant: true },
+      this.prisma.commande.aggregate({
+        _sum: { montantTotal: true },
         where: {
-          commande: {
-            dateAnnulation: null,
-            dateCommande: { gte: debut, lt: fin },
-            client: { prospectOrigine: { isNot: null } },
-          },
+          dateAnnulation: null,
+          dateCommande: { gte: debut, lt: fin },
+          client: { prospectOrigine: { isNot: null } },
         },
       }),
     ]);
@@ -595,11 +591,11 @@ export class DashboardService {
       pipelinePondere: Math.round(pipelinePondere),
       gagnes: gagnes.length,
       potentielGagne: Math.round(potentielGagne),
-      caRealiseMois: Number(caProspection._sum.montant ?? 0),
+      caRealiseMois: Number(caProspection._sum.montantTotal ?? 0),
       // Taux de concrétisation : CA facturé du mois vs 1/12e du potentiel gagné.
       tauxPct:
         potentielGagne > 0
-          ? Math.round((Number(caProspection._sum.montant ?? 0) / (potentielGagne / 12)) * 100)
+          ? Math.round((Number(caProspection._sum.montantTotal ?? 0) / (potentielGagne / 12)) * 100)
           : null,
     };
   }
@@ -610,13 +606,12 @@ export class DashboardService {
       : Prisma.empty;
     const rows = await this.prisma.$queryRaw<{ nom: string | null; ca: string; nb: number }[]>`
       SELECT co."raisonSocialeCmd" AS nom,
-             SUM(cl.montant)::text AS ca,
-             COUNT(DISTINCT co.id)::int AS nb
-      FROM commande_lignes cl
-      JOIN commandes co ON co.id = cl."commandeId"
+             SUM(co."montantTotal")::text AS ca,
+             COUNT(*)::int AS nb
+      FROM commandes co
       WHERE co."dateAnnulation" IS NULL ${repFilter}
       GROUP BY co."raisonSocialeCmd"
-      ORDER BY SUM(cl.montant) DESC
+      ORDER BY SUM(co."montantTotal") DESC
       LIMIT 5`;
     return rows.map((r) => ({ nom: r.nom?.trim() || '(sans nom)', ca: r.ca, commandes: r.nb }));
   }
