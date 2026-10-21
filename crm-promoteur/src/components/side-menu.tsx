@@ -199,7 +199,7 @@ function MenuPanel({
           return (
             <div key={section.label ?? i} className={i > 0 ? 'mt-5' : ''}>
               {section.label ? (
-                <p className="px-3 pb-1.5 text-xs font-semibold uppercase tracking-wider text-neutral-400">
+                <p className="px-3 pb-1.5 text-xs font-semibold uppercase tracking-wider text-neutral-400 dark:text-white/60">
                   {section.label}
                 </p>
               ) : null}
@@ -218,7 +218,7 @@ function MenuPanel({
                         }`}
                       >
                         {/* Surbrillance cyan translucide au survol ; texte blanc et icônes lavande conservés. */}
-                        <Icon size={19} className={`shrink-0 ${active ? 'text-brand' : 'text-neutral-400'}`} />
+                        <Icon size={19} className={`shrink-0 ${active ? 'text-brand' : 'text-neutral-400 dark:text-white'}`} />
                         {c.label}
                       </Link>
                     </li>
@@ -236,7 +236,7 @@ function MenuPanel({
           <Avatar src={`/avatar/${me.id}`} initials={initials(me.displayName)} size={36} />
           <div className="min-w-0 flex-1">
             <p className="text-sm font-medium">{me.displayName}</p>
-            <p className="text-xs text-neutral-400">{me.poste ?? ROLE_LABELS[me.role] ?? ""}</p>
+            <p className="text-xs text-neutral-400 dark:text-white">{me.poste ?? ROLE_LABELS[me.role] ?? ""}</p>
           </div>
         </div>
         <div className="mt-2 flex items-center justify-end gap-1 px-1">
@@ -244,7 +244,7 @@ function MenuPanel({
           <form action={logout}>
             <button
               type="submit"
-              className="rounded-lg p-2 text-neutral-400 transition hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950/40"
+              className="rounded-lg p-2 text-neutral-400 dark:text-white transition hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950/40"
               aria-label="Déconnexion"
               title="Déconnexion"
             >
@@ -287,7 +287,7 @@ export function SideMenu({
   }, [open]);
 
   const surface =
-    'border-neutral-200 bg-white text-neutral-800 dark:border-navy-700 dark:bg-navy-950 dark:text-neutral-100';
+    'dark border-navy-700 bg-navy-950 text-neutral-100';
 
   return (
     <>

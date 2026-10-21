@@ -29,7 +29,7 @@
 :root {
   /* Fond lilas très clair (pendant clair du violet HELIOS) — les cartes blanches
      y ressortent avec leur ombre lilas. */
-  --background: #f5f3fb;
+  --background: #f0ebfb;
   --foreground: #0a0a0a;
   --color-brand: #8b5cf6; /* violet principal (mode clair) */
 }
@@ -161,3 +161,14 @@ body {
 }
 .page-in { animation: page-in 0.2s ease-out both; }
 @media (prefers-reduced-motion: reduce) { .page-in { animation: none; } }
+
+/*
+ * Blanc explicite sur surface sombre : les règles `.dark :where(.text-neutral-*)` ci-dessus
+ * sont hors couche Tailwind et écraseraient sinon les utilitaires `dark:text-white`.
+ */
+.dark .dark\:text-white {
+  color: #fff;
+}
+.dark .dark\:text-white\/60 {
+  color: rgb(255 255 255 / 0.6);
+}
