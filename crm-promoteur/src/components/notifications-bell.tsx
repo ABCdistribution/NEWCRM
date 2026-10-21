@@ -32,7 +32,7 @@ export function NotificationsBell({
       <button
         type="button"
         onClick={() => setOpen((o) => !o)}
-        className="relative rounded-lg p-2 text-neutral-400 transition hover:bg-neutral-100 hover:text-neutral-700 dark:hover:bg-navy-800 dark:hover:text-neutral-200"
+        className="relative rounded-lg p-2 text-neutral-400 dark:text-white transition hover:bg-neutral-100 hover:text-neutral-700 dark:hover:bg-navy-800 dark:hover:text-neutral-200"
         aria-label={`Notifications (${nonLues} non lue${nonLues > 1 ? 's' : ''})`}
       >
         {nonLues > 0 ? <BellRing size={16} className="text-accent" /> : <Bell size={16} />}

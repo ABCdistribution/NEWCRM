@@ -27,7 +27,7 @@
 
 :root {
   /* Fond gris très clair (maquette Advisian) — cartes blanches bordées par-dessus. */
-  --background: #f6f7fb;
+  --background: #eef2fc;
   --foreground: #1e2337;
 }
 
@@ -121,4 +121,15 @@ body {
 }
 .dark :where(.text-neutral-600, .text-neutral-700) {
   color: #d2dbf6;
+}
+
+/*
+ * Blanc explicite sur surface sombre : les règles `.dark :where(.text-neutral-*)` ci-dessus
+ * sont hors couche Tailwind et écraseraient sinon les utilitaires `dark:text-white`.
+ */
+.dark .dark\:text-white {
+  color: #fff;
+}
+.dark .dark\:text-white\/60 {
+  color: rgb(255 255 255 / 0.6);
 }

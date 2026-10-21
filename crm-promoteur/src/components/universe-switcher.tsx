@@ -47,9 +47,9 @@ export function UniverseSwitcher({ actuel, items }: { actuel: { logo: string; no
         <img src={actuel.logo} alt="" className="h-9 w-9 shrink-0 rounded-lg object-cover" />
         <div className="min-w-0 flex-1">
           <p className="truncate text-sm font-semibold leading-tight">{actuel.nom}</p>
-          <p className="truncate text-[11px] text-neutral-400">{actuel.sousTitre}</p>
+          <p className="truncate text-[11px] text-neutral-400 dark:text-white">{actuel.sousTitre}</p>
         </div>
-        <ChevronsUpDown size={15} className="shrink-0 text-neutral-400" />
+        <ChevronsUpDown size={15} className="shrink-0 text-neutral-400 dark:text-white" />
       </button>
 
       {ouvert ? (
@@ -60,7 +60,7 @@ export function UniverseSwitcher({ actuel, items }: { actuel: { logo: string; no
             <img src={actuel.logo} alt="" className="h-8 w-8 shrink-0 rounded-lg object-cover" />
             <div className="min-w-0 flex-1">
               <p className="truncate text-sm font-medium">{actuel.nom}</p>
-              <p className="truncate text-[11px] text-neutral-400">Espace actuel</p>
+              <p className="truncate text-[11px] text-neutral-400 dark:text-white">Espace actuel</p>
             </div>
             <Check size={15} className="shrink-0 text-emerald-500" />
           </div>
@@ -83,12 +83,12 @@ export function UniverseSwitcher({ actuel, items }: { actuel: { logo: string; no
                   <img src={item.logo} alt="" className="h-8 w-8 shrink-0 rounded-lg object-cover" />
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-sm font-medium">{item.nom}</p>
-                    <p className="truncate text-[11px] text-neutral-400">{item.description}</p>
+                    <p className="truncate text-[11px] text-neutral-400 dark:text-white">{item.description}</p>
                   </div>
                   {item.externe ? (
-                    <ExternalLink size={13} className="shrink-0 text-neutral-400" />
+                    <ExternalLink size={13} className="shrink-0 text-neutral-400 dark:text-white" />
                   ) : item.disabled ? null : (
-                    <ArrowLeftRight size={13} className="shrink-0 text-neutral-400" />
+                    <ArrowLeftRight size={13} className="shrink-0 text-neutral-400 dark:text-white" />
                   )}
                 </button>
               </li>
