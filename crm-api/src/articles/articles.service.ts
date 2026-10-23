@@ -75,6 +75,7 @@ export class ArticlesService {
               { codeAs400: { contains: query.search, mode: 'insensitive' } },
               { libelle: { contains: query.search, mode: 'insensitive' } },
               { gencode: { contains: query.search, mode: 'insensitive' } },
+              { marque: { is: { nom: { contains: query.search, mode: 'insensitive' } } } },
             ],
           }
         : {}),
