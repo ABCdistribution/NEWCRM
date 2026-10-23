@@ -9,6 +9,8 @@
 
 /* Palette de marque ABC */
 @theme {
+  --font-sans: 'Inter Variable', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+
   --color-brand: #2952e3; /* bleu royal (maquette Advisian) — couleur principale */
   --color-navy: #08184d; /* bleu marine historique (texte sur accent en sombre) */
   --color-accent: #2952e3; /* même bleu pour les graphes & accents */
@@ -78,7 +80,7 @@
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  font-family: 'Inter Variable', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
 }
 
 /*
