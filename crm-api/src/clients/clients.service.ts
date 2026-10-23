@@ -56,7 +56,7 @@ export class ClientsService {
     // (il est idCommercial1 ou idCommercial2, équivalence « 68 » ↔ « 068 » incluse).
     // Un non-commercial (direction) peut demander le portefeuille d'un code via ?repr=.
     // Un commercial est scopé à ses magasins par défaut, mais peut demander la
-    // vue globale (tous=1 — décochage du filtre « Mes magasins » dans Selios).
+    // vue globale (tous=1 — décochage du filtre « Mes magasins » dans ABC Sales).
     const mine =
       user?.role === 'COMMERCIAL' && user.idRepr && query.tous !== '1'
         ? idReprVariants(user.idRepr)
@@ -460,7 +460,7 @@ export class ClientsService {
   // --- Notes terrain (CRM, jamais touchées par l'import Minos) -----------
 
   /**
-   * Enregistre une visite commerciale (questionnaire Helios) : une Visite portée
+   * Enregistre une visite commerciale (questionnaire ABC Pilot) : une Visite portée
    * par le connecté + une réponse par question de la checklist (créées à la
    * volée par libellé), le remplissage linéaire (pmcEtat), le compte rendu
    * (pmcCommentaire) et la date de prochaine visite (queueDate).

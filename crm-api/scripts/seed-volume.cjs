@@ -210,7 +210,7 @@ async function main() {
     console.log(`✔ Visites : ${visites.length} (relevés DN + étapes)`);
   } else console.log('· Visites de volume déjà présentes');
 
-  // --- 4. Visites planifiées ±2 semaines (Selios) ---------------------------
+  // --- 4. Visites planifiées ±2 semaines (ABC Sales) ---------------------------
   if ((await prisma.planning.count({ where: { raison: 'DV' } })) === 0) {
     const plannings = [];
     for (const { user, magasins } of parPorteur.values()) {
@@ -365,7 +365,7 @@ async function main() {
     console.log(`✔ Notifications : +${data.length}`);
   } else console.log('· Notifications déjà nombreuses');
 
-  // --- 8. Ma tournée (Helios) : étapes perso des CS/DR/admin ----------------
+  // --- 8. Ma tournée (ABC Pilot) : étapes perso des CS/DR/admin ----------------
   {
     const planificateurs = [...chefs, ...directeurs, ...(admin ? [{ id: admin.id }] : [])];
     let n = 0;

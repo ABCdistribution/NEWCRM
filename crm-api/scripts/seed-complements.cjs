@@ -1,9 +1,9 @@
 /*
  * Seed COMPLÉMENTAIRE (17/09/2026) : remplit les tables encore vides pour que
- * toutes les pages Helios & Selios aient des données — questionnaire de visite,
+ * toutes les pages ABC Pilot & ABC Sales aient des données — questionnaire de visite,
  * relevés DN / promos / étapes / réponses, contacts, notes, journal appels &
  * emails (clients et prospects), notifications, opportunités, récurrences de
- * visites (Selios), tournées types, stratégies PEM, switchs d'articles.
+ * visites (ABC Sales), tournées types, stratégies PEM, switchs d'articles.
  *
  * Idempotent : chaque section est sautée si sa table contient déjà des lignes.
  *
@@ -217,7 +217,7 @@ async function main() {
     console.log(`✔ Emails prospects : ${n}`);
   } else console.log('· Emails prospects déjà présents');
 
-  // --- 6. Notifications (cloche Selios) -------------------------------------
+  // --- 6. Notifications (cloche ABC Sales) -------------------------------------
   if ((await prisma.notification.count()) === 0) {
     const destinataires = [...chefs, ...directeurs, ...promoteurs, ...(admin ? [admin] : [])];
     let n = 0;
@@ -267,7 +267,7 @@ async function main() {
     console.log(`✔ Opportunités : ${n}`);
   } else console.log('· Opportunités déjà présentes');
 
-  // --- 8. Récurrences de visites Selios (Plannification) --------------------
+  // --- 8. Récurrences de visites ABC Sales (Plannification) --------------------
   if ((await prisma.plannification.count()) === 0 && promoteurs.length > 0) {
     // Ancre : lundi de la semaine courante.
     const lundi = new Date();
@@ -292,10 +292,10 @@ async function main() {
         n++;
       }
     }
-    console.log(`✔ Récurrences de visites (Selios) : ${n}`);
+    console.log(`✔ Récurrences de visites (ABC Sales) : ${n}`);
   } else console.log('· Récurrences déjà présentes');
 
-  // --- 9. Tournées types (Helios, modèle Tournee) ---------------------------
+  // --- 9. Tournées types (ABC Pilot, modèle Tournee) ---------------------------
   if ((await prisma.tournee.count()) === 0) {
     const porteurs = [...chefs, ...promoteurs];
     const annee = new Date().getFullYear();

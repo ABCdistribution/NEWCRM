@@ -31,7 +31,7 @@ import {
 } from './dto/prospect.dto';
 
 /**
- * Prospection & pipeline (module Helios).
+ * Prospection & pipeline (module ABC Pilot).
  * Matrice de rôles : CS = secteur, DR = région, Direction = lecture globale,
  * ADMIN = tout. Détail par route via @Roles + scoping dans le service.
  */

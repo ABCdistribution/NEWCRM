@@ -8,6 +8,7 @@ import { ClientsModule } from './clients/clients.module';
 import { ArticlesModule } from './articles/articles.module';
 import { CommandesModule } from './commandes/commandes.module';
 import { DashboardModule } from './dashboard/dashboard.module';
+import { AdminModule } from './admin/admin.module';
 import { PerformancesModule } from './performances/performances.module';
 import { ObjectifsModule } from './objectifs/objectifs.module';
 import { PlanningsModule } from './plannings/plannings.module';
@@ -39,6 +40,7 @@ import { HealthModule } from './health/health.module';
     ArticlesModule,
     CommandesModule,
     DashboardModule,
+    AdminModule,
     PerformancesModule,
     ObjectifsModule,
     PlanningsModule,

@@ -166,7 +166,7 @@ export class VisitesService {
     return { id: visite.id, idApk: dto.idApk, dejaSynchronisee: false };
   }
 
-  // --- Photos de rayon (Helios Mobile) -----------------------------------
+  // --- Photos de rayon (ABC Pilot Mobile) -----------------------------------
 
   /** Un promoteur ne voit que ses visites ; l'encadrement voit tout (comme GET /visites). */
   private async visiteAccessible(me: { id: string; role: string }, visiteId: string) {

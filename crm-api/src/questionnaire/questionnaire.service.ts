@@ -13,14 +13,14 @@ const select = {
 } as const;
 
 /**
- * Questionnaire de fin de visite : structure administrée dans helios,
+ * Questionnaire de fin de visite : structure administrée dans ABC Pilot,
  * consommée telle quelle par l'app mobile (questions actives, ordonnées).
  */
 @Injectable()
 export class QuestionnaireService {
   constructor(private readonly prisma: PrismaService) {}
 
-  /** Questions actives ordonnées (rendu mobile) ou toutes (édition helios). */
+  /** Questions actives ordonnées (rendu mobile) ou toutes (édition ABC Pilot). */
   list(tous = false) {
     return this.prisma.questionVisite.findMany({
       where: { deletedAt: null, ...(tous ? {} : { actif: true }) },

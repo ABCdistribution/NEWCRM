@@ -9,7 +9,7 @@ export class NotificationsService {
 
   /**
    * Relance le promoteur d'une visite planifiée non effectuée.
-   * Aujourd'hui : notification in-app (selios) ; demain : la même API alimentera
+   * Aujourd'hui : notification in-app (ABC Sales) ; demain : la même API alimentera
    * l'app mobile (+ push Firebase quand elle existera).
    */
   async relancerVisite(planningId: string, emetteurId: string) {
@@ -45,7 +45,7 @@ export class NotificationsService {
   }
 
   /**
-   * Relance d'un membre de l'équipe (Helios Mobile — « Mon équipe »).
+   * Relance d'un membre de l'équipe (ABC Pilot Mobile — « Mon équipe »).
    * Un DR ne peut relancer que ses propres collaborateurs (directeurId AD).
    */
   async relancerMembre(userId: string, message: string, emetteur: { id: string; role: string }) {
