@@ -1,6 +1,6 @@
 import { ComingSoon } from '@/components/coming-soon';
 
-export const metadata = { title: 'Mon agenda — Selios' };
+export const metadata = { title: 'Mon agenda — ABC Sales' };
 
 export default function AgendaPage() {
   return (

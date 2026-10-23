@@ -5,7 +5,6 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
   Home,
-  Gauge,
   Store,
   Package,
   Footprints,
@@ -14,12 +13,13 @@ import {
   ShieldAlert,
   BadgePercent,
   Settings,
-  Users,
   LogOut,
   Menu,
   X,
   ArrowLeftRight,
   ExternalLink,
+  BarChart3,
+  ClipboardCheck,
   type LucideIcon,
 } from 'lucide-react';
 import { logout } from '@/lib/auth-actions';
@@ -33,11 +33,16 @@ type Leaf = { href: string; label: string; icon: LucideIcon; roles?: string[] };
 type Section = { label: string | null; children: Leaf[] };
 
 /**
- * Navigation selios. Les libellés s'adaptent au rôle : un commercial voit SON
+ * Navigation ABC Sales. Les libellés s'adaptent au rôle : un commercial voit SON
  * périmètre (« Mes magasins »…), les rôles siège (ADV, direction, marketing,
- * admin…) utilisent selios comme outil universel sur tous les référentiels.
+ * admin…) utilisent ABC Sales comme outil universel sur tous les référentiels.
  * Libellés toujours visibles (pas de survol nécessaire).
  */
+/** Fond du menu ABC Sales : bleu marine uni. */
+const FOND_MENU: React.CSSProperties = {
+  backgroundColor: '#050F33',
+};
+
 function sections(role: string): Section[] {
   const moi = role === 'COMMERCIAL';
   return [
@@ -45,8 +50,6 @@ function sections(role: string): Section[] {
       label: null,
       children: [
         { href: '/', label: 'Accueil', icon: Home },
-        // Pilotage des promoteurs — encadrement uniquement (stats, visites non effectuées, alertes).
-        { href: '/pilotage', label: 'Pilotage', icon: Gauge, roles: ['ADMIN', 'DIRECTION', 'DIRECTEUR_REGIONAL', 'CHEF_SECTEUR'] },
       ],
     },
     {
@@ -56,7 +59,7 @@ function sections(role: string): Section[] {
         { href: '/clients', label: moi ? 'Mes magasins' : 'Magasins', icon: Store },
         { href: '/visites', label: moi ? 'Historique de visites' : 'Visites', icon: Footprints },
         { href: '/commandes', label: moi ? 'Mes commandes' : 'Commandes', icon: ShoppingCart },
-        // Planification des visites — encadrement uniquement (déplacée depuis helios).
+        // Planification des visites — encadrement uniquement (déplacée depuis ABC Pilot).
         { href: '/planification', label: 'Planification visites', icon: Route, roles: ['ADMIN', 'DIRECTION', 'DIRECTEUR_REGIONAL', 'CHEF_SECTEUR'] },
       ],
     },
@@ -72,10 +75,6 @@ function sections(role: string): Section[] {
       label: 'Moi',
       children: [{ href: '/parametres', label: 'Paramètres', icon: Settings }],
     },
-    {
-      label: 'Administration',
-      children: [{ href: '/utilisateurs', label: 'Utilisateurs', icon: Users, roles: ['ADMIN'] }],
-    },
   ];
 }
 
@@ -83,15 +82,15 @@ function isActive(pathname: string, href: string) {
   return href === '/' ? pathname === '/' : pathname === href || pathname.startsWith(`${href}/`);
 }
 
-/** Rôles encadrement autorisés à basculer vers l'espace pilotage (miroir du bouton côté helios). */
+/** Rôles encadrement autorisés à basculer vers l'espace pilotage (miroir du bouton côté ABC Pilot). */
 const SWITCH_ROLES = ['ADMIN', 'DIRECTION', 'DIRECTEUR_REGIONAL', 'CHEF_SECTEUR'];
 
-/** Marque Selios : logo seul, sans texte — grand dans la sidebar, compact dans la barre mobile. */
+/** Marque de la plateforme (SalesPilot ABC) : grande dans la sidebar, compacte dans la barre mobile. */
 function Brand({ compact = false }: { compact?: boolean }) {
   return (
-    <Link href="/" className={compact ? 'inline-flex items-center' : 'flex w-full items-center justify-center'}>
+    <Link href="/" className={compact ? 'inline-flex items-center' : 'flex w-full items-center justify-center py-2'}>
       {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img src="/logo-sellios.png" alt="Selios" className={compact ? 'h-9 w-auto rounded-lg' : 'h-32 w-auto rounded-2xl'} />
+      <img src="/logo-salespilot.png" alt="SalesPilot ABC" className={compact ? 'h-9 w-auto' : 'h-auto w-full max-w-[224px]'} />
     </Link>
   );
 }
@@ -109,7 +108,7 @@ function MenuPanel({
   const pathname = usePathname();
   const canSwitch = SWITCH_ROLES.includes(me.role);
   const [switching, setSwitching] = useState(false);
-  // Helios tourne sur le même serveur : on reprend l'hôte utilisé pour accéder à Selios.
+  // ABC Pilot tourne sur le même serveur : on reprend l'hôte utilisé pour accéder à ABC Sales.
   // L'animation de bascule joue d'abord, puis la navigation part (le voile reste jusqu'au déchargement).
   const goHelios = () => {
     if (switching) return;
@@ -118,76 +117,31 @@ function MenuPanel({
       window.location.href = `${window.location.protocol}//${window.location.hostname}:${heliosPort}`;
     }, 1100);
   };
-  const [versAscendo, setVersAscendo] = useState(false);
-  // Même mise en scène pour AscendoPilot, mais l'outil s'ouvre dans un NOUVEL
-  // onglet : le voile se retire une fois l'onglet lancé.
-  const goAscendo = () => {
-    if (versAscendo) return;
-    setVersAscendo(true);
-    window.setTimeout(() => {
-      window.open('https://ascendopilot.abcosmetique.com', '_blank', 'noopener');
-      setVersAscendo(false);
-    }, 1100);
-  };
-  const [versGoBack, setVersGoBack] = useState(false);
-  const goGoBack = () => {
-    if (versGoBack) return;
-    setVersGoBack(true);
-    window.setTimeout(() => {
-      window.open('https://goback.abcosmetique.com/', '_blank', 'noopener');
-      setVersGoBack(false);
-    }, 1100);
-  };
+  // AscendoPilot et GoBack : ouverture directe dans un nouvel onglet, sans animation.
+  const goAscendo = () => window.open('https://ascendopilot.abcosmetique.com', '_blank', 'noopener');
+  const goGoBack = () => window.open('https://goback.abcosmetique.com/', '_blank', 'noopener');
 
   return (
     <>
       {switching ? (
         <UniverseSwitchOverlay
-          fromSrc="/logo-sellios.png"
-          toSrc="/logo-helios.png"
-          toName="Helios"
-        />
-      ) : null}
-      {versAscendo ? (
-        <UniverseSwitchOverlay
-          fromSrc="/logo-sellios.png"
-          toSrc="/logo-ascendo.png"
-          toName="AscendoPilot"
-        />
-      ) : null}
-      {versGoBack ? (
-        <UniverseSwitchOverlay
-          fromSrc="/logo-sellios.png"
-          toSrc="/logo-goback.png"
-          toName="GoBack"
+          fromSrc="/logo-abc-sales.png"
+          toSrc="/logo-abc-pilot.png"
+          toName="ABC Pilot"
         />
       ) : null}
       {/* Sélecteur d'univers & d'outils (façon Slack) */}
       <UniverseSwitcher
-        actuel={{ logo: '/logo-sellios.png', nom: 'Sellios', sousTitre: 'Espace terrain' }}
+        actuel={{ logo: '/logo-abc-sales.png', nom: 'ABC Sales', sousTitre: 'Force de vente' }}
         items={[
           ...(canSwitch
             ? [{
-                logo: '/logo-helios.png',
-                nom: 'Helios',
-                description: 'Pilotage & encadrement',
+                logo: '/logo-abc-pilot.png',
+                nom: 'ABC Pilot',
+                description: 'Force commerciale',
                 onClick: goHelios,
               }]
             : []),
-          {
-            logo: '/logo-ascendo.png',
-            nom: 'AscendoPilot',
-            description: 'Outil statistique (nouvel onglet)',
-            onClick: goAscendo,
-            externe: true,
-          },
-          {
-            logo: '/logo-goback.png',
-            nom: 'GoBack',
-            description: 'Outil retours (nouvel onglet)',
-            onClick: goGoBack,
-            externe: true,
-          },
         ]}
       />
 
@@ -228,6 +182,36 @@ function MenuPanel({
             </div>
           );
         })}
+
+        {/* Outils externes : s'ouvrent dans un nouvel onglet (animation de transition conservée). */}
+        <div className="mt-5">
+          <p className="px-3 pb-1.5 text-xs font-semibold uppercase tracking-wider text-neutral-400 dark:text-white/60">
+            Outils complémentaires
+          </p>
+          <ul className="flex flex-col gap-0.5">
+            {[
+              { label: 'AscendoPilot', detail: 'Statistiques et analyses', icon: BarChart3, onClick: goAscendo },
+              { label: 'GoBack', detail: 'Gestion des litiges', icon: ClipboardCheck, onClick: goGoBack },
+            ].map(({ label, detail, icon: Icon, onClick }) => (
+              <li key={label}>
+                <button
+                  type="button"
+                  onClick={onClick}
+                  className="group flex w-full items-center gap-3 rounded-xl px-2 py-2 text-left transition hover:bg-white/10"
+                >
+                  <span className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-navy-800 text-sky-300">
+                    <Icon size={20} aria-hidden />
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-[15px] font-semibold leading-tight text-white">{label}</span>
+                    <span className="block truncate text-xs text-white/60">{detail}</span>
+                  </span>
+                  <ExternalLink size={14} className="shrink-0 text-white/70" aria-hidden />
+                </button>
+              </li>
+            ))}
+          </ul>
+        </div>
       </nav>
 
       {/* Utilisateur + déconnexion */}
@@ -292,7 +276,7 @@ export function SideMenu({
   return (
     <>
       {/* ≥ md : sidebar permanente (comportement historique). */}
-      <aside className={`sticky top-0 z-20 hidden h-screen w-64 shrink-0 flex-col border-r md:flex ${surface}`}>
+      <aside className={`sticky top-0 z-20 hidden h-screen w-64 shrink-0 flex-col border-r md:flex ${surface}`} style={FOND_MENU}>
         <div className="px-4 py-4">
           <Brand />
         </div>
@@ -300,7 +284,7 @@ export function SideMenu({
       </aside>
 
       {/* < md : barre supérieure avec hamburger. */}
-      <header className={`sticky top-0 z-20 flex items-center gap-2 border-b px-3 py-2.5 md:hidden ${surface}`}>
+      <header className={`sticky top-0 z-20 flex items-center gap-2 border-b px-3 py-2.5 md:hidden ${surface}`} style={FOND_MENU}>
         <button
           type="button"
           onClick={() => setOpen(true)}
@@ -325,7 +309,7 @@ export function SideMenu({
             aria-label="Fermer le menu"
             onClick={() => setOpen(false)}
           />
-          <div className={`absolute inset-y-0 left-0 flex w-72 max-w-[85vw] flex-col border-r shadow-xl ${surface}`}>
+          <div className={`absolute inset-y-0 left-0 flex w-72 max-w-[85vw] flex-col border-r shadow-xl ${surface}`} style={FOND_MENU}>
             <div className="flex items-center justify-between px-4 py-4">
               <Brand />
               <button

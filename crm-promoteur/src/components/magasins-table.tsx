@@ -46,7 +46,7 @@ function initiales(nom: string): string {
     .toUpperCase();
 }
 
-// Teintes d'avatar CS, dans la palette selios (marine, lavande, periwinkle, teal).
+// Teintes d'avatar CS, dans la palette ABC Sales (marine, lavande, periwinkle, teal).
 const CS_TINTS = [
   'bg-brand text-accent',
   'bg-[#7D8CCE] text-white',

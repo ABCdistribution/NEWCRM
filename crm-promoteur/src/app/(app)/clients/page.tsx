@@ -4,7 +4,7 @@ import { Pagination } from '@/components/pagination';
 import { MagasinsTable } from '@/components/magasins-table';
 import { MesMagasinsToggle } from '@/components/mes-magasins-toggle';
 
-export const metadata = { title: 'Mes magasins — Selios' };
+export const metadata = { title: 'Mes magasins — ABC Sales' };
 
 export default async function ClientsPage({
   searchParams,

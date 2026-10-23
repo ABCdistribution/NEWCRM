@@ -2,7 +2,7 @@ import { PackageX } from 'lucide-react';
 import { listArticles, type Paginated, type ArticleRow } from '@/lib/api';
 import { RappelsBoard } from '@/components/rappels-board';
 
-export const metadata = { title: 'Qualité & Rappels Produits — Selios' };
+export const metadata = { title: 'Qualité & Rappels Produits — ABC Sales' };
 
 export default async function QualitePage() {
   let rappels: Paginated<ArticleRow> | null = null;

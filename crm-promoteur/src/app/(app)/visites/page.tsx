@@ -4,7 +4,7 @@ import { listVisites, type VisitesResult } from '@/lib/api';
 import { SearchBar } from '@/components/search-bar';
 import { Pagination } from '@/components/pagination';
 
-export const metadata = { title: 'Historique de visites — Selios' };
+export const metadata = { title: 'Historique de visites — ABC Sales' };
 
 const DATE = new Intl.DateTimeFormat('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' });
 
