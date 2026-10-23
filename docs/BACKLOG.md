@@ -30,11 +30,11 @@ Rien de ce qui touche la production n'est fait sans accord explicite.
 |---|---|---|---|
 | 2.1 | 🟠 | Le rôle changé à la main est écrasé au login par l'OU AD (contredit le commentaire « jamais rétrogradé ») **[ACCORD : quelle source fait foi ?]** | backend-db |
 | 2.2 | 🟠 | Prospect passable à `GAGNE` sans conversion ; la conversion crée un client sans commercial rattaché | backend-db |
-| 2.3 | 🟠 | Front : mutations qui échouent en silence (`.catch(() => undefined)`, ~40 occurrences) ; pas de `error.tsx`/`not-found.tsx` ; pas de `loading.tsx` côté Selios | frontend-ux |
-| 2.4 | 🟠 | Lien mort `/pilotage/imports` (Helios) et code d'import orphelin | frontend-ux |
-| 2.5 | 🟠 | Helios : aucun menu mobile | frontend-ux |
+| 2.3 | 🟠 | Front : mutations qui échouent en silence (`.catch(() => undefined)`, ~40 occurrences) ; pas de `error.tsx`/`not-found.tsx` ; pas de `loading.tsx` côté ABC Sales | frontend-ux |
+| 2.4 | 🟠 | ~~Lien mort `/pilotage/imports`~~ — corrigé : l'entrée du menu est remplacée par la page Administration | frontend-ux |
+| 2.5 | 🟠 | ABC Pilot : aucun menu mobile | frontend-ux |
 | 2.6 | 🟠 | Validation des DTO imbriqués (visite commerciale, dates, `PATCH /plannings/:id`) → plus de 500 sur entrée invalide | backend-db |
-| 2.7 | 🟡 | Pages « bientôt » (paramètres, agenda), règles d'alertes stockées en `localStorage`, nom de package `@crm/exelys`, description « Portail terrain » dans Helios | frontend-ux |
+| 2.7 | 🟡 | Pages « bientôt » (paramètres, agenda), règles d'alertes stockées en `localStorage` | frontend-ux |
 
 ## Lot 3 — Intégrité et performance de la base
 | # | Gravité | Tâche | Agent |
@@ -45,7 +45,7 @@ Rien de ce qui touche la production n'est fait sans accord explicite.
 | 3.4 | 🟡 | N+1 (synchro AD, dashboard), `GET /clients/fiches` sans pagination, `GET /plannings` qui écrit en lecture | backend-db |
 
 ## Lot 4 — Dette technique (après les lots 1 à 3)
-- Package partagé pour les 12 fichiers dupliqués et `api.ts` (Helios 1086 lignes) ; fronts ajoutés au workspace pnpm.
+- Package partagé pour les 12 fichiers dupliqués et `api.ts` (ABC Pilot 1086 lignes) ; fronts ajoutés au workspace pnpm.
 - Découper `clients.service.ts` (758 lignes), `dashboard.service.ts` (618 lignes), `tournees.controller.ts`.
 - Dockerfile en multi-étapes, utilisateur non-root, healthcheck API ; Dependabot.
 
@@ -58,3 +58,8 @@ Les agents `backend-db` et `frontend-ux` peuvent travailler en parallèle (fichi
 2. Source de vérité du rôle : OU de l'AD ou rôle saisi dans le CRM (2.1) ?
 3. OK pour toucher `docker-compose.yml` (1.3) et préparer HTTPS (1.11) ?
 4. CI : runner GitHub interne ou pas de CI pour l'instant (0.4) ?
+
+## Administration (console ADMIN dans ABC Pilot) — `/pilotage/admin`
+- **Phase 1 faite** : page à onglets (Vue d'ensemble, Utilisateurs, Organisation, Synchronisations, Contenus) ; routes API `GET /admin/apercu` et `GET /admin/organisation` (ADMIN) ; page Utilisateurs d'ABC Sales supprimée. Indicateurs en lecture seule, sans état d'alerte.
+- **À venir** : Mobile (nécessite que l'application remonte version, modèle, dernière synchro), Configuration (table de paramètres), Journal d'audit (enregistrement des opérations sensibles), « dernière connexion », diagnostic par utilisateur, relance des lignes d'import en erreur.
+- **À trancher** : champs pilotés par l'AD vs modifiables dans le CRM (le rôle des comptes en OU force de vente est écrasé à chaque connexion).
