@@ -233,7 +233,7 @@ export function MagasinsSecteurBoard({
                 : 'text-neutral-500 hover:bg-neutral-100 dark:text-neutral-300 dark:hover:bg-navy-800'
             }`}
           >
-            {v === 'tableau' ? 'Tableau' : 'Carte du secteur'}
+            {v === 'tableau' ? 'Tableau' : 'Carte'}
           </button>
         ))}
       </div>

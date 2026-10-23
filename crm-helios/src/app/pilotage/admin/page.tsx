@@ -56,8 +56,8 @@ export default async function AdminPage({
 
   return (
     <div className="flex flex-col gap-5">
-      <header className="flex items-center gap-4 rounded-2xl bg-[#120D24] px-5 py-4 text-white shadow-card">
-        <span className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-violet-600">
+      <header className="flex items-center gap-4 rounded-2xl bg-[#130D25] px-5 py-4 text-white shadow-card">
+        <span className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-brand">
           <ShieldCheck size={24} aria-hidden />
         </span>
         <div className="min-w-0">

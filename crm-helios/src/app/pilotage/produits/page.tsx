@@ -37,7 +37,7 @@ export default async function ProduitsPage({
     <div className="flex flex-col gap-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-2xl font-bold">Produits</h1>
-        <SearchBar placeholder="Libellé, code article, code-barres…" />
+        <SearchBar placeholder="Libellé, marque, code article, code-barres…" />
       </div>
 
       {/* Bandeau KPI du catalogue — chiffres réels, évolutions « vs mois dernier » illustratives */}
