@@ -9,6 +9,8 @@
 
 /* Palette ABC Pilot (direction) — mêmes noms de tokens que ABC Sales, teintes différentes */
 @theme {
+  --font-sans: 'Inter Variable', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+
   --color-brand: #3b0764; /* violet profond — couleur principale */
   --color-accent: #ffc94d; /* or — chiffres, actifs, boutons en contexte sombre */
   --color-brand-light: #a78bda; /* mauve — série secondaire des graphes sur violet */
@@ -81,7 +83,7 @@
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  font-family: 'Inter Variable', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
 }
 
 /*
