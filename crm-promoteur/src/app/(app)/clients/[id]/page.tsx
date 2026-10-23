@@ -20,7 +20,7 @@ import { ContactsCard } from '@/components/contacts-card';
 import { NotesCard } from '@/components/notes-card';
 import { PeriodiciteCard } from '@/components/periodicite-card';
 
-export const metadata = { title: 'Fiche magasin — Selios' };
+export const metadata = { title: 'Fiche magasin — ABC Sales' };
 
 const DATE_FMT = new Intl.DateTimeFormat('fr-FR', { day: '2-digit', month: 'short', year: 'numeric' });
 

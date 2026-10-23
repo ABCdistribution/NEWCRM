@@ -5,7 +5,7 @@ import { PromoteurSelect } from '@/components/promoteur-select';
 import { PlanningBoard } from '@/components/planning-board';
 import { RecurrenceCard } from '@/components/recurrence-card';
 
-export const metadata = { title: 'Planification des visites — Selios' };
+export const metadata = { title: 'Planification des visites — ABC Sales' };
 
 /** Rôles encadrement autorisés à planifier (mêmes que la bascule d'univers). */
 const PLANIF_ROLES = ['ADMIN', 'DIRECTION', 'DIRECTEUR_REGIONAL', 'CHEF_SECTEUR'];

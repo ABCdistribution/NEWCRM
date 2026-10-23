@@ -11,14 +11,15 @@ import {
   TrendingDown,
   PackageX,
 } from 'lucide-react';
-import { getPerformances, getDashboard } from '@/lib/api';
+import { getPerformances, getDashboard, getEvolutionCa, getVisitesRegions } from '@/lib/api';
 import { GaugeCard } from '@/components/gauge-card';
 import { StatTile } from '@/components/stat-tile';
-import { CaChart } from '@/components/ca-chart';
+import { EvolutionCaCommandes } from '@/components/evolution-ca-commandes';
+import { RepartitionVisites } from '@/components/repartition-visites';
 import { CommandesParPromoteur } from '@/components/commandes-par-promoteur';
 import { PackageSearch, Users2 } from 'lucide-react';
 
-export const metadata = { title: 'Accueil — Selios' };
+export const metadata = { title: 'Accueil — ABC Sales' };
 
 const EUR = new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 });
 const MOIS_LABELS = [
@@ -43,7 +44,33 @@ export default async function Home({
   const prev = mois === 1 ? { annee: annee - 1, mois: 12 } : { annee, mois: mois - 1 };
   const next = mois === 12 ? { annee: annee + 1, mois: 1 } : { annee, mois: mois + 1 };
 
-  const [perf, dash] = await Promise.all([getPerformances(annee, mois), getDashboard()]);
+  const [perf, dash, evolution, visitesRegions] = await Promise.all([
+    getPerformances(annee, mois),
+    getDashboard(),
+    getEvolutionCa(annee, mois),
+    getVisitesRegions(annee, mois),
+  ]);
+
+  // Évolution du CA / des commandes sur 6 mois + répartition des visites par région.
+  const graphiques =
+    evolution || visitesRegions ? (
+      <div className="grid grid-cols-1 gap-5 xl:grid-cols-5">
+        {evolution ? (
+          <div className="xl:col-span-3">
+            <EvolutionCaCommandes mois={evolution.mois} />
+          </div>
+        ) : null}
+        {visitesRegions ? (
+          <div className="xl:col-span-2">
+            <RepartitionVisites
+              regions={visitesRegions.regions}
+              total={visitesRegions.total}
+              moisLabel={`${MOIS_LABELS[mois - 1]} ${annee}`}
+            />
+          </div>
+        ) : null}
+      </div>
+    ) : null;
 
   return (
     <div className="flex flex-col gap-5">
@@ -77,13 +104,16 @@ export default async function Home({
           Chiffres indisponibles — l&apos;API est-elle démarrée ?
         </p>
       ) : perf.noRepr ? (
-        <div className="rounded-2xl border border-dashed border-neutral-300 p-10 text-center dark:border-navy-700">
-          <p className="font-medium text-neutral-500">Compte non relié à l&apos;ERP</p>
-          <p className="mt-1 text-sm text-neutral-400">
-            Aucun code représentant n&apos;est associé à ton compte Active Directory — tes chiffres ne
-            peuvent pas être calculés. Rapproche-toi de l&apos;administrateur.
-          </p>
-        </div>
+        <>
+          <div className="rounded-2xl border border-dashed border-neutral-300 p-10 text-center dark:border-navy-700">
+            <p className="font-medium text-neutral-500">Compte non relié à l&apos;ERP</p>
+            <p className="mt-1 text-sm text-neutral-400">
+              Aucun code représentant n&apos;est associé à ton compte Active Directory — tes chiffres ne
+              peuvent pas être calculés. Rapproche-toi de l&apos;administrateur.
+            </p>
+          </div>
+          {graphiques}
+        </>
       ) : (
         <>
           {/* KPI du mois */}
@@ -167,20 +197,14 @@ export default async function Home({
                   )}
                 </p>
                 <p className="text-xs text-neutral-400">
-                  Classement par CA facturé (code {perf.idRepr}) — détail complet dans helios.
+                  Classement par CA facturé (code {perf.idRepr}) — détail complet dans ABC Pilot.
                 </p>
               </div>
             </div>
           </section>
 
-          {/* Courbe CA 12 mois */}
-          <section className={card}>
-            <h2 className={cardHeader}>
-              <Wallet size={17} className="text-brand dark:text-accent" />
-              Mon CA mensuel — {perf.ca12mois.anneeN - 1} vs {perf.ca12mois.anneeN}
-            </h2>
-            <CaChart anneeN={perf.ca12mois.anneeN} courbeN={perf.ca12mois.courbeN} courbeN1={perf.ca12mois.courbeN1} />
-          </section>
+          {/* Évolution du CA et des commandes (6 mois) + répartition des visites */}
+          {graphiques}
 
           <div className="grid grid-cols-1 gap-5 xl:grid-cols-2">
             {/* Top magasins */}

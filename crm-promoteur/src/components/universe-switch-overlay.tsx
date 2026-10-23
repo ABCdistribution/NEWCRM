@@ -2,19 +2,24 @@
 
 import { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
+import type { LucideIcon } from 'lucide-react';
 
 /**
- * Voile plein écran affiché pendant la bascule d'univers (Helios ↔ Selios) :
+ * Voile plein écran affiché pendant la bascule d'univers (ABC Pilot ↔ ABC Sales) :
  * le logo de l'univers quitté s'efface pendant que celui de la destination
  * arrive et pulse jusqu'à ce que la navigation aboutisse.
  */
 export function UniverseSwitchOverlay({
   fromSrc,
+  fromIcon,
   toSrc,
+  toIcon,
   toName,
 }: {
-  fromSrc: string;
-  toSrc: string;
+  fromSrc?: string;
+  fromIcon?: LucideIcon;
+  toSrc?: string;
+  toIcon?: LucideIcon;
   toName: string;
 }) {
   // Portal : le rendu doit attendre le montage client (document indisponible en SSR).
@@ -24,7 +29,7 @@ export function UniverseSwitchOverlay({
 
   return createPortal(
     <div
-      className="fixed inset-0 z-[100] flex flex-col items-center justify-center"
+      className="fixed inset-0 z-[2000] flex flex-col items-center justify-center"
       style={{
         background: 'radial-gradient(80% 80% at 50% 40%, #141414 0%, #050505 55%, #000000 100%)',
         animation: 'us-fade .18s ease-out both',
@@ -53,18 +58,16 @@ export function UniverseSwitchOverlay({
       `}</style>
 
       <div className="relative h-44 w-44">
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
+        <Embleme
           src={fromSrc}
-          alt=""
-          className="absolute inset-0 h-full w-full object-contain"
+          icone={fromIcon}
+          className="absolute inset-0 h-full w-full"
           style={{ animation: 'us-out .4s ease-in .1s both' }}
         />
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
+        <Embleme
           src={toSrc}
-          alt=""
-          className="absolute inset-0 h-full w-full object-contain drop-shadow-[0_0_24px_rgba(255,255,255,.25)]"
+          icone={toIcon}
+          className="absolute inset-0 h-full w-full drop-shadow-[0_0_24px_rgba(255,255,255,.25)]"
           style={{
             animation:
               'us-in .55s cubic-bezier(.2,.8,.3,1.2) .3s both, us-pulse 1.6s ease-in-out 1.2s infinite',
@@ -88,5 +91,28 @@ export function UniverseSwitchOverlay({
       </p>
     </div>,
     document.body,
+  );
+}
+
+/** Logo image, ou grande icône blanche quand l'univers n'a pas de logo. */
+function Embleme({
+  src,
+  icone: Icone,
+  className,
+  style,
+}: {
+  src?: string;
+  icone?: LucideIcon;
+  className: string;
+  style: React.CSSProperties;
+}) {
+  if (src) {
+    // eslint-disable-next-line @next/next/no-img-element
+    return <img src={src} alt="" className={`${className} object-contain`} style={style} />;
+  }
+  return (
+    <div className={`${className} flex items-center justify-center`} style={style}>
+      {Icone ? <Icone className="h-24 w-24 text-white" strokeWidth={1.5} aria-hidden /> : null}
+    </div>
   );
 }

@@ -4,7 +4,7 @@ import { LivraisonBadge, LIVRAISON } from '@/components/livraison-badge';
 import { SearchBar } from '@/components/search-bar';
 import { Pagination } from '@/components/pagination';
 
-export const metadata = { title: 'Commandes — Selios' };
+export const metadata = { title: 'Commandes — ABC Sales' };
 
 const EUR = new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR', maximumFractionDigits: 2 });
 const DATE_FMT = new Intl.DateTimeFormat('fr-FR', { day: '2-digit', month: 'short', year: 'numeric' });

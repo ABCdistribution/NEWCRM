@@ -38,9 +38,9 @@
  * présentes dans les composants (texte, bordures, boutons cyan…).
  */
 :root.dark {
-  /* Dark permanent, surfaces ALIGNÉES sur Helios (noir bleuté) — seule
-     l'accentuation reste propre à Selios (indigo #7B7FE8). */
-  --background: #0b0e14; /* fond du contenu — noir bleuté (identique Helios) */
+  /* Dark permanent, surfaces ALIGNÉES sur ABC Pilot (noir bleuté) — seule
+     l'accentuation reste propre à ABC Sales (indigo #7B7FE8). */
+  --background: #0b0e14; /* fond du contenu — noir bleuté (identique ABC Pilot) */
   --color-brand: #7b7fe8; /* indigo — boutons, actifs, emphase */
   --color-accent: #7b7fe8;
   --color-brand-light: #b9bcf4; /* série secondaire des graphes */
@@ -51,7 +51,7 @@
   --color-navy-600: #37405a;
 }
 .dark .shadow-card {
-  background-color: #12151f; /* carte, un cran au-dessus du fond (identique Helios) */
+  background-color: #12151f; /* carte, un cran au-dessus du fond (identique ABC Pilot) */
   border: 1px solid #232938;
 }
 /* Sur un bouton/élément à fond accent (bleu vif) en sombre, le texte marine

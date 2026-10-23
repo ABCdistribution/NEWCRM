@@ -2,7 +2,7 @@ import type { Metadata } from 'next';
 import './globals.css';
 
 export const metadata: Metadata = {
-  title: 'Selios — CRM Commercial ABC',
+  title: 'ABC Sales — CRM Commercial ABC',
   description: 'Portail terrain des commerciaux ABC Distribution',
 };
 

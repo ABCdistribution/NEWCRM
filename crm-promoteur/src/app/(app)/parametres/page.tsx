@@ -2,7 +2,7 @@ import { redirect } from 'next/navigation';
 import { getMe } from '@/lib/api';
 import { ComingSoon } from '@/components/coming-soon';
 
-export const metadata = { title: 'Paramètres — Selios' };
+export const metadata = { title: 'Paramètres — ABC Sales' };
 
 export default async function ParametresPage() {
   const me = await getMe();

@@ -1,6 +1,6 @@
 import { cookies } from 'next/headers';
 
-// Cookie de session PARTAGÉ avec Helios (même nom, même JWT) → SSO entre les deux univers.
+// Cookie de session PARTAGÉ avec ABC Pilot (même nom, même JWT) → SSO entre les deux univers.
 const COOKIE = 'crm_session';
 const MAX_AGE = 60 * 60 * 8; // 8h — aligné sur JWT_EXPIRES_IN de l'API
 

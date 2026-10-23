@@ -4,7 +4,7 @@ import { AlertCircle, CheckCircle2, ChevronLeft, ChevronRight, Repeat, Route } f
 import { getMe, listMesPlannings, type PlanningItem } from '@/lib/api';
 import { ClassBadge } from '@/components/class-badge';
 
-export const metadata = { title: 'Mes visites — Selios' };
+export const metadata = { title: 'Mes visites — ABC Sales' };
 
 const JOURS = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi'];
 const DAY_FMT = new Intl.DateTimeFormat('fr-FR', { day: 'numeric', month: 'short' });

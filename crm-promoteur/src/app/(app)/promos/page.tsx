@@ -1,7 +1,7 @@
 import { Megaphone, Sparkles, Star } from 'lucide-react';
 import { listPromosActives, listPem } from '@/lib/api';
 
-export const metadata = { title: 'Promos / PEM — Selios' };
+export const metadata = { title: 'Promos / PEM — ABC Sales' };
 
 function dateFr(iso: string | null): string {
   if (!iso) return '';
