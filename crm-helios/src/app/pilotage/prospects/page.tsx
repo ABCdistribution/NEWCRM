@@ -16,7 +16,7 @@ import { StatutBadge, STATUT_LABELS, STATUT_ACCENT, SOURCE_LABELS } from '@/comp
 import { ProspectPipeline } from '@/components/prospect-pipeline';
 import { ProspectCreate } from '@/components/prospect-create';
 
-export const metadata = { title: 'Prospection — Helios' };
+export const metadata = { title: 'Prospection — ABC Pilot' };
 
 const ALLOWED = ['ADMIN', 'DIRECTION', 'DIRECTEUR_REGIONAL', 'CHEF_SECTEUR'];
 const EUR = new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 });

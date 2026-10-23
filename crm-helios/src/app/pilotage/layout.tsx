@@ -5,14 +5,14 @@ import { SideMenu } from '@/components/side-menu';
 
 const SELIOS_PORT = process.env.SELIOS_PORT ?? '3002';
 
-/** Rôles autorisés sur helios (portail de pilotage). Les autres (COMMERCIAL, ADV) → Selios. */
+/** Rôles autorisés sur ABC Pilot (portail de pilotage). Les autres (COMMERCIAL, ADV) → ABC Sales. */
 const ALLOWED_ROLES = ['ADMIN', 'DIRECTION', 'DIRECTEUR_REGIONAL', 'CHEF_SECTEUR'];
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const me = await getMe();
   if (!me) redirect('/login');
 
-  // helios est réservé à l'encadrement ; COMMERCIAL / ADV sont renvoyés vers selios (même hôte).
+  // ABC Pilot est réservé à l'encadrement ; COMMERCIAL / ADV sont renvoyés vers ABC Sales (même hôte).
   if (!ALLOWED_ROLES.includes(me.role)) {
     const host = (await headers()).get('host')?.split(':')[0] ?? 'localhost';
     redirect(`http://${host}:${SELIOS_PORT}`);

@@ -3,7 +3,7 @@ import { notFound } from 'next/navigation';
 import { ArrowLeft, Store, ShoppingCart, Smartphone } from 'lucide-react';
 import { getCommande } from '@/lib/api';
 
-export const metadata = { title: 'Commande — Helios' };
+export const metadata = { title: 'Commande — ABC Pilot' };
 
 const EUR = new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR', maximumFractionDigits: 2 });
 const QTE = new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 2 });

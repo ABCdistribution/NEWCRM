@@ -1,6 +1,6 @@
 import type { LucideIcon } from 'lucide-react';
 
-/** Tuile KPI façon Advisian, aux couleurs Helios : icône sur pastille violette pâle. */
+/** Tuile KPI façon Advisian, aux couleurs ABC Pilot : icône sur pastille violette pâle. */
 export function StatTile({
   icon: Icon,
   label,

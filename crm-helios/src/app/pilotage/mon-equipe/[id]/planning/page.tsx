@@ -4,7 +4,7 @@ import { ArrowLeft, CheckCircle2, ChevronLeft, ChevronRight, Route, Sprout, Stor
 import { listPlanningMembre } from '@/lib/api';
 import { ClassBadge } from '@/components/class-badge';
 
-export const metadata = { title: "Planning d'activité — Helios" };
+export const metadata = { title: "Planning d'activité — ABC Pilot" };
 
 const JOURS = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi'];
 const DAY_FMT = new Intl.DateTimeFormat('fr-FR', { day: 'numeric', month: 'short' });

@@ -2,10 +2,10 @@
 
 import { useEffect, useState } from 'react';
 
-// Selios tourne sur le même serveur ; le port est fixé au build (3002 par défaut).
+// ABC Sales tourne sur le même serveur ; le port est fixé au build (3002 par défaut).
 const SELIOS_PORT = process.env.NEXT_PUBLIC_SELIOS_PORT ?? '3002';
 
-/** Lien vers une page de l'univers terrain (Selios) — l'hôte est repris à l'exécution. */
+/** Lien vers une page de l'univers terrain (ABC Sales) — l'hôte est repris à l'exécution. */
 export function SeliosLink({
   path,
   className,
