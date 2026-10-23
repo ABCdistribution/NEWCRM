@@ -33,10 +33,9 @@ type Leaf = { href: string; label: string; icon: LucideIcon; roles?: string[] };
 type Section = { label: string | null; children: Leaf[] };
 
 /**
- * Navigation ABC Sales. Les libellés s'adaptent au rôle : un commercial voit SON
- * périmètre (« Mes magasins »…), les rôles siège (ADV, direction, marketing,
- * admin…) utilisent ABC Sales comme outil universel sur tous les référentiels.
- * Libellés toujours visibles (pas de survol nécessaire).
+ * Navigation ABC Sales. Les entrées portent le libellé « Les … » pour tous les rôles ; seul le titre de
+ * section change (« Mon terrain » pour un commercial). Les données affichées restent, elles, limitées au
+ * périmètre de l'utilisateur par l'API. Libellés toujours visibles (pas de survol nécessaire).
  */
 /** Fond du menu ABC Sales : bleu marine uni. */
 const FOND_MENU: React.CSSProperties = {
@@ -56,9 +55,9 @@ function sections(role: string): Section[] {
       label: moi ? 'Mon terrain' : 'Terrain',
       // L'agenda / les tournées ne vivent que sur l'app mobile — pas d'entrée web.
       children: [
-        { href: '/clients', label: moi ? 'Mes magasins' : 'Magasins', icon: Store },
-        { href: '/visites', label: moi ? 'Historique de visites' : 'Visites', icon: Footprints },
-        { href: '/commandes', label: moi ? 'Mes commandes' : 'Commandes', icon: ShoppingCart },
+        { href: '/clients', label: 'Les magasins', icon: Store },
+        { href: '/visites', label: 'Les visites', icon: Footprints },
+        { href: '/commandes', label: 'Les commandes', icon: ShoppingCart },
         // Planification des visites — encadrement uniquement (déplacée depuis ABC Pilot).
         { href: '/planification', label: 'Planification visites', icon: Route, roles: ['ADMIN', 'DIRECTION', 'DIRECTEUR_REGIONAL', 'CHEF_SECTEUR'] },
       ],
@@ -66,8 +65,8 @@ function sections(role: string): Section[] {
     {
       label: 'Catalogue',
       children: [
-        { href: '/produits', label: 'Produits', icon: Package },
-        { href: '/promos', label: 'Promos / PEM', icon: BadgePercent },
+        { href: '/produits', label: 'Les produits', icon: Package },
+        { href: '/promos', label: 'Les promos / PEM', icon: BadgePercent },
         { href: '/qualite', label: 'Qualité & rappels', icon: ShieldAlert },
       ],
     },
@@ -167,12 +166,12 @@ function MenuPanel({
                         href={c.href}
                         className={`group flex items-center gap-2.5 rounded-lg px-3 py-2.5 text-[15px] transition ${
                           active
-                            ? 'bg-neutral-100 font-semibold text-neutral-900 dark:bg-accent dark:text-brand'
+                            ? 'bg-neutral-100 font-semibold text-neutral-900 dark:bg-[#1C347D] dark:text-white'
                             : 'text-neutral-500 hover:bg-neutral-50 hover:text-neutral-900 dark:text-white dark:hover:bg-accent/20'
                         }`}
                       >
                         {/* Surbrillance cyan translucide au survol ; texte blanc et icônes lavande conservés. */}
-                        <Icon size={19} className={`shrink-0 ${active ? 'text-brand' : 'text-neutral-400 dark:text-white'}`} />
+                        <Icon size={19} className={`shrink-0 ${active ? 'text-brand dark:text-white' : 'text-neutral-400 dark:text-white'}`} />
                         {c.label}
                       </Link>
                     </li>

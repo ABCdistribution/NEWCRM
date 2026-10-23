@@ -69,7 +69,6 @@ const chipOn = 'border-brand bg-brand text-white dark:border-accent dark:bg-acce
 
 export function MagasinsTable({ rows }: { rows: ClientEnrichedRow[] }) {
   const [enseigne, setEnseigne] = useState<string | null>(null);
-  const [cs, setCs] = useState<string | null>(null);
   const [avecAlertes, setAvecAlertes] = useState(false);
   const [enBaisse, setEnBaisse] = useState(false);
   const [sort, setSort] = useState<{ key: SortKey; dir: 1 | -1 }>({ key: 'magasin', dir: 1 });
@@ -81,16 +80,10 @@ export function MagasinsTable({ rows }: { rows: ClientEnrichedRow[] }) {
       ),
     [rows],
   );
-  const commerciaux = useMemo(() => {
-    const map = new Map<string, string>();
-    for (const r of rows) if (r.cs) map.set(r.cs.displayName, initiales(r.cs.displayName));
-    return [...map.entries()].sort((a, b) => a[0].localeCompare(b[0]));
-  }, [rows]);
 
   const visibles = useMemo(() => {
     let out = rows.filter((r) => {
       if (enseigne && marque(r.enseigne, r.raisonSociale) !== enseigne) return false;
-      if (cs && r.cs?.displayName !== cs) return false;
       if (avecAlertes && r.alertes === 0) return false;
       if (enBaisse && !r.enBaisse) return false;
       return true;
@@ -115,7 +108,7 @@ export function MagasinsTable({ rows }: { rows: ClientEnrichedRow[] }) {
       return 0;
     });
     return out;
-  }, [rows, enseigne, cs, avecAlertes, enBaisse, sort]);
+  }, [rows, enseigne, avecAlertes, enBaisse, sort]);
 
   const toggleSort = (key: SortKey) =>
     setSort((s) => (s.key === key ? { key, dir: (s.dir * -1) as 1 | -1 } : { key, dir: 1 }));
@@ -148,24 +141,6 @@ export function MagasinsTable({ rows }: { rows: ClientEnrichedRow[] }) {
             <TrendingDown size={12} /> En baisse
           </button>
         </div>
-        {commerciaux.length > 1 ? (
-          <div className="flex flex-wrap items-center gap-1.5">
-            <span className="mr-1 text-[11px] font-semibold uppercase tracking-wider text-neutral-400">CS</span>
-            <button className={`${chip} ${cs === null ? chipOn : chipOff}`} onClick={() => setCs(null)}>
-              Tous
-            </button>
-            {commerciaux.map(([nom, ini]) => (
-              <button
-                key={nom}
-                title={nom}
-                className={`${chip} ${cs === nom ? chipOn : chipOff}`}
-                onClick={() => setCs(nom)}
-              >
-                {ini}
-              </button>
-            ))}
-          </div>
-        ) : null}
       </div>
 
       {/* < md : tri compact (les en-têtes cliquables du tableau n'existent pas en vue cartes). */}
