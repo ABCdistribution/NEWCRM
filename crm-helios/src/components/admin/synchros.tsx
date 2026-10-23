@@ -1,24 +1,57 @@
-import { listImportLogs, type ImportLog } from '@/lib/api';
+import { listImportLogs, listFichiersDepot, type ImportLog } from '@/lib/api';
 import { AdSyncTrigger } from '@/components/ad-sync-trigger';
+import { SynchroMinos } from '@/components/admin/synchro-minos';
+import { RapportMinos, type LigneRapport } from '@/components/admin/rapport-minos';
+import { TYPES_MINOS, formatDuree, formatTaille, typeMinos } from '@/lib/minos';
 
-const dateFr = new Intl.DateTimeFormat('fr-FR', { dateStyle: 'short', timeStyle: 'short' });
+/** Les imports lancés à moins de 30 min du plus récent forment « la dernière synchro ». */
+const FENETRE_LOT_MS = 30 * 60 * 1000;
 
-const STATUT: Record<ImportLog['status'], { label: string; classes: string }> = {
-  SUCCESS: { label: 'Réussi', classes: 'bg-emerald-50 text-emerald-700' },
-  FAILED: { label: 'En échec', classes: 'bg-red-50 text-red-700' },
-  PROCESSING: { label: 'En cours', classes: 'bg-blue-50 text-blue-700' },
-  PENDING: { label: 'En attente', classes: 'bg-neutral-100 text-neutral-600' },
-};
-
-function duree(log: ImportLog): string {
-  if (!log.startedAt || !log.finishedAt) return '—';
-  const s = Math.max(0, Math.round((new Date(log.finishedAt).getTime() - new Date(log.startedAt).getTime()) / 1000));
-  return s < 60 ? `${s} s` : `${Math.floor(s / 60)} min ${String(s % 60).padStart(2, '0')} s`;
+function dureeSec(l: ImportLog): number | null {
+  if (!l.startedAt || !l.finishedAt) return null;
+  return Math.max(0, Math.round((new Date(l.finishedAt).getTime() - new Date(l.startedAt).getTime()) / 1000));
 }
 
-/** Synchro AD (lancement manuel) et historique des imports ERP (journal `minos_import_logs`). */
+function Chiffre({ libelle, valeur, alerte = false }: { libelle: string; valeur: string; alerte?: boolean }) {
+  return (
+    <div className="rounded-xl border border-neutral-100 bg-neutral-50/60 px-4 py-3">
+      <p className={`text-xl font-bold tabular-nums ${alerte ? 'text-amber-600' : 'text-neutral-900'}`}>{valeur}</p>
+      <p className="mt-0.5 text-xs text-neutral-500">{libelle}</p>
+    </div>
+  );
+}
+
+/** Synchro AD, synchro Minos manuelle (fichiers d'interface) et rapport détaillé des intégrations. */
 export async function AdminSynchrosOnglet() {
-  const logs = await listImportLogs();
+  const [logs, depot] = await Promise.all([listImportLogs(), listFichiersDepot()]);
+
+  // Poids des fichiers encore présents (le journal ne l'enregistre pas toujours).
+  const poidsParNom = new Map((depot?.fichiers ?? []).map((f) => [f.nom, f.taille]));
+  const recents = (logs ?? []).slice(0, 50);
+  const plusRecent = recents.length ? new Date(recents[0].createdAt).getTime() : 0;
+
+  const lignes: LigneRapport[] = recents.map((l) => {
+    const t = typeMinos(l.fileName);
+    return {
+      id: l.id,
+      nom: l.fileName,
+      type: t ? TYPES_MINOS[t].label : '—',
+      statut: l.status,
+      poids: l.fileSizeBytes ?? poidsParNom.get(l.fileName) ?? null,
+      lignes: l.rowsTotal,
+      integrees: l.rowsOk,
+      rejetees: l.rowsFailed,
+      dureeSec: dureeSec(l),
+      date: l.startedAt ?? l.createdAt,
+      erreurs: l.errorMessage,
+      dansDernierLot: plusRecent - new Date(l.createdAt).getTime() <= FENETRE_LOT_MS,
+    };
+  });
+
+  const lot = lignes.filter((l) => l.dansDernierLot);
+  const somme = (f: (l: LigneRapport) => number) => lot.reduce((s, l) => s + f(l), 0);
+  const poidsLot = lot.reduce((s, l) => s + (l.poids ?? 0), 0);
+  const dureeLot = lot.every((l) => l.dureeSec != null) ? somme((l) => l.dureeSec ?? 0) : null;
 
   return (
     <div className="flex flex-col gap-5">
@@ -35,55 +68,37 @@ export async function AdminSynchrosOnglet() {
       </section>
 
       <section className="rounded-2xl bg-white shadow-card">
-        <h2 className="border-b border-neutral-100 px-5 py-3 text-sm font-semibold">Historique des imports ERP</h2>
+        <h2 className="border-b border-neutral-100 px-5 py-3 text-sm font-semibold">Synchro Minos</h2>
+        <SynchroMinos racine={depot?.racine ?? null} fichiers={depot?.fichiers ?? null} />
+      </section>
+
+      <section className="rounded-2xl bg-white shadow-card">
+        <h2 className="border-b border-neutral-100 px-5 py-3 text-sm font-semibold">Rapport de synchronisation</h2>
         {logs === null ? (
-          <p className="px-5 py-6 text-sm text-amber-700">Historique indisponible — l&apos;API est-elle démarrée ?</p>
-        ) : logs.length === 0 ? (
-          <p className="px-5 py-8 text-center text-sm text-neutral-400">Aucun import enregistré.</p>
+          <p className="px-5 py-6 text-sm text-amber-700">Rapport indisponible — l&apos;API est-elle démarrée ?</p>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead className="bg-neutral-50 text-left text-neutral-500">
-                <tr>
-                  <th className="px-4 py-2.5 font-medium">Date</th>
-                  <th className="px-3 py-2.5 font-medium">Fichier</th>
-                  <th className="px-3 py-2.5 font-medium">Source</th>
-                  <th className="px-3 py-2.5 font-medium">Statut</th>
-                  <th className="px-3 py-2.5 text-right font-medium">Lignes</th>
-                  <th className="px-3 py-2.5 text-right font-medium">Rejets</th>
-                  <th className="px-3 py-2.5 text-right font-medium">Durée</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-neutral-100">
-                {logs.slice(0, 50).map((l) => (
-                  <tr key={l.id} className="align-top hover:bg-neutral-50">
-                    <td className="whitespace-nowrap px-4 py-2.5 text-neutral-600">
-                      {dateFr.format(new Date(l.startedAt ?? l.createdAt))}
-                    </td>
-                    <td className="px-3 py-2.5">
-                      <p className="font-mono text-xs">{l.fileName}</p>
-                      {l.errorMessage ? <p className="mt-0.5 max-w-md text-xs text-red-600">{l.errorMessage}</p> : null}
-                    </td>
-                    <td className="px-3 py-2.5 text-neutral-500">{l.source}</td>
-                    <td className="px-3 py-2.5">
-                      <span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${STATUT[l.status].classes}`}>
-                        {STATUT[l.status].label}
-                      </span>
-                    </td>
-                    <td className="px-3 py-2.5 text-right tabular-nums">
-                      {l.rowsOk}/{l.rowsTotal}
-                    </td>
-                    <td
-                      className={`px-3 py-2.5 text-right tabular-nums ${l.rowsFailed > 0 ? 'font-semibold text-amber-700' : 'text-neutral-400'}`}
-                    >
-                      {l.rowsFailed}
-                    </td>
-                    <td className="px-3 py-2.5 text-right tabular-nums text-neutral-500">{duree(l)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          <>
+            {lot.length > 0 ? (
+              <div className="border-b border-neutral-100 px-5 py-4">
+                <p className="mb-3 text-xs font-medium uppercase tracking-wide text-neutral-400">
+                  Dernière synchro — {lot.length} fichier{lot.length > 1 ? 's' : ''}
+                </p>
+                <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-6">
+                  <Chiffre libelle="Fichiers" valeur={String(lot.length)} />
+                  <Chiffre libelle="Poids total" valeur={poidsLot > 0 ? formatTaille(poidsLot) : '—'} />
+                  <Chiffre libelle="Lignes lues" valeur={somme((l) => l.lignes).toLocaleString('fr-FR')} />
+                  <Chiffre libelle="Intégrées" valeur={somme((l) => l.integrees).toLocaleString('fr-FR')} />
+                  <Chiffre
+                    libelle="Rejetées"
+                    valeur={somme((l) => l.rejetees).toLocaleString('fr-FR')}
+                    alerte={somme((l) => l.rejetees) > 0}
+                  />
+                  <Chiffre libelle="Durée" valeur={formatDuree(dureeLot)} />
+                </div>
+              </div>
+            ) : null}
+            <RapportMinos lignes={lignes} />
+          </>
         )}
       </section>
     </div>
