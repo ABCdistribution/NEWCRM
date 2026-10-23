@@ -382,6 +382,7 @@ export type ImportLog = {
   rowsTotal: number;
   rowsOk: number;
   rowsFailed: number;
+  fileSizeBytes?: number | null;
   errorMessage: string | null;
   startedAt: string | null;
   finishedAt: string | null;

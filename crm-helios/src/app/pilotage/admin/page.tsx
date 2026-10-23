@@ -1,3 +1,4 @@
+import { ShieldCheck } from 'lucide-react';
 import { getMe, getAdminApercu, getAdminOrganisation } from '@/lib/api';
 import { AccesRefuse } from '@/components/acces-refuse';
 import { AdminOnglets, ongletValide } from '@/components/admin/onglets';
@@ -55,12 +56,22 @@ export default async function AdminPage({
 
   return (
     <div className="flex flex-col gap-5">
-      <div>
-        <h1 className="text-2xl font-bold">Administration</h1>
-        <p className="text-sm text-neutral-500">Comptes, organisation, synchronisations et contenus d&apos;ABC Pilot et d&apos;ABC Sales.</p>
+      <header className="flex items-center gap-4 rounded-2xl bg-[#120D24] px-5 py-4 text-white shadow-card">
+        <span className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-violet-600">
+          <ShieldCheck size={24} aria-hidden />
+        </span>
+        <div className="min-w-0">
+          <h1 className="text-xl font-bold leading-tight">Administration</h1>
+          <p className="text-xs uppercase tracking-wider text-white/50">Console de gestion</p>
+        </div>
+        <span className="ml-auto rounded-md border border-white/20 px-2 py-1 text-[11px] font-semibold uppercase tracking-wider text-white/70">
+          Accès administrateur
+        </span>
+      </header>
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-[230px_minmax(0,1fr)]">
+        <AdminOnglets actif={onglet} />
+        <div className="min-w-0">{contenu}</div>
       </div>
-      <AdminOnglets actif={onglet} />
-      {contenu}
     </div>
   );
 }
