@@ -3,6 +3,7 @@ import { Prisma, Role } from '@crm/database';
 import { PrismaService } from '../prisma/prisma.service';
 import { PlanningsService } from '../plannings/plannings.service';
 import { idReprVariants } from '../common/id-repr.util';
+import { REGIONS_FR, regionFromDept } from '../common/regions-fr.util';
 
 /** Clé canonique d'un code représentant : « 068 » et « 68 » comptent ensemble. */
 function canonRepr(code: string): string {
@@ -212,7 +213,7 @@ export class DashboardService {
   }
 
   /**
-   * Dashboard de pilotage (helios) : chiffres consolidés de toute la force de vente
+   * Dashboard de pilotage (ABC Pilot) : chiffres consolidés de toute la force de vente
    * sur un mois donné, avec comparatif N-1, classement des promoteurs, agrégats
    * par secteur, suivi des objectifs et magasins sans commande.
    * Un CHEF_SECTEUR est automatiquement restreint aux promoteurs de ses secteurs.
@@ -250,6 +251,24 @@ export class DashboardService {
       scopeSecteur && !emptyScope
         ? Prisma.sql`AND co."idRepr" IN (${Prisma.join([...codesScope])})`
         : Prisma.empty;
+
+    // CA du mois par famille d'articles (lignes de commande), top 5 + « Autres ».
+    const caParFamille = emptyScope
+      ? { total: 0, familles: [] as { nom: string; ca: number; pct: number }[] }
+      : this.regrouperFamilles(
+          await this.prisma.$queryRaw<{ famille: string; ca: number }[]>`
+            SELECT COALESCE(f.nom, 'Autres') AS famille,
+                   COALESCE(SUM(cl.montant), 0)::float8 AS ca
+            FROM commande_lignes cl
+            JOIN commandes co ON co.id = cl."commandeId"
+            LEFT JOIN articles a ON a.id = cl."articleId"
+            LEFT JOIN familles f ON f.id = a."familleId"
+            WHERE co."dateAnnulation" IS NULL
+              AND co."dateCommande" >= ${debut} AND co."dateCommande" < ${fin}
+              ${reprFilter}
+            GROUP BY 1
+            ORDER BY ca DESC`,
+        );
 
     // CA + nb commandes par représentant, mois N et même mois N-1, en une requête.
     const caParRepr = emptyScope
@@ -510,6 +529,7 @@ export class DashboardService {
         sansObjectif,
       },
       prospection: await this.blocProspection(debut, fin),
+      caParFamille,
       scatterMagasins: await this.scatterMagasins(annee, debut, fin),
       sansCommande: {
         total: sansCommandeCount,
@@ -524,7 +544,7 @@ export class DashboardService {
   }
 
   /**
-   * Suivi prospection pour l'accueil Helios : pipeline pondéré des fiches
+   * Suivi prospection pour l'accueil ABC Pilot : pipeline pondéré des fiches
    * ouvertes, prospects gagnés (avec leur potentiel), et CA réellement facturé
    * sur le mois par les magasins ISSUS d'une conversion de prospect.
    */
@@ -562,8 +582,112 @@ export class DashboardService {
     }));
   }
 
+  /**
+   * Évolution du CA et du nombre de commandes sur les 6 derniers mois (jusqu'au mois demandé inclus).
+   * Périmètre : les commandes du représentant de l'utilisateur ; ADMIN/DIRECTION sans code voient
+   * l'ensemble ; tout autre compte sans code représentant n'a aucune donnée (jamais de vue globale par défaut).
+   */
+  async evolution(me: { idRepr: string | null; role: Role }, annee: number, mois: number) {
+    const MOIS_COURTS = ['Janv.', 'Févr.', 'Mars', 'Avr.', 'Mai', 'Juin', 'Juil.', 'Août', 'Sept.', 'Oct.', 'Nov.', 'Déc.'];
+    const debut = new Date(annee, mois - 6, 1);
+    const fin = new Date(annee, mois, 1);
+    const global = me.role === Role.ADMIN || me.role === Role.DIRECTION;
+    const autorise = Boolean(me.idRepr) || global;
+    const reprFilter = me.idRepr
+      ? Prisma.sql`AND co."idRepr" IN (${Prisma.join(idReprVariants(me.idRepr))})`
+      : Prisma.empty;
+    const rows = autorise
+      ? await this.prisma.$queryRaw<{ annee: number; mois: number; ca: number; nb: number }[]>`
+          SELECT EXTRACT(YEAR FROM co."dateCommande")::int AS annee,
+                 EXTRACT(MONTH FROM co."dateCommande")::int AS mois,
+                 COALESCE(SUM(co."montantTotal"), 0)::float8 AS ca,
+                 COUNT(*)::int AS nb
+          FROM commandes co
+          WHERE co."dateAnnulation" IS NULL
+            AND co."dateCommande" >= ${debut} AND co."dateCommande" < ${fin}
+            ${reprFilter}
+          GROUP BY 1, 2`
+      : [];
+    const parMois = new Map(rows.map((r) => [`${r.annee}-${r.mois}`, r]));
+    const mois6 = Array.from({ length: 6 }, (_, i) => {
+      const d = new Date(annee, mois - 6 + i, 1);
+      const r = parMois.get(`${d.getFullYear()}-${d.getMonth() + 1}`);
+      return {
+        annee: d.getFullYear(),
+        mois: d.getMonth() + 1,
+        label: MOIS_COURTS[d.getMonth()],
+        ca: Math.round(r?.ca ?? 0),
+        commandes: r?.nb ?? 0,
+      };
+    });
+    return { mois: mois6 };
+  }
+
+  /**
+   * Répartition des visites du mois par région (d'après le code postal du magasin ou du prospect visité).
+   * Périmètre selon le rôle : ADMIN/DIRECTION = toutes ; directeur régional = son équipe ;
+   * chef de secteur = les promoteurs de ses secteurs ; autres = ses propres visites.
+   */
+  async visitesParRegion(me: { id: string; role: Role }, annee: number, mois: number) {
+    const debut = new Date(annee, mois - 1, 1);
+    const fin = new Date(annee, mois, 1);
+    const scope =
+      me.role === Role.ADMIN || me.role === Role.DIRECTION
+        ? Prisma.empty
+        : me.role === Role.DIRECTEUR_REGIONAL
+          ? Prisma.sql`AND u."directeurId" = ${me.id}::uuid`
+          : me.role === Role.CHEF_SECTEUR
+            ? Prisma.sql`AND u."secteurId" IN (SELECT s.id FROM secteurs s WHERE s."managerId" = ${me.id}::uuid)`
+            : Prisma.sql`AND v."promoteurId" = ${me.id}::uuid`;
+    const rows = await this.prisma.$queryRaw<{ dept: string; n: number }[]>`
+      SELECT LEFT(COALESCE(c."codePostal", p."codePostal", ''), 2) AS dept, COUNT(*)::int AS n
+      FROM visites v
+      JOIN users u ON u.id = v."promoteurId"
+      LEFT JOIN clients c ON c.id = v."clientId"
+      LEFT JOIN prospects p ON p.id = v."prospectId"
+      WHERE v."deletedAt" IS NULL
+        AND v."createdAt" >= ${debut} AND v."createdAt" < ${fin}
+        ${scope}
+      GROUP BY 1`;
+    const parRegion = new Map<string, number>();
+    let nonLocalisees = 0;
+    for (const r of rows) {
+      const region = regionFromDept(r.dept);
+      if (!region) nonLocalisees += r.n;
+      else parRegion.set(region.code, (parRegion.get(region.code) ?? 0) + r.n);
+    }
+    const regions = REGIONS_FR.filter((r) => parRegion.has(r.code))
+      .map((r) => ({ code: r.code, nom: r.nom, ville: r.ville, lat: r.lat, lng: r.lng, visites: parRegion.get(r.code)! }))
+      .sort((a, b) => b.visites - a.visites);
+    return {
+      total: regions.reduce((somme, r) => somme + r.visites, 0) + nonLocalisees,
+      nonLocalisees,
+      regions,
+    };
+  }
+
+  /** Top 5 des familles + « Autres » (familles restantes et articles sans famille), avec la part en %. */
+  private regrouperFamilles(rows: { famille: string; ca: number }[]) {
+    const positives = rows.filter((r) => r.ca > 0);
+    const total = positives.reduce((somme, r) => somme + r.ca, 0);
+    const nommees = positives.filter((r) => r.famille !== 'Autres').sort((a, b) => b.ca - a.ca);
+    const top = nommees.slice(0, 5);
+    const autres =
+      nommees.slice(5).reduce((somme, r) => somme + r.ca, 0) +
+      positives.filter((r) => r.famille === 'Autres').reduce((somme, r) => somme + r.ca, 0);
+    const familles = [...top.map((r) => ({ nom: r.famille, ca: r.ca })), ...(autres > 0 ? [{ nom: 'Autres', ca: autres }] : [])];
+    return {
+      total: Math.round(total),
+      familles: familles.map((f) => ({
+        nom: f.nom,
+        ca: Math.round(f.ca),
+        pct: total > 0 ? Math.round((f.ca / total) * 100) : 0,
+      })),
+    };
+  }
+
   private async blocProspection(debut: Date, fin: Date) {
-    const [ouverts, gagnes, caProspection] = await Promise.all([
+    const [ouverts, gagnes, caProspection, commandesProspection] = await Promise.all([
       this.prisma.prospect.findMany({
         where: { deletedAt: null, statut: { notIn: ['GAGNE', 'PERDU'] } },
         select: { potentielCaAnnuel: true, probabilite: true },
@@ -580,13 +704,42 @@ export class DashboardService {
           client: { prospectOrigine: { isNot: null } },
         },
       }),
+      this.prisma.commande.findMany({
+        where: {
+          dateAnnulation: null,
+          dateCommande: { gte: debut, lt: fin },
+          client: { prospectOrigine: { isNot: null } },
+        },
+        select: { dateCommande: true, montantTotal: true },
+      }),
     ]);
     const pipelinePondere = ouverts.reduce(
       (somme, p) => somme + (Number(p.potentielCaAnnuel ?? 0) * (p.probabilite ?? 0)) / 100,
       0,
     );
     const potentielGagne = gagnes.reduce((somme, p) => somme + Number(p.potentielCaAnnuel ?? 0), 0);
+    // Semaines du mois : S1 = jours 1-7, S2 = 8-14, S3 = 15-21, S4 = 22 à la fin. Valeurs CUMULÉES ;
+    // `ca` vaut null pour les semaines pas encore commencées (mois en cours ou à venir).
+    const parSemaine = [0, 0, 0, 0];
+    for (const c of commandesProspection) {
+      if (!c.dateCommande) continue;
+      parSemaine[Math.min(3, Math.floor((c.dateCommande.getDate() - 1) / 7))] += Number(c.montantTotal);
+    }
+    const maintenant = new Date();
+    const semainesEcoulees =
+      maintenant < debut ? 0 : maintenant >= fin ? 4 : Math.min(4, Math.floor((maintenant.getDate() - 1) / 7) + 1);
+    const cibleMensuelle = potentielGagne / 12;
+    let cumul = 0;
+    const semaines = parSemaine.map((ca, i) => {
+      cumul += ca;
+      return {
+        label: `S${i + 1}`,
+        ca: i < semainesEcoulees ? Math.round(cumul) : null,
+        objectif: cibleMensuelle > 0 ? Math.round((cibleMensuelle * (i + 1)) / 4) : null,
+      };
+    });
     return {
+      semaines,
       ouverts: ouverts.length,
       pipelinePondere: Math.round(pipelinePondere),
       gagnes: gagnes.length,

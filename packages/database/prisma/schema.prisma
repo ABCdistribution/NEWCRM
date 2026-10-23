@@ -72,7 +72,7 @@ enum TypeQuestion {
   NOTE_1_5
 }
 
-// --- Prospection & pipeline (module Helios) ----------------------------
+// --- Prospection & pipeline (module ABC Pilot) ----------------------------
 
 /// Étape du pipeline commercial d'un prospect :
 /// création de la fiche → prise de contact → proposition → visite → négociation → gagné / perdu.
@@ -744,7 +744,7 @@ model VisitePhoto {
   idVisiteApk String?
   appName     String?
 
-  // Helios Mobile : photo stockée en base (comme les pièces jointes prospect)
+  // ABC Pilot Mobile : photo stockée en base (comme les pièces jointes prospect)
   mime    String?
   donnees Bytes?
   idApk   String? @unique // clé d'idempotence de l'outbox mobile
@@ -769,7 +769,7 @@ model VisiteStep {
   @@map("visite_steps")
 }
 
-/// Question du questionnaire de FIN DE VISITE — structure administrable dans helios
+/// Question du questionnaire de FIN DE VISITE — structure administrable dans ABC Pilot
 /// (libellé, type, ordre, obligatoire, actif) ; rendue par l'app mobile.
 model QuestionVisite {
   id          String       @id @default(uuid()) @db.Uuid
@@ -871,7 +871,7 @@ model Plannification {
   @@map("plannifications")
 }
 
-/// Étape datée de la TOURNÉE PERSONNELLE d'un utilisateur Helios (chef de secteur,
+/// Étape datée de la TOURNÉE PERSONNELLE d'un utilisateur ABC Pilot (chef de secteur,
 /// DR, direction) : visite d'un PROSPECT ou suivi d'un MAGASIN existant — exactement
 /// l'un des deux. Distinct des visites planifiées des promoteurs (Planning).
 model TourneeEtape {
@@ -899,7 +899,7 @@ model TourneeEtape {
   soireeLieu     String? // lieu de l'étape (si soirée étape)
   soireeAdresse  String? // adresse de l'étape (si soirée étape)
 
-  idApk String? @unique // identifiant généré côté mobile — idempotence de la sync (Helios Mobile)
+  idApk String? @unique // identifiant généré côté mobile — idempotence de la sync (ABC Pilot Mobile)
 
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
@@ -912,7 +912,7 @@ model TourneeEtape {
 }
 
 /// Prévision puis validation du planning d'activité d'une semaine (lundi) pour un
-/// utilisateur Helios. Une ligne par (utilisateur, semaine) ; `valideAt` verrouille.
+/// utilisateur ABC Pilot. Une ligne par (utilisateur, semaine) ; `valideAt` verrouille.
 model PlanningSemaine {
   id     String @id @default(uuid()) @db.Uuid
   userId String @db.Uuid
@@ -1049,7 +1049,7 @@ model CommandeApkLigne {
   @@map("commande_apk_lignes")
 }
 
-// --- Prospection & pipeline (module Helios) ----------------------------
+// --- Prospection & pipeline (module ABC Pilot) ----------------------------
 
 /// Point de vente pas encore client. Se convertit en Client quand il est gagné
 /// (POST /prospects/:id/convert) — `clientId` est alors posé et le statut passe à GAGNE.
@@ -1202,7 +1202,7 @@ model ProspectPieceJointe {
   @@map("prospect_pieces_jointes")
 }
 
-/// Appel téléphonique passé à un magasin (client) — journalisé depuis Helios ou le mobile.
+/// Appel téléphonique passé à un magasin (client) — journalisé depuis ABC Pilot ou le mobile.
 model ClientAppel {
   id       String @id @default(uuid()) @db.Uuid
   clientId String @db.Uuid
@@ -1310,7 +1310,7 @@ model ErpImportLog {
 /// Objectif mensuel de CA d'un représentant (ex-`objectifs` legacy).
 /// Rattaché au code représentant (comme les commandes Minos), pas à l'utilisateur :
 /// l'objectif survit aux changements de compte AD.
-/// Objectif de CA ANNUEL par magasin, saisi par la direction (helios).
+/// Objectif de CA ANNUEL par magasin, saisi par la direction (ABC Pilot).
 /// L'objectif d'un commercial = somme des objectifs de son portefeuille (/12 pour le mensuel).
 model Objectif {
   id       String  @id @default(uuid()) @db.Uuid

@@ -170,7 +170,7 @@ const etapeSelect = {
 } as const;
 
 /**
- * TOURNÉE PERSONNELLE Helios (encadrement) : chacun planifie SES étapes —
+ * TOURNÉE PERSONNELLE ABC Pilot (encadrement) : chacun planifie SES étapes —
  * visite d'un prospect ou suivi d'un magasin existant. Toujours scopé sur soi.
  * Distinct des visites planifiées des promoteurs (/plannings).
  */

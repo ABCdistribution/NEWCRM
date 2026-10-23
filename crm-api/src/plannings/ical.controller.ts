@@ -72,7 +72,7 @@ export class IcalController {
     const lignes: string[] = [
       'BEGIN:VCALENDAR',
       'VERSION:2.0',
-      'PRODID:-//ABC Distribution//CRM Helios//FR',
+      'PRODID:-//ABC Distribution//CRM ABC Pilot//FR',
       'CALSCALE:GREGORIAN',
       'METHOD:PUBLISH',
       `X-WR-CALNAME:${echapper(`Planning d'activité — ${user.displayName}`)}`,
