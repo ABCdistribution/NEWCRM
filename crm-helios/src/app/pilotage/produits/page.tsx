@@ -4,7 +4,7 @@ import { Pagination } from '@/components/pagination';
 import { KpiTile } from '@/components/kpi-tile';
 import { ProduitsTable } from '@/components/produits-table';
 
-export const metadata = { title: 'Produits — Helios' };
+export const metadata = { title: 'Produits — ABC Pilot' };
 
 const NB = new Intl.NumberFormat('fr-FR');
 const fmt = (n: number | null) => (n == null ? '—' : NB.format(n));

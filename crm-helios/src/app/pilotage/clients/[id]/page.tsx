@@ -21,7 +21,7 @@ import { ActiveBadge } from '@/components/badges';
 import { CaChart } from '@/components/ca-chart';
 import { ContactsCard } from '@/components/contacts-card';
 
-export const metadata = { title: 'Fiche magasin — Helios' };
+export const metadata = { title: 'Fiche magasin — ABC Pilot' };
 
 const DATE_FMT = new Intl.DateTimeFormat('fr-FR', { day: '2-digit', month: 'short', year: 'numeric' });
 

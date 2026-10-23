@@ -15,13 +15,14 @@ import {
 } from 'lucide-react';
 import { getMe, getDashboardDirection } from '@/lib/api';
 import { StatTile } from '@/components/stat-tile';
-import { ProspectionObjectifCard } from '@/components/prospection-objectif-card';
+import { ProspectionCaChart } from '@/components/prospection-ca-chart';
+import { CaFamilleDonut } from '@/components/ca-famille-donut';
 import { ScatterObjectif } from '@/components/scatter-objectif';
 import { DonutChart } from '@/components/donut-chart';
 import { ClassBadge } from '@/components/class-badge';
 import { DashboardCS } from '@/components/dashboard-cs';
 
-export const metadata = { title: 'Pilotage — Helios' };
+export const metadata = { title: 'Pilotage — ABC Pilot' };
 
 const EUR = new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 });
 const MOIS_LABELS = [
@@ -156,8 +157,15 @@ export default async function Home({
             />
           </section>
 
-          {/* CA réalisé vs objectif côté prospection */}
-          <ProspectionObjectifCard p={data.prospection} />
+          {/* CA réalisé vs objectif côté prospection, et répartition du CA par famille */}
+          <div className="grid grid-cols-1 gap-5 xl:grid-cols-5">
+            <div className="xl:col-span-3">
+              <ProspectionCaChart p={data.prospection} moisLabel={`${MOIS_LABELS[mois - 1]} ${annee}`} />
+            </div>
+            <div className="xl:col-span-2">
+              <CaFamilleDonut data={data.caParFamille} moisLabel={`${MOIS_LABELS[mois - 1]} ${annee}`} />
+            </div>
+          </div>
 
           {/* Nuage objectif vs réalisé : sous la diagonale = à relancer */}
           <section className={card}>

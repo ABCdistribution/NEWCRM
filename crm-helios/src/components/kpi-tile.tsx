@@ -11,7 +11,7 @@ const PILL_STYLES: Record<KpiPill['tone'], string> = {
 
 /**
  * Tuile KPI façon SaaS/CRM : label + icône info, grand chiffre, sous-ligne
- * avec pastille d'état colorée. Aux couleurs Helios (violet/or via shadow-card).
+ * avec pastille d'état colorée. Aux couleurs ABC Pilot (violet/or via shadow-card).
  */
 export function KpiTile({
   label,

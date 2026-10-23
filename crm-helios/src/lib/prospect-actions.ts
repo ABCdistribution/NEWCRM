@@ -124,7 +124,7 @@ export async function logAppelFiche(prospectId: string): Promise<void> {
   await serverFetch(`/prospects/${prospectId}/appels`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ commentaire: 'Appel lancé depuis la fiche Helios.' }),
+    body: JSON.stringify({ commentaire: 'Appel lancé depuis la fiche ABC Pilot.' }),
   }).catch(() => undefined);
   revalidatePath(`/pilotage/prospects/${prospectId}`);
 }
@@ -134,7 +134,7 @@ export async function logEmailFiche(prospectId: string, destinataire: string): P
   await serverFetch(`/prospects/${prospectId}/emails`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ destinataire, commentaire: 'Email lancé depuis la fiche Helios.' }),
+    body: JSON.stringify({ destinataire, commentaire: 'Email lancé depuis la fiche ABC Pilot.' }),
   }).catch(() => undefined);
   revalidatePath(`/pilotage/prospects/${prospectId}`);
 }

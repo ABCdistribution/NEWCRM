@@ -2,7 +2,14 @@
 
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 
-export function SearchBar({ placeholder = 'Rechercher…' }: { placeholder?: string }) {
+export function SearchBar({
+  placeholder = 'Rechercher…',
+  conserver = [],
+}: {
+  placeholder?: string;
+  /** Paramètres d'URL à conserver lors d'une recherche (ex. l'onglet actif). */
+  conserver?: string[];
+}) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -11,6 +18,10 @@ export function SearchBar({ placeholder = 'Rechercher…' }: { placeholder?: str
     e.preventDefault();
     const value = String(new FormData(e.currentTarget).get('search') ?? '').trim();
     const params = new URLSearchParams();
+    for (const nom of conserver) {
+      const v = searchParams.get(nom);
+      if (v) params.set(nom, v);
+    }
     if (value) params.set('search', value);
     router.push(`${pathname}${params.toString() ? `?${params}` : ''}`);
   }

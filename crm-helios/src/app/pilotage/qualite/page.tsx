@@ -3,7 +3,7 @@ import { listArticles, type Paginated, type ArticleRow } from '@/lib/api';
 import { SearchBar } from '@/components/search-bar';
 import { Pagination } from '@/components/pagination';
 
-export const metadata = { title: 'Qualité & Rappels Produits — Helios' };
+export const metadata = { title: 'Qualité & Rappels Produits — ABC Pilot' };
 
 export default async function QualitePage({
   searchParams,

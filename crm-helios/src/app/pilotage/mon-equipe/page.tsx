@@ -11,7 +11,7 @@ import {
 import { AccesRefuse } from '@/components/acces-refuse';
 import { MonEquipeBoard, type Membre } from '@/components/mon-equipe-board';
 
-export const metadata = { title: 'Mon équipe — Helios' };
+export const metadata = { title: 'Mon équipe — ABC Pilot' };
 
 // Vue du DIRECTEUR RÉGIONAL sur ses chefs de secteur (ADMIN : vue technique sur tous).
 const ALLOWED = ['DIRECTEUR_REGIONAL', 'ADMIN'];

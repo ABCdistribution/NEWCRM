@@ -5,7 +5,7 @@ import { Pagination } from '@/components/pagination';
 import { ActiveBadge } from '@/components/badges';
 import { KpiTile } from '@/components/kpi-tile';
 
-export const metadata = { title: 'Mes magasins — Helios' };
+export const metadata = { title: 'Mes magasins — ABC Pilot' };
 
 const NB = new Intl.NumberFormat('fr-FR');
 const EUR = new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 });

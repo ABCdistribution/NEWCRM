@@ -4,7 +4,7 @@ import { ArrowLeft } from 'lucide-react';
 import { getClient } from '@/lib/api';
 import { VisiteCommercialeForm } from '@/components/visite-commerciale-form';
 
-export const metadata = { title: 'Visite commerciale — Helios' };
+export const metadata = { title: 'Visite commerciale — ABC Pilot' };
 
 export default async function VisiteCommercialePage({
   params,

@@ -6,7 +6,7 @@ import { MaTourneeBoard } from '@/components/ma-tournee-board';
 import { PlanningValidation } from '@/components/planning-validation';
 import { OutlookSyncButton } from '@/components/outlook-sync-button';
 
-export const metadata = { title: "Mon planning d'activité — Helios" };
+export const metadata = { title: "Mon planning d'activité — ABC Pilot" };
 
 // La tournée personnelle concerne l'encadrement (prospection + suivi magasins).
 const ALLOWED = ['CHEF_SECTEUR', 'DIRECTEUR_REGIONAL', 'DIRECTION', 'ADMIN'];
