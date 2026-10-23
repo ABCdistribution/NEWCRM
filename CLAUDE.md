@@ -7,15 +7,18 @@ Monorepo CRM : une API NestJS, une base Postgres (Prisma) et deux fronts Next.js
 |---|---|
 | `crm-api` | API NestJS 11 (port 4000), Swagger sur `/docs`. Auth LDAP/AD puis JWT. |
 | `packages/database` | Schéma Prisma 7 (`prisma/schema.prisma`, ~46 modèles), migrations, seed. Package `@crm/database`. |
-| `crm-promoteur` | **Selios** — espace terrain (Next 15, React 19, Tailwind 4, port 3000). |
-| `crm-helios` | **Helios** — pilotage/encadrement (même stack, port 3001). |
+| `crm-promoteur` | **ABC Sales** — espace terrain (Next 15, React 19, Tailwind 4, port 3000). |
+| `crm-helios` | **ABC Pilot** — pilotage/encadrement (même stack, port 3001). |
 | `scripts/` | Imports AS400, copie de l'ancien CRM, diagnostic AD. |
+
+**Noms** : `crm-promoteur` = **ABC Sales**, `crm-helios` = **ABC Pilot** (plateforme « SalesPilot ABC »). Les noms visibles sont à jour ; les noms de dossiers, les variables `HELIOS_PORT` / `SELIOS_PORT` et les identifiants de code gardent les anciens noms (ne pas les renommer sans coordonner la prod).
 
 Les deux fronts ne sont **pas** dans le workspace pnpm (`pnpm-workspace.yaml` = `crm-api` + `packages/*`) : chacun a son propre `node_modules` et son `pnpm-lock.yaml`. Ils appellent l'API côté serveur uniquement (`serverFetch`, Server Actions), avec le JWT dans le cookie httpOnly `crm_session`.
 
 ## Commandes
 - Installer : `pnpm install` à la racine (API + database), puis `pnpm install --ignore-workspace` dans chaque front.
 - Base locale : `docker compose up -d db`, puis `set -a; . crm-api/.env; set +a; pnpm --filter @crm/database exec prisma migrate deploy` et `pnpm --filter @crm/database run db:generate` (à refaire après un changement de schéma).
+- Données de démo (base LOCALE uniquement, les scripts refusent toute autre base), depuis `packages/database` : `node --env-file=../../crm-api/.env prisma/seed-dev-users.cjs` (comptes fictifs `[DÉMO]`), puis `prisma/seed.cjs` (clients, catalogue, commandes, visites…), puis `prisma/seed-prospection.cjs` (prospects et commandes du mois pour les graphiques de pilotage). Les trois sont ré-exécutables.
 - API : `cd crm-api && pnpm start:dev`. Fronts : `pnpm dev` dans `crm-promoteur` / `crm-helios`.
 - Typage : `npx tsc --noEmit` dans chacun des trois projets (passe aujourd'hui).
 - Lint : **non configuré** (`next lint` est cassé). Tests : **aucun** pour l'instant.
@@ -29,6 +32,7 @@ Les deux fronts ne sont **pas** dans le workspace pnpm (`pnpm-workspace.yaml` = 
 ## Conventions
 - Code et commentaires en français, messages d'erreur utilisateur en français.
 - API : un module par domaine ; `JwtAuthGuard` puis `RolesGuard` + `@Roles()` posés par contrôleur (pas de guard global) ; DTO class-validator ; `ParseUUIDPipe` sur les `:id`. Toute route de données doit porter un rôle ET un filtrage de périmètre (utilisateur / secteur / région).
+- Administration : une seule console, `/pilotage/admin` dans ABC Pilot (ADMIN), onglets portés par `?onglet=` ; API `crm-api/src/admin` en lecture seule. Ne pas recréer de page admin dans ABC Sales.
 - Idempotence mobile par `idApk`, suppression logique par `deletedAt`.
 - Fronts : jetons de couleur dans `globals.css` (`brand`, `accent`, `navy-*`) ; les menus latéraux sont en `dark` local. Une modification d'UI partagée se fait dans les DEUX apps (12 fichiers sont dupliqués à l'identique).
 - Ne jamais lancer d'import ou de seed contre la production.
