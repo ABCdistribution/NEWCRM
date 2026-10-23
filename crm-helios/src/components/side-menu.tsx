@@ -67,9 +67,9 @@ const SECTIONS: Section[] = [
   },
 ];
 
-/** Fond du menu ABC Pilot : violet nuit uni. */
+/** Fond du menu ABC Pilot : violet nuit uni (#130D25). */
 const FOND_MENU: React.CSSProperties = {
-  backgroundColor: '#120D24',
+  backgroundColor: '#130D25',
 };
 
 function isActive(pathname: string, href: string) {
@@ -146,14 +146,14 @@ export function SideMenu({ me, seliosPort }: { me: Me; seliosPort: string }) {
                     <li key={c.href}>
                       <Link
                         href={c.href}
-                        className={`group flex items-center gap-2.5 rounded-lg border-l-4 border-transparent px-3 py-2.5 text-[15px] transition ${
+                        className={`group flex items-center gap-2.5 rounded-lg px-3 py-2.5 text-[15px] transition ${
                           active
-                            ? 'bg-neutral-100 font-semibold text-neutral-900 dark:border-violet-500 dark:bg-violet-100 dark:text-violet-700'
+                            ? 'bg-neutral-100 font-semibold text-neutral-900 dark:bg-[#55399B] dark:text-white'
                             : 'text-neutral-500 hover:bg-neutral-50 hover:text-neutral-900 dark:text-white dark:hover:bg-white/10'
                         }`}
                       >
                         {/* Surbrillance or translucide au survol ; texte blanc et icônes mauves conservés. */}
-                        <Icon size={19} className={`shrink-0 ${active ? 'text-brand' : 'text-neutral-400 dark:text-white'}`} />
+                        <Icon size={19} className={`shrink-0 ${active ? 'text-brand dark:text-white' : 'text-neutral-400 dark:text-white'}`} />
                         {c.label}
                       </Link>
                     </li>

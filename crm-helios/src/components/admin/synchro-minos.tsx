@@ -55,7 +55,7 @@ export function SynchroMinos({ racine, fichiers }: { racine: string | null; fich
               <button
                 type="submit"
                 onClick={() => setConfirmer(false)}
-                className="rounded-xl bg-violet-600 px-3 py-2 text-sm font-medium text-white transition hover:bg-violet-700"
+                className="rounded-xl bg-brand px-3 py-2 text-sm font-medium text-white transition hover:bg-brand/90"
               >
                 Confirmer
               </button>
@@ -72,7 +72,7 @@ export function SynchroMinos({ racine, fichiers }: { racine: string | null; fich
               type="button"
               disabled={reconnus.length === 0 || enCours}
               onClick={() => setConfirmer(true)}
-              className="inline-flex items-center gap-1.5 rounded-xl bg-violet-600 px-3.5 py-2 text-sm font-medium text-white transition hover:bg-violet-700 disabled:cursor-not-allowed disabled:opacity-50"
+              className="inline-flex items-center gap-1.5 rounded-xl bg-brand px-3.5 py-2 text-sm font-medium text-white transition hover:bg-brand/90 disabled:cursor-not-allowed disabled:opacity-50"
             >
               <Play size={14} aria-hidden />
               {enCours ? 'Lancement…' : 'Lancer la synchro Minos'}
