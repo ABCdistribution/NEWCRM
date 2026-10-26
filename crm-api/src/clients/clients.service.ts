@@ -66,6 +66,7 @@ export class ClientsService {
 
     const where: Prisma.ClientWhereInput = {
       deletedAt: null,
+      ...(query.actif !== undefined ? { actif: query.actif === 'true' } : {}),
       // Vrais points de vente uniquement (le référentiel Minos contient aussi des
       // pseudo-clients PLV / mobilier sans adresse).
       ...(query.avecAdresse === '1' ? { codePostal: { not: null } } : {}),

@@ -1,6 +1,6 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
-import { IsInt, IsOptional, IsString, Max, Min } from 'class-validator';
+import { IsIn, IsInt, IsOptional, IsString, Max, Min } from 'class-validator';
 
 export class QueryClientsDto {
   @ApiPropertyOptional({ default: 1, minimum: 1 })
@@ -41,6 +41,14 @@ export class QueryClientsDto {
   @IsOptional()
   @IsString()
   tous?: string;
+
+  @ApiPropertyOptional({
+    description: 'actif=true : magasins actifs uniquement ; actif=false : magasins inactifs uniquement ; absent : tous',
+    enum: ['true', 'false'],
+  })
+  @IsOptional()
+  @IsIn(['true', 'false'])
+  actif?: 'true' | 'false';
 
   @ApiPropertyOptional({ description: 'avecAdresse=1 : uniquement les vrais points de vente (CP renseigné — exclut les pseudo-clients PLV)' })
   @IsOptional()
