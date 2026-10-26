@@ -430,7 +430,7 @@ export type ClientsEnrichedResult = Paginated<ClientEnrichedRow> & {
 };
 
 /** Portefeuille enrichi (CA, Δ, dernière visite, alertes, état) pour la table magasins. */
-export function listClientsEnriched(params: { search?: string; page?: number; tous?: string }) {
+export function listClientsEnriched(params: { search?: string; page?: number; tous?: string; actif?: 'true' | 'false' }) {
   return list<ClientEnrichedRow>(
     `/clients${qs({ ...params, enrich: 1, avecAdresse: 1, limit: 50 })}`,
   ) as Promise<ClientsEnrichedResult>;

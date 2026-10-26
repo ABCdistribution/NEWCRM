@@ -224,11 +224,10 @@ export function MagasinsTable({ rows }: { rows: ClientEnrichedRow[] }) {
 
       {/* ≥ md : tableau. */}
       <div className="hidden overflow-x-auto rounded-2xl bg-white shadow-card md:block">
-        <table className="w-full min-w-[900px] text-sm">
+        <table className="w-full min-w-[800px] text-sm">
           <thead className="border-b border-neutral-100 text-left text-[11px] uppercase tracking-wider text-neutral-400 dark:border-navy-700">
             <tr>
               <Th label="Magasin" k="magasin" sort={sort} onSort={toggleSort} />
-              <Th label="Enseigne" k="enseigne" sort={sort} onSort={toggleSort} />
               <Th label="Ville" k="ville" sort={sort} onSort={toggleSort} />
               <th className="px-4 py-2.5 font-medium">CS</th>
               <Th label="CA mois" k="ca" sort={sort} onSort={toggleSort} align="right" />
@@ -245,15 +244,6 @@ export function MagasinsTable({ rows }: { rows: ClientEnrichedRow[] }) {
                   <Link href={`/clients/${r.id}`} className="absolute inset-0" aria-label={`Fiche ${r.enseigne}`} />
                   <div className="font-medium text-brand dark:text-accent">{r.enseigne}</div>
                   <div className="font-mono text-[11px] text-neutral-400">{r.codeAs400}</div>
-                </td>
-                <td className="px-4 py-3">
-                  {marque(r.enseigne, r.raisonSociale) ? (
-                    <span className="rounded-md bg-neutral-100 px-2 py-0.5 text-xs font-medium text-neutral-600 dark:bg-navy-800 dark:text-neutral-300">
-                      {marque(r.enseigne, r.raisonSociale)}
-                    </span>
-                  ) : (
-                    <span className="text-neutral-300">—</span>
-                  )}
                 </td>
                 <td className="px-4 py-3">
                   <div>{r.ville ?? '—'}</div>
