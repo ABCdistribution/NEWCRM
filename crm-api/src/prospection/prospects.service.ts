@@ -55,7 +55,7 @@ const prospectListSelect = {
 } satisfies Prisma.ProspectSelect;
 
 /**
- * Prospection & pipeline (module Helios) : prospects scopés par rôle —
+ * Prospection & pipeline (module ABC Pilot) : prospects scopés par rôle —
  * chef de secteur : ses secteurs (ou prospects qui lui sont assignés / qu'il a créés) ;
  * directeur régional : sa région ; Direction / ADMIN : tout.
  */
@@ -137,7 +137,7 @@ export class ProspectsService {
     return { data, total, page, limit, scope: { type: scope.type } };
   }
 
-  /** Prospects groupés par étape — la vue Kanban d'Helios. */
+  /** Prospects groupés par étape — la vue Kanban d'ABC Pilot. */
   async pipeline(user: User) {
     const scope = this.scope(user);
     const prospects = await this.prisma.prospect.findMany({

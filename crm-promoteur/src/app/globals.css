@@ -9,6 +9,8 @@
 
 /* Palette de marque ABC */
 @theme {
+  --font-sans: 'Inter Variable', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+
   --color-brand: #2952e3; /* bleu royal (maquette Advisian) — couleur principale */
   --color-navy: #08184d; /* bleu marine historique (texte sur accent en sombre) */
   --color-accent: #2952e3; /* même bleu pour les graphes & accents */
@@ -27,7 +29,7 @@
 
 :root {
   /* Fond gris très clair (maquette Advisian) — cartes blanches bordées par-dessus. */
-  --background: #f6f7fb;
+  --background: #eef2fc;
   --foreground: #1e2337;
 }
 
@@ -38,9 +40,9 @@
  * présentes dans les composants (texte, bordures, boutons cyan…).
  */
 :root.dark {
-  /* Dark permanent, surfaces ALIGNÉES sur Helios (noir bleuté) — seule
-     l'accentuation reste propre à Selios (indigo #7B7FE8). */
-  --background: #0b0e14; /* fond du contenu — noir bleuté (identique Helios) */
+  /* Dark permanent, surfaces ALIGNÉES sur ABC Pilot (noir bleuté) — seule
+     l'accentuation reste propre à ABC Sales (indigo #7B7FE8). */
+  --background: #0b0e14; /* fond du contenu — noir bleuté (identique ABC Pilot) */
   --color-brand: #7b7fe8; /* indigo — boutons, actifs, emphase */
   --color-accent: #7b7fe8;
   --color-brand-light: #b9bcf4; /* série secondaire des graphes */
@@ -51,7 +53,7 @@
   --color-navy-600: #37405a;
 }
 .dark .shadow-card {
-  background-color: #12151f; /* carte, un cran au-dessus du fond (identique Helios) */
+  background-color: #12151f; /* carte, un cran au-dessus du fond (identique ABC Pilot) */
   border: 1px solid #232938;
 }
 /* Sur un bouton/élément à fond accent (bleu vif) en sombre, le texte marine
@@ -78,7 +80,7 @@
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  font-family: 'Inter Variable', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
 }
 
 /*
@@ -121,4 +123,15 @@ body {
 }
 .dark :where(.text-neutral-600, .text-neutral-700) {
   color: #d2dbf6;
+}
+
+/*
+ * Blanc explicite sur surface sombre : les règles `.dark :where(.text-neutral-*)` ci-dessus
+ * sont hors couche Tailwind et écraseraient sinon les utilitaires `dark:text-white`.
+ */
+.dark .dark\:text-white {
+  color: #fff;
+}
+.dark .dark\:text-white\/60 {
+  color: rgb(255 255 255 / 0.6);
 }

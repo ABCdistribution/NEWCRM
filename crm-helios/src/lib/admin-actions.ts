@@ -1,7 +1,8 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
-import { serverFetch, type ArticleRow, type Paginated } from './api';
+import { serverFetch, listFichiersDepot, type ArticleRow, type Paginated } from './api';
+import { TYPES_MINOS, typeMinos } from './minos';
 
 /** Change le rôle d'un utilisateur (PATCH /users/:id). */
 export async function setUserRole(formData: FormData): Promise<void> {
@@ -73,6 +74,51 @@ export async function triggerImportClients(
 
   revalidatePath('/pilotage/imports');
   return { error: null, ok: true };
+}
+
+export type SynchroMinosState = {
+  lance: boolean;
+  error: string | null;
+  fichiers: { nom: string; type: string | null; ok: boolean; message: string | null }[];
+};
+
+/**
+ * Synchro Minos manuelle : met en file chaque fichier d'interface reconnu (CLI_, ART_, ARB_) de la zone d'échange,
+ * dans l'ordre clients → articles → arborescence. L'intégration est asynchrone : le détail (lignes, rejets, durée)
+ * apparaît dans le rapport au fil du traitement. Seuls les fichiers réellement présents dans la zone sont acceptés.
+ */
+export async function lancerSynchroMinos(_prev: SynchroMinosState, formData: FormData): Promise<SynchroMinosState> {
+  const demandes = new Set(formData.getAll('chemin').map(String));
+  const depot = await listFichiersDepot();
+  if (!depot) return { lance: false, error: "Zone d'échange inaccessible : l'API est-elle démarrée ?", fichiers: [] };
+
+  const aTraiter = depot.fichiers
+    .filter((f) => demandes.has(f.chemin) && typeMinos(f.nom) !== null)
+    .sort((a, b) => TYPES_MINOS[typeMinos(a.nom)!].ordre - TYPES_MINOS[typeMinos(b.nom)!].ordre || a.nom.localeCompare(b.nom));
+  if (aTraiter.length === 0) return { lance: false, error: 'Aucun fichier reconnu à intégrer.', fichiers: [] };
+
+  const fichiers: SynchroMinosState['fichiers'] = [];
+  for (const f of aTraiter) {
+    const type = typeMinos(f.nom)!;
+    try {
+      const res = await serverFetch(`/import/minos/${TYPES_MINOS[type].route}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ filePath: f.chemin }),
+      });
+      if (res.ok) {
+        fichiers.push({ nom: f.nom, type, ok: true, message: null });
+      } else {
+        const body = (await res.json().catch(() => null)) as { message?: string | string[] } | null;
+        const msg = Array.isArray(body?.message) ? body.message[0] : body?.message;
+        fichiers.push({ nom: f.nom, type, ok: false, message: msg ?? `Erreur serveur (${res.status}).` });
+      }
+    } catch {
+      fichiers.push({ nom: f.nom, type, ok: false, message: "Impossible de joindre l'API." });
+    }
+  }
+  revalidatePath('/pilotage/admin');
+  return { lance: true, error: null, fichiers };
 }
 
 export type AdSyncState = {

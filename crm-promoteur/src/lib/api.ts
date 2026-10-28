@@ -233,6 +233,38 @@ export async function getPerformances(annee?: number, mois?: number): Promise<Pe
   }
 }
 
+/** CA et nombre de commandes des 6 derniers mois (périmètre côté API). */
+export type EvolutionCa = {
+  mois: { annee: number; mois: number; label: string; ca: number; commandes: number }[];
+};
+
+/** Visites du mois par région (périmètre selon le rôle, côté API). */
+export type VisitesRegions = {
+  total: number;
+  nonLocalisees: number;
+  regions: { code: string; nom: string; ville: string; lat: number; lng: number; visites: number }[];
+};
+
+export async function getEvolutionCa(annee?: number, mois?: number): Promise<EvolutionCa | null> {
+  try {
+    const res = await serverFetch(`/dashboard/evolution${qs({ annee, mois })}`);
+    if (!res.ok) return null;
+    return (await res.json()) as EvolutionCa;
+  } catch {
+    return null;
+  }
+}
+
+export async function getVisitesRegions(annee?: number, mois?: number): Promise<VisitesRegions | null> {
+  try {
+    const res = await serverFetch(`/dashboard/visites-regions${qs({ annee, mois })}`);
+    if (!res.ok) return null;
+    return (await res.json()) as VisitesRegions;
+  } catch {
+    return null;
+  }
+}
+
 export type ClientHistorique = {
   commandes: {
     id: string;
@@ -398,7 +430,7 @@ export type ClientsEnrichedResult = Paginated<ClientEnrichedRow> & {
 };
 
 /** Portefeuille enrichi (CA, Δ, dernière visite, alertes, état) pour la table magasins. */
-export function listClientsEnriched(params: { search?: string; page?: number; tous?: string }) {
+export function listClientsEnriched(params: { search?: string; page?: number; tous?: string; actif?: 'true' | 'false' }) {
   return list<ClientEnrichedRow>(
     `/clients${qs({ ...params, enrich: 1, avecAdresse: 1, limit: 50 })}`,
   ) as Promise<ClientsEnrichedResult>;

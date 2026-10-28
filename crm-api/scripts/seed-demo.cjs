@@ -575,7 +575,7 @@ async function main() {
     }
   }
 
-  // --- Ma tournée (Helios) : étapes perso des CS + de l'admin --------------
+  // --- Ma tournée (ABC Pilot) : étapes perso des CS + de l'admin --------------
   // Mélange prospection / suivi magasin sur la semaine courante.
   const lundiTournee = new Date();
   lundiTournee.setHours(0, 0, 0, 0);

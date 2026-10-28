@@ -15,7 +15,8 @@ import { ClassBadge } from '@/components/class-badge';
 import { CaChart } from '@/components/ca-chart';
 import { DonutChart } from '@/components/donut-chart';
 import type { DashboardDirection } from '@/lib/api';
-import { ProspectionObjectifCard } from './prospection-objectif-card';
+import { ProspectionCaChart } from './prospection-ca-chart';
+import { CaFamilleDonut } from './ca-famille-donut';
 import { ScatterObjectif } from './scatter-objectif';
 
 const EUR = new Intl.NumberFormat('fr-FR', {
@@ -34,6 +35,9 @@ const cardHeader =
  * Orienté action : ce qu'il faut traiter (sans commande, en baisse) avant la performance brute.
  */
 export function DashboardCS({ data }: { data: DashboardDirection }) {
+  const moisLabel = new Date(data.periode.annee, data.periode.mois - 1, 1)
+    .toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' })
+    .replace(/^./, (c) => c.toUpperCase());
   const enBaisse = data.classement
     .filter((p) => p.deltaPct != null && p.deltaPct < 0)
     .sort((a, b) => (a.deltaPct ?? 0) - (b.deltaPct ?? 0))
@@ -192,8 +196,15 @@ export function DashboardCS({ data }: { data: DashboardDirection }) {
       </div>
 
       {/* Mon équipe (classement du secteur) */}
-      {/* CA réalisé vs objectif côté prospection */}
-      <ProspectionObjectifCard p={data.prospection} />
+      {/* CA réalisé vs objectif côté prospection, et répartition du CA par famille */}
+      <div className="grid grid-cols-1 gap-5 xl:grid-cols-5">
+        <div className="xl:col-span-3">
+          <ProspectionCaChart p={data.prospection} moisLabel={moisLabel} />
+        </div>
+        <div className="xl:col-span-2">
+          <CaFamilleDonut data={data.caParFamille} moisLabel={moisLabel} />
+        </div>
+      </div>
 
       {/* Nuage objectif vs réalisé : sous la diagonale = à relancer */}
       <section className={card}>

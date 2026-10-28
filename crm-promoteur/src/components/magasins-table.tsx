@@ -46,7 +46,7 @@ function initiales(nom: string): string {
     .toUpperCase();
 }
 
-// Teintes d'avatar CS, dans la palette selios (marine, lavande, periwinkle, teal).
+// Teintes d'avatar CS, dans la palette ABC Sales (marine, lavande, periwinkle, teal).
 const CS_TINTS = [
   'bg-brand text-accent',
   'bg-[#7D8CCE] text-white',
@@ -69,7 +69,6 @@ const chipOn = 'border-brand bg-brand text-white dark:border-accent dark:bg-acce
 
 export function MagasinsTable({ rows }: { rows: ClientEnrichedRow[] }) {
   const [enseigne, setEnseigne] = useState<string | null>(null);
-  const [cs, setCs] = useState<string | null>(null);
   const [avecAlertes, setAvecAlertes] = useState(false);
   const [enBaisse, setEnBaisse] = useState(false);
   const [sort, setSort] = useState<{ key: SortKey; dir: 1 | -1 }>({ key: 'magasin', dir: 1 });
@@ -81,16 +80,10 @@ export function MagasinsTable({ rows }: { rows: ClientEnrichedRow[] }) {
       ),
     [rows],
   );
-  const commerciaux = useMemo(() => {
-    const map = new Map<string, string>();
-    for (const r of rows) if (r.cs) map.set(r.cs.displayName, initiales(r.cs.displayName));
-    return [...map.entries()].sort((a, b) => a[0].localeCompare(b[0]));
-  }, [rows]);
 
   const visibles = useMemo(() => {
     let out = rows.filter((r) => {
       if (enseigne && marque(r.enseigne, r.raisonSociale) !== enseigne) return false;
-      if (cs && r.cs?.displayName !== cs) return false;
       if (avecAlertes && r.alertes === 0) return false;
       if (enBaisse && !r.enBaisse) return false;
       return true;
@@ -115,7 +108,7 @@ export function MagasinsTable({ rows }: { rows: ClientEnrichedRow[] }) {
       return 0;
     });
     return out;
-  }, [rows, enseigne, cs, avecAlertes, enBaisse, sort]);
+  }, [rows, enseigne, avecAlertes, enBaisse, sort]);
 
   const toggleSort = (key: SortKey) =>
     setSort((s) => (s.key === key ? { key, dir: (s.dir * -1) as 1 | -1 } : { key, dir: 1 }));
@@ -148,24 +141,6 @@ export function MagasinsTable({ rows }: { rows: ClientEnrichedRow[] }) {
             <TrendingDown size={12} /> En baisse
           </button>
         </div>
-        {commerciaux.length > 1 ? (
-          <div className="flex flex-wrap items-center gap-1.5">
-            <span className="mr-1 text-[11px] font-semibold uppercase tracking-wider text-neutral-400">CS</span>
-            <button className={`${chip} ${cs === null ? chipOn : chipOff}`} onClick={() => setCs(null)}>
-              Tous
-            </button>
-            {commerciaux.map(([nom, ini]) => (
-              <button
-                key={nom}
-                title={nom}
-                className={`${chip} ${cs === nom ? chipOn : chipOff}`}
-                onClick={() => setCs(nom)}
-              >
-                {ini}
-              </button>
-            ))}
-          </div>
-        ) : null}
       </div>
 
       {/* < md : tri compact (les en-têtes cliquables du tableau n'existent pas en vue cartes). */}
@@ -249,11 +224,10 @@ export function MagasinsTable({ rows }: { rows: ClientEnrichedRow[] }) {
 
       {/* ≥ md : tableau. */}
       <div className="hidden overflow-x-auto rounded-2xl bg-white shadow-card md:block">
-        <table className="w-full min-w-[900px] text-sm">
+        <table className="w-full min-w-[800px] text-sm">
           <thead className="border-b border-neutral-100 text-left text-[11px] uppercase tracking-wider text-neutral-400 dark:border-navy-700">
             <tr>
               <Th label="Magasin" k="magasin" sort={sort} onSort={toggleSort} />
-              <Th label="Enseigne" k="enseigne" sort={sort} onSort={toggleSort} />
               <Th label="Ville" k="ville" sort={sort} onSort={toggleSort} />
               <th className="px-4 py-2.5 font-medium">CS</th>
               <Th label="CA mois" k="ca" sort={sort} onSort={toggleSort} align="right" />
@@ -270,15 +244,6 @@ export function MagasinsTable({ rows }: { rows: ClientEnrichedRow[] }) {
                   <Link href={`/clients/${r.id}`} className="absolute inset-0" aria-label={`Fiche ${r.enseigne}`} />
                   <div className="font-medium text-brand dark:text-accent">{r.enseigne}</div>
                   <div className="font-mono text-[11px] text-neutral-400">{r.codeAs400}</div>
-                </td>
-                <td className="px-4 py-3">
-                  {marque(r.enseigne, r.raisonSociale) ? (
-                    <span className="rounded-md bg-neutral-100 px-2 py-0.5 text-xs font-medium text-neutral-600 dark:bg-navy-800 dark:text-neutral-300">
-                      {marque(r.enseigne, r.raisonSociale)}
-                    </span>
-                  ) : (
-                    <span className="text-neutral-300">—</span>
-                  )}
                 </td>
                 <td className="px-4 py-3">
                   <div>{r.ville ?? '—'}</div>

@@ -4,7 +4,7 @@ import { Pagination } from '@/components/pagination';
 import { AccesRefuse } from '@/components/acces-refuse';
 import { MagasinsSecteurBoard } from '@/components/magasins-secteur-board';
 
-export const metadata = { title: 'Magasins — Helios' };
+export const metadata = { title: 'Magasins — ABC Pilot' };
 
 const ALLOWED = ['CHEF_SECTEUR', 'DIRECTEUR_REGIONAL', 'DIRECTION', 'ADMIN'];
 

@@ -1,0 +1,6 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Nécessaire au développement (rechargement à chaud, débogage). -->
+    <uses-permission android:name="android.permission.INTERNET"/>
+    <!-- Développement UNIQUEMENT : l'API locale est en HTTP. Les builds de production exigent HTTPS. -->
+    <application android:usesCleartextTraffic="true"/>
+</manifest>

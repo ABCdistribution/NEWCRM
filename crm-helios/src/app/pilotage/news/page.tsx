@@ -1,7 +1,7 @@
 import { getMe } from '@/lib/api';
 import { NewsBoard } from '@/components/news-board';
 
-export const metadata = { title: 'Les News — Helios' };
+export const metadata = { title: 'Les News — ABC Pilot' };
 
 const CAN_MANAGE = ['ADMIN', 'DIRECTION', 'MARKETING'];
 

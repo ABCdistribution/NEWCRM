@@ -3,23 +3,30 @@ import { SearchBar } from '@/components/search-bar';
 import { Pagination } from '@/components/pagination';
 import { MagasinsTable } from '@/components/magasins-table';
 import { MesMagasinsToggle } from '@/components/mes-magasins-toggle';
+import { StatutMagasinsFiltre, type StatutMagasins } from '@/components/statut-magasins-filtre';
 
-export const metadata = { title: 'Mes magasins — Selios' };
+export const metadata = { title: 'Mes magasins — ABC Sales' };
 
 export default async function ClientsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ search?: string; page?: string; tous?: string }>;
+  searchParams: Promise<{ search?: string; page?: string; tous?: string; statut?: string }>;
 }) {
   const sp = await searchParams;
   const search = sp.search ?? '';
   const page = Number(sp.page ?? '1') || 1;
   const tous = sp.tous === '1' ? '1' : undefined;
+  const statut: StatutMagasins = sp.statut === 'actifs' || sp.statut === 'inactifs' ? sp.statut : undefined;
 
   let result: ClientsEnrichedResult | null = null;
   let error: string | null = null;
   try {
-    result = await listClientsEnriched({ search, page, tous });
+    result = await listClientsEnriched({
+      search,
+      page,
+      tous,
+      actif: statut ? (statut === 'actifs' ? 'true' : 'false') : undefined,
+    });
   } catch {
     error = "Impossible de charger les magasins. L'API est-elle démarrée ?";
   }
@@ -42,7 +49,7 @@ export default async function ClientsPage({
         </div>
         <div className="flex items-center gap-2">
           {filtrable ? <MesMagasinsToggle /> : null}
-          <SearchBar placeholder="Enseigne, raison sociale, code…" />
+          <SearchBar placeholder="Enseigne, raison sociale, code…" conserver={['tous', 'statut']} />
         </div>
       </div>
 
@@ -52,8 +59,9 @@ export default async function ClientsPage({
         </p>
       ) : (
         <>
+          <StatutMagasinsFiltre statut={statut} params={{ search, tous }} />
           <MagasinsTable rows={result!.data} />
-          <Pagination total={result!.total} page={result!.page} limit={result!.limit} params={{ search, ...(tous ? { tous } : {}) }} />
+          <Pagination total={result!.total} page={result!.page} limit={result!.limit} params={{ search, ...(tous ? { tous } : {}), ...(statut ? { statut } : {}) }} />
         </>
       )}
     </div>

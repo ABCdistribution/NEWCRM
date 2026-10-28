@@ -34,7 +34,7 @@ import { ProspectCoordonnees } from '@/components/prospect-coordonnees';
 import { ProspectPiecesJointes } from '@/components/prospect-pieces-jointes';
 import { listPiecesJointes } from '@/lib/prospect-actions';
 
-export const metadata = { title: 'Fiche prospect — Helios' };
+export const metadata = { title: 'Fiche prospect — ABC Pilot' };
 
 const EUR = new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 });
 const DT = new Intl.DateTimeFormat('fr-FR', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });

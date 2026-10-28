@@ -5,10 +5,10 @@ import { useEffect, useState } from 'react';
 /** Les univers de la gamme, présentés en boucle à côté du formulaire de connexion. */
 const SLIDES = [
   {
-    src: '/logo-helios.png',
-    nom: 'Helios',
+    src: '/logo-abc-pilot.png',
+    nom: 'ABC Pilot',
     glow: '124,102,255',
-    titre: 'Helios, pilotage & encadrement',
+    titre: 'ABC Pilot, force commerciale',
     texte: "Pilotez l'activité commerciale et encadrez vos équipes terrain : clients, tournées, objectifs et commandes.",
   },
   {

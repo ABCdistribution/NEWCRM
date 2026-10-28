@@ -372,7 +372,7 @@ export async function getDashboard(): Promise<Dashboard | null> {
   }
 }
 
-// --- Helios (pilotage) --------------------------------------------------
+// --- ABC Pilot (pilotage) --------------------------------------------------
 
 export type ImportLog = {
   id: string;
@@ -382,6 +382,7 @@ export type ImportLog = {
   rowsTotal: number;
   rowsOk: number;
   rowsFailed: number;
+  fileSizeBytes?: number | null;
   errorMessage: string | null;
   startedAt: string | null;
   finishedAt: string | null;
@@ -394,6 +395,83 @@ export async function listImportLogs(): Promise<ImportLog[] | null> {
     const res = await serverFetch('/import/minos/logs');
     if (!res.ok) return null;
     return (await res.json()) as ImportLog[];
+  } catch {
+    return null;
+  }
+}
+
+// --- Administration (ADMIN) ------------------------------------------------
+
+export type AdminApercu = {
+  sante: { api: 'up'; db: 'up' | 'down' };
+  utilisateurs: { actifs: number; inactifs: number; parRole: Record<string, number> };
+  organisation: {
+    secteurs: number;
+    secteursSansChef: number;
+    commerciauxSansSecteur: number;
+    commerciauxSansDirecteur: number;
+    commerciauxSansCode: number;
+  };
+  imports: {
+    dernier: {
+      id: string;
+      fileName: string;
+      source: string;
+      status: 'PENDING' | 'PROCESSING' | 'SUCCESS' | 'FAILED';
+      rowsTotal: number;
+      rowsFailed: number;
+      date: string;
+    } | null;
+    enEchec7j: number;
+  };
+  /** Télémétrie des appareils mobiles : null tant que l'application ne la remonte pas. */
+  mobile: null;
+};
+
+type PersonneRef = { id: string; displayName: string };
+type ListeIncoherence = { total: number; items: PersonneRef[] };
+
+export type AdminOrganisation = {
+  regions: {
+    id: string;
+    code: string;
+    nom: string;
+    directeurs: { id: string; displayName: string; isActive: boolean }[];
+    secteurs: {
+      id: string;
+      code: string;
+      nom: string;
+      manager: { id: string; displayName: string; isActive: boolean } | null;
+      promoteurs: { id: string; displayName: string; isActive: boolean; idRepr: string | null }[];
+    }[];
+  }[];
+  secteursSansRegion: { id: string; code: string; nom: string }[];
+  incoherences: {
+    promoteursSansSecteur: ListeIncoherence;
+    promoteursSansDirecteur: ListeIncoherence;
+    promoteursDirecteurInactif: ListeIncoherence;
+    secteursSansChef: ListeIncoherence;
+    chefsInactifs: ListeIncoherence;
+    regionsSansDirecteur: ListeIncoherence;
+    secteursSansRegion: ListeIncoherence;
+  };
+};
+
+export async function getAdminApercu(): Promise<AdminApercu | null> {
+  try {
+    const res = await serverFetch('/admin/apercu');
+    if (!res.ok) return null;
+    return (await res.json()) as AdminApercu;
+  } catch {
+    return null;
+  }
+}
+
+export async function getAdminOrganisation(): Promise<AdminOrganisation | null> {
+  try {
+    const res = await serverFetch('/admin/organisation');
+    if (!res.ok) return null;
+    return (await res.json()) as AdminOrganisation;
   } catch {
     return null;
   }
@@ -544,7 +622,11 @@ export type DashboardDirection = {
     tauxPct: number | null;
   }[];
   objectifs: { definis: number; atteints: number; manques: number; sansObjectif: number };
+  /** CA du mois par famille d'articles : top 5 + « Autres », part en %. */
+  caParFamille: { total: number; familles: { nom: string; ca: number; pct: number }[] };
   prospection: {
+    /** Semaines du mois (S1..S4), valeurs cumulées ; `ca` null = semaine pas encore commencée. */
+    semaines: { label: string; ca: number | null; objectif: number | null }[];
     ouverts: number;
     pipelinePondere: number;
     gagnes: number;

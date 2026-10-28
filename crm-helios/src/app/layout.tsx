@@ -1,8 +1,9 @@
 import type { Metadata } from 'next';
+import '@fontsource-variable/inter';
 import './globals.css';
 
 export const metadata: Metadata = {
-  title: 'Helios — CRM Commercial ABC',
+  title: 'ABC Pilot — CRM Commercial ABC',
   description: 'Portail terrain des commerciaux ABC Distribution',
 };
 

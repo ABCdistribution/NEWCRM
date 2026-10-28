@@ -184,7 +184,7 @@ export class CreateAppelDto {
 }
 
 
-/** Email envoyé à un prospect (fiche Helios ou app mobile — idApk pour l'idempotence). */
+/** Email envoyé à un prospect (fiche ABC Pilot ou app mobile — idApk pour l'idempotence). */
 export class CreateEmailDto {
   @ApiPropertyOptional({ description: "Horodatage de l'envoi (défaut : maintenant)" })
   @IsOptional()
@@ -216,7 +216,7 @@ export class CreateEmailDto {
   idApk?: string;
 }
 
-/** Note libre ajoutée à la fiche prospect (Helios). */
+/** Note libre ajoutée à la fiche prospect (ABC Pilot). */
 export class CreateNoteProspectDto {
   @ApiProperty({ example: 'Point avec le directeur : relancer après les fêtes.' })
   @IsString()

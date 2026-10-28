@@ -5,7 +5,7 @@ import { getCommande, getMe } from '@/lib/api';
 import { LivraisonBadge } from '@/components/livraison-badge';
 import { LivraisonEditor } from '@/components/livraison-editor';
 
-export const metadata = { title: 'Commande — Selios' };
+export const metadata = { title: 'Commande — ABC Sales' };
 
 const EUR = new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR', maximumFractionDigits: 2 });
 const QTE = new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 2 });

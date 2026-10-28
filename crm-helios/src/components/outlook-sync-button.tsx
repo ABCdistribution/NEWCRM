@@ -23,7 +23,7 @@ export function OutlookSyncButton() {
       const info = await getIcalInfo();
       if (!info) setErreur(true);
       else {
-        // L'API est servie sur le même hôte que Helios, port 4000.
+        // L'API est servie sur le même hôte que ABC Pilot, port 4000.
         setUrl(`${window.location.protocol}//${window.location.hostname}:4000/tournees/ical/${info.userId}/${info.token}`);
       }
     });

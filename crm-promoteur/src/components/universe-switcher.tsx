@@ -1,10 +1,11 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { ArrowLeftRight, Check, ChevronsUpDown, ExternalLink } from 'lucide-react';
+import { ArrowLeftRight, Check, ChevronsUpDown, ExternalLink, type LucideIcon } from 'lucide-react';
 
 export type SwitcherItem = {
-  logo: string;
+  logo?: string; // image ; à défaut, on affiche `icone` dans une pastille
+  icone?: LucideIcon;
   nom: string;
   description: string;
   onClick?: () => void;
@@ -17,7 +18,7 @@ export type SwitcherItem = {
  * avec le logo et le nom de l'espace courant, qui déplie la liste des
  * destinations — bascule d'univers, outils externes.
  */
-export function UniverseSwitcher({ actuel, items }: { actuel: { logo: string; nom: string; sousTitre: string }; items: SwitcherItem[] }) {
+export function UniverseSwitcher({ actuel, items }: { actuel: { logo?: string; icone?: LucideIcon; nom: string; sousTitre: string }; items: SwitcherItem[] }) {
   const [ouvert, setOuvert] = useState(false);
   const boxRef = useRef<HTMLDivElement>(null);
 
@@ -44,12 +45,12 @@ export function UniverseSwitcher({ actuel, items }: { actuel: { logo: string; no
         className="flex w-full items-center gap-2.5 rounded-xl border border-neutral-200 bg-white p-2 text-left transition hover:border-brand hover:bg-neutral-50 dark:border-navy-700 dark:bg-navy-950 dark:hover:border-accent dark:hover:bg-navy-800"
       >
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={actuel.logo} alt="" className="h-9 w-9 shrink-0 rounded-lg object-cover" />
+        <Visuel logo={actuel.logo} icone={actuel.icone} className="h-9 w-9" />
         <div className="min-w-0 flex-1">
           <p className="truncate text-sm font-semibold leading-tight">{actuel.nom}</p>
-          <p className="truncate text-[11px] text-neutral-400">{actuel.sousTitre}</p>
+          <p className="truncate text-[11px] text-neutral-400 dark:text-white">{actuel.sousTitre}</p>
         </div>
-        <ChevronsUpDown size={15} className="shrink-0 text-neutral-400" />
+        <ChevronsUpDown size={15} className="shrink-0 text-neutral-400 dark:text-white" />
       </button>
 
       {ouvert ? (
@@ -57,10 +58,10 @@ export function UniverseSwitcher({ actuel, items }: { actuel: { logo: string; no
           {/* Espace courant, coché */}
           <div className="flex items-center gap-2.5 border-b border-neutral-100 px-3 py-2.5 dark:border-navy-700">
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={actuel.logo} alt="" className="h-8 w-8 shrink-0 rounded-lg object-cover" />
+            <Visuel logo={actuel.logo} icone={actuel.icone} className="h-8 w-8" />
             <div className="min-w-0 flex-1">
               <p className="truncate text-sm font-medium">{actuel.nom}</p>
-              <p className="truncate text-[11px] text-neutral-400">Espace actuel</p>
+              <p className="truncate text-[11px] text-neutral-400 dark:text-white">Espace actuel</p>
             </div>
             <Check size={15} className="shrink-0 text-emerald-500" />
           </div>
@@ -80,15 +81,15 @@ export function UniverseSwitcher({ actuel, items }: { actuel: { logo: string; no
                   className="flex w-full items-center gap-2.5 rounded-lg px-2 py-2 text-left transition hover:bg-neutral-100 disabled:cursor-not-allowed disabled:opacity-45 dark:hover:bg-navy-800"
                 >
                   {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={item.logo} alt="" className="h-8 w-8 shrink-0 rounded-lg object-cover" />
+                  <Visuel logo={item.logo} icone={item.icone} className="h-8 w-8" />
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-sm font-medium">{item.nom}</p>
-                    <p className="truncate text-[11px] text-neutral-400">{item.description}</p>
+                    <p className="truncate text-[11px] text-neutral-400 dark:text-white">{item.description}</p>
                   </div>
                   {item.externe ? (
-                    <ExternalLink size={13} className="shrink-0 text-neutral-400" />
+                    <ExternalLink size={13} className="shrink-0 text-neutral-400 dark:text-white" />
                   ) : item.disabled ? null : (
-                    <ArrowLeftRight size={13} className="shrink-0 text-neutral-400" />
+                    <ArrowLeftRight size={13} className="shrink-0 text-neutral-400 dark:text-white" />
                   )}
                 </button>
               </li>
@@ -97,5 +98,18 @@ export function UniverseSwitcher({ actuel, items }: { actuel: { logo: string; no
         </div>
       ) : null}
     </div>
+  );
+}
+
+/** Logo image, ou pastille de couleur avec une icône quand l'univers n'a pas de logo. */
+function Visuel({ logo, icone: Icone, className }: { logo?: string; icone?: LucideIcon; className: string }) {
+  if (logo) {
+    // eslint-disable-next-line @next/next/no-img-element
+    return <img src={logo} alt="" className={`${className} shrink-0 rounded-lg object-cover`} />;
+  }
+  return (
+    <span className={`${className} inline-flex shrink-0 items-center justify-center rounded-lg bg-brand text-white`}>
+      {Icone ? <Icone className="h-1/2 w-1/2" aria-hidden /> : null}
+    </span>
   );
 }

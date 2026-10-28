@@ -6,10 +6,10 @@ import { apiBase, setSession, clearSession } from './session';
 
 export type LoginState = { error: string | null };
 
-/** Rôles de l'encadrement → univers Helios (pilotage). Les autres (COMMERCIAL, ADV) → Selios. */
+/** Rôles de l'encadrement → univers ABC Pilot (pilotage). Les autres (COMMERCIAL, ADV) → ABC Sales. */
 const HELIOS_ROLES = ['ADMIN', 'DIRECTION', 'DIRECTEUR_REGIONAL', 'CHEF_SECTEUR'];
 
-/** URL de Selios sur le même serveur (hôte déduit de la requête, port configurable). */
+/** URL de ABC Sales sur le même serveur (hôte déduit de la requête, port configurable). */
 async function seliosUrl(): Promise<string> {
   const host = (await headers()).get('host')?.split(':')[0] ?? 'localhost';
   return `http://${host}:${process.env.SELIOS_PORT ?? '3002'}`;
@@ -60,7 +60,7 @@ export async function login(_prev: LoginState, formData: FormData): Promise<Logi
 
   await setSession(data.accessToken);
 
-  // Oriente selon le rôle : encadrement → Helios, COMMERCIAL/ADV → Selios.
+  // Oriente selon le rôle : encadrement → ABC Pilot, COMMERCIAL/ADV → ABC Sales.
   let role: string | null = null;
   try {
     const meRes = await fetch(`${apiBase()}/auth/me`, {
@@ -69,7 +69,7 @@ export async function login(_prev: LoginState, formData: FormData): Promise<Logi
     });
     if (meRes.ok) role = ((await meRes.json()) as { role?: string }).role ?? null;
   } catch {
-    /* si /auth/me échoue, on tombe sur Helios par défaut */
+    /* si /auth/me échoue, on tombe sur ABC Pilot par défaut */
   }
 
   if (role && !HELIOS_ROLES.includes(role)) {

@@ -4,7 +4,7 @@ import { Pagination } from '@/components/pagination';
 import { KpiTile } from '@/components/kpi-tile';
 import { ProduitsTable } from '@/components/produits-table';
 
-export const metadata = { title: 'Produits — Helios' };
+export const metadata = { title: 'Produits — ABC Pilot' };
 
 const NB = new Intl.NumberFormat('fr-FR');
 const fmt = (n: number | null) => (n == null ? '—' : NB.format(n));
@@ -37,7 +37,7 @@ export default async function ProduitsPage({
     <div className="flex flex-col gap-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-2xl font-bold">Produits</h1>
-        <SearchBar placeholder="Libellé, code article, code-barres…" />
+        <SearchBar placeholder="Libellé, marque, code article, code-barres…" />
       </div>
 
       {/* Bandeau KPI du catalogue — chiffres réels, évolutions « vs mois dernier » illustratives */}

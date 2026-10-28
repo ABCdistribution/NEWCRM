@@ -11,8 +11,8 @@ const articleSelect = {
 
 /**
  * Promotions (offres sur un article) et mises en avant PEM.
- * Administrées dans helios (rôles ADMIN/DIRECTION/MARKETING), affichées en
- * lecture dans selios et consommées par l'app mobile (badges enPromo / misEnAvant
+ * Administrées dans ABC Pilot (rôles ADMIN/DIRECTION/MARKETING), affichées en
+ * lecture dans ABC Sales et consommées par l'app mobile (badges enPromo / misEnAvant
  * sur GET /articles).
  */
 @Injectable()

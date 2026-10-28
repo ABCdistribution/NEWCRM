@@ -247,7 +247,7 @@ export class ClientsController {
   }
 
   @Post(':id/visites-commerciales')
-  @ApiOperation({ summary: 'Enregistrer une visite commerciale (questionnaire Helios)' })
+  @ApiOperation({ summary: 'Enregistrer une visite commerciale (questionnaire ABC Pilot)' })
   createVisiteCommerciale(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: CreateVisiteCommercialeDto,

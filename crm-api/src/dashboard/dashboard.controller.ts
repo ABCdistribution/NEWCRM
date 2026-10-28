@@ -20,11 +20,29 @@ export class DashboardController {
     return this.dashboard.forUser(user);
   }
 
+  @Get('evolution')
+  @ApiOperation({ summary: 'CA et nombre de commandes des 6 derniers mois (périmètre : le représentant de l’utilisateur)' })
+  @ApiQuery({ name: 'annee', required: false, example: 2026 })
+  @ApiQuery({ name: 'mois', required: false, example: 10 })
+  evolution(@CurrentUser() user: User, @Query('annee') anneeQ?: string, @Query('mois') moisQ?: string) {
+    const { annee, mois } = this.periode(anneeQ, moisQ);
+    return this.dashboard.evolution(user, annee, mois);
+  }
+
+  @Get('visites-regions')
+  @ApiOperation({ summary: 'Répartition des visites du mois par région (périmètre selon le rôle)' })
+  @ApiQuery({ name: 'annee', required: false, example: 2026 })
+  @ApiQuery({ name: 'mois', required: false, example: 10 })
+  visitesRegions(@CurrentUser() user: User, @Query('annee') anneeQ?: string, @Query('mois') moisQ?: string) {
+    const { annee, mois } = this.periode(anneeQ, moisQ);
+    return this.dashboard.visitesParRegion(user, annee, mois);
+  }
+
   @Get('direction')
   @Roles(Role.ADMIN, Role.DIRECTION, Role.DIRECTEUR_REGIONAL, Role.CHEF_SECTEUR)
   @ApiOperation({
     summary:
-      'Dashboard de pilotage (helios) : CA consolidé N/N-1, classement des promoteurs, CA par secteur, objectifs, magasins sans commande — un chef de secteur est restreint à ses secteurs',
+      'Dashboard de pilotage (ABC Pilot) : CA consolidé N/N-1, classement des promoteurs, CA par secteur, objectifs, magasins sans commande — un chef de secteur est restreint à ses secteurs',
   })
   @ApiQuery({ name: 'annee', required: false, example: 2026 })
   @ApiQuery({ name: 'mois', required: false, example: 8 })
@@ -37,5 +55,13 @@ export class DashboardController {
     const annee = Number(anneeQ) || now.getFullYear();
     const mois = Math.min(12, Math.max(1, Number(moisQ) || now.getMonth() + 1));
     return this.dashboard.direction(user, annee, mois);
+  }
+
+  private periode(anneeQ?: string, moisQ?: string) {
+    const now = new Date();
+    return {
+      annee: Number(anneeQ) || now.getFullYear(),
+      mois: Math.min(12, Math.max(1, Number(moisQ) || now.getMonth() + 1)),
+    };
   }
 }

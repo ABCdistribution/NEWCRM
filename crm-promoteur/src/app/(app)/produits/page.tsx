@@ -5,7 +5,7 @@ import { Pagination } from '@/components/pagination';
 import { ActiveBadge } from '@/components/badges';
 import { StatTile } from '@/components/stat-tile';
 
-export const metadata = { title: 'Produits — Selios' };
+export const metadata = { title: 'Produits — ABC Sales' };
 
 export default async function ProduitsPage({
   searchParams,
@@ -44,7 +44,7 @@ export default async function ProduitsPage({
     <div className="flex flex-col gap-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-2xl font-bold">Produits</h1>
-        <SearchBar placeholder="Libellé, code article, code-barres…" />
+        <SearchBar placeholder="Libellé, marque, code article, code-barres…" />
       </div>
 
       {/* KPIs catalogue */}
