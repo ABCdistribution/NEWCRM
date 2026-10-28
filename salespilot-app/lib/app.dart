@@ -16,6 +16,7 @@ import 'features/profil/plus_page.dart';
 import 'features/shell/app_shell.dart';
 import 'features/sync/sync_page.dart';
 import 'features/tournee/tournee_page.dart';
+import 'features/visite/visite_etapes_page.dart';
 import 'features/visite/visite_page.dart';
 
 /// Navigation. La redirection suit la session : sans session (ou hors de la fenêtre de lecture hors ligne),
@@ -61,7 +62,8 @@ final routerProvider = Provider<GoRouter>((ref) {
           StatefulShellBranch(routes: [GoRoute(path: '/produits', builder: (_, _) => const ProduitsPage())]),
         ],
       ),
-      GoRoute(path: '/visite/:id', builder: (_, state) => VisitePage(id: state.pathParameters['id']!)),
+      GoRoute(path: '/visite/:id', builder: (_, state) => VisiteEtapesPage(id: state.pathParameters['id']!)),
+      GoRoute(path: '/visite/:id/saisie', builder: (_, state) => VisitePage(id: state.pathParameters['id']!)),
       GoRoute(path: '/sync', builder: (_, _) => const SyncPage()),
       // Profil : accessible depuis l'avatar des accueils (la navigation du bas porte désormais les Produits).
       GoRoute(
