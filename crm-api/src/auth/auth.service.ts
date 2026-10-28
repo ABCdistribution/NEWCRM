@@ -5,6 +5,7 @@ import { Role } from '@crm/database';
 import { PrismaService } from '../prisma/prisma.service';
 import { LdapService, LdapProfile } from './ldap.service';
 import { regionFromSt } from '../common/regions.util';
+import { trouverSecteur } from '../common/secteur-match.util';
 
 @Injectable()
 export class AuthService {
@@ -22,9 +23,10 @@ export class AuthService {
 
     // Synchronisation AD → CRM : région (attribut `st`) et directeur (attribut `manager`).
     // Ces résolutions ne doivent jamais faire échouer le login.
-    const [regionId, directeurId] = await Promise.all([
+    const [regionId, directeurId, secteurId] = await Promise.all([
       this.syncRegion(profile.region).catch(() => null),
       this.syncDirecteur(profile).catch(() => null),
+      this.syncSecteur(profile.region).catch(() => null),
     ]);
 
     // Provisionnement : on crée/met à jour l'utilisateur local depuis l'AD.
@@ -42,6 +44,7 @@ export class AuthService {
           photo,
           regionId,
           directeurId,
+          ...(secteurId ? { secteurId } : {}), // `st` vide ou inconnu : le secteur déjà posé est conservé
           ...(idRepr !== null ? { idRepr } : {}),
         },
         create: {
@@ -53,6 +56,7 @@ export class AuthService {
           idRepr,
           regionId,
           directeurId,
+          secteurId,
         },
       });
 
@@ -89,6 +93,16 @@ export class AuthService {
         role: user.role,
       },
     };
+  }
+
+  /**
+   * Secteur depuis l'attribut AD `st`, tolérant aux fautes de frappe. Ne crée jamais de secteur ;
+   * libellé vide, inconnu ou ambigu → null (l'admin le voit dans la synchro).
+   */
+  private async syncSecteur(label: string | null): Promise<string | null> {
+    if (!label) return null;
+    const secteurs = await this.prisma.secteur.findMany({ select: { id: true, code: true, nom: true } });
+    return trouverSecteur(label, secteurs)?.id ?? null;
   }
 
   /**

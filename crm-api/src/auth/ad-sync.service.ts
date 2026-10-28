@@ -3,6 +3,7 @@ import { Role } from '@crm/database';
 import { PrismaService } from '../prisma/prisma.service';
 import { LdapService, LdapFdvEntry } from './ldap.service';
 import { regionFromSt } from '../common/regions.util';
+import { trouverSecteur } from '../common/secteur-match.util';
 
 /** Rôle imposé par l'OU du compte (consigne AD) — appliqué à la création ET à la mise à jour. */
 const ROLE_PAR_OU: Record<LdapFdvEntry['ou'], Role> = {
@@ -36,6 +37,8 @@ export interface AdSyncResult {
   photos: number; // comptes dont la photo AD a été rapatriée
   directeursLies: number;
   sansRegion: string[]; // logins sans région française reconnue
+  sansSecteur: string[]; // « login (valeur de st) » : `st` vide, inconnu ou ambigu — à corriger dans l'AD
+  secteursChefsLies: number; // secteurs sans chef dont le chef de secteur AD a été posé
   sansManager: string[]; // logins sans manager résolu (hors directeurs eux-mêmes)
   conflitsIdRepr: string[]; // codes déjà portés par un autre compte
 }
@@ -43,7 +46,8 @@ export interface AdSyncResult {
 /**
  * Synchronisation en masse AD → CRM de la force de vente française :
  * provisionne les promoteurs / chefs de secteur / directeurs, rattache
- * chaque compte à sa région (attribut `st`) et à son directeur (attribut `manager`).
+ * chaque compte à son secteur (attribut `st`, tolérant aux fautes de frappe), à sa région et à son directeur
+ * (attribut `manager`).
  * Le rôle suit l'OU (consigne AD) ; l'activation d'un compte existant n'est jamais touchée.
  */
 @Injectable()
@@ -64,9 +68,14 @@ export class AdSyncService {
       photos: 0,
       directeursLies: 0,
       sansRegion: [],
+      sansSecteur: [],
+      secteursChefsLies: 0,
       sansManager: [],
       conflitsIdRepr: [],
     };
+
+    // Secteurs connus en base : `st` s'y rattache, sans jamais en créer.
+    const secteurs = await this.prisma.secteur.findMany({ select: { id: true, code: true, nom: true } });
 
     // Cache code région → id (création à la volée).
     const regionIds = new Map<string, string>();
@@ -91,6 +100,8 @@ export class AdSyncService {
     for (const e of entries) {
       const rId = await regionId(e.region);
       if (!rId) result.sansRegion.push(e.username);
+      const secteur = trouverSecteur(e.region, secteurs);
+      if (!secteur) result.sansSecteur.push(`${e.username} (${e.region ?? 'st vide'})`);
 
       const existant = await this.prisma.user.findUnique({ where: { username: e.username } });
       let userId: string;
@@ -100,6 +111,7 @@ export class AdSyncService {
         const data: {
           displayName: string;
           regionId: string | null;
+          secteurId?: string;
           poste: string | null;
           role?: Role;
           idRepr?: string;
@@ -110,6 +122,8 @@ export class AdSyncService {
           regionId: rId,
           poste: e.poste,
         };
+        // `st` vide ou inconnu : on garde le secteur déjà posé plutôt que de l'effacer.
+        if (secteur) data.secteurId = secteur.id;
         // L'OU fait foi pour le rôle (consigne AD) — un ADMIN n'est jamais rétrogradé.
         if (existant.role !== 'ADMIN' && existant.role !== ROLE_PAR_OU[e.ou]) {
           data.role = ROLE_PAR_OU[e.ou];
@@ -151,6 +165,7 @@ export class AdSyncService {
               role: ROLE_PAR_OU[e.ou],
               idRepr,
               regionId: rId,
+              ...(secteur ? { secteurId: secteur.id } : {}),
               poste: e.poste,
               photo: e.photo ? Uint8Array.from(e.photo) : null,
             },
@@ -178,6 +193,14 @@ export class AdSyncService {
         result.crees += 1;
         if (e.photo) result.photos += 1;
         userId = user.id;
+      }
+      // Un chef de secteur AD devient le chef de son secteur quand il n'en a pas (un chef déjà posé n'est jamais remplacé).
+      if (secteur && ROLE_PAR_OU[e.ou] === Role.CHEF_SECTEUR) {
+        const { count } = await this.prisma.secteur.updateMany({
+          where: { id: secteur.id, managerId: null },
+          data: { managerId: userId },
+        });
+        result.secteursChefsLies += count;
       }
       idParDn.set(e.dn.toLowerCase(), userId);
       idParUsername.set(e.username.toLowerCase(), userId);
