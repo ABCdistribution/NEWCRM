@@ -1,6 +1,6 @@
 # Annexe technique — API utilisée par l'application mobile
 
-Version 0.1 — 26/10/2026 — complète le [cahier des charges](CDC.md).
+Version 0.2 — 26/10/2026 — complète le [cahier des charges](CDC.md).
 
 > **À lire avant usage.** Ce relevé a été fait par lecture du code de `crm-api` (branche `dev`, commit `df74bcf`). Il n'a pas été confronté à un appareil réel ni exécuté route par route. Il faut le **revérifier** avant de s'y fier pour un développement : la référence reste le Swagger de l'API (`/docs`) et le code.
 
@@ -181,6 +181,8 @@ Absent : photo d'article, export complet, filtre « modifié depuis ».
 10. Homogénéiser l'indicateur de doublon (`dejaSynchronisee` / `dejaSynchronise`) et le contrôle du propriétaire.
 11. Rappels qualité : modèle et route dédiés plutôt qu'un filtre.
 12. Valeurs métier marquées « à valider » (sources, motifs, probabilités).
-13. Un promoteur ne peut ni créer de prospect, ni accéder aux tournées ni au pipeline : confirmer que c'est voulu.
+13. Un promoteur ne peut ni créer de prospect, ni accéder aux tournées ni au pipeline, **ni même lister les prospects**, alors que l'API lui permet d'ajouter notes, appels, e-mails et pièces jointes à un prospect : incohérence à lever (le cahier des charges retire la prospection aux promoteurs).
+14. **Une commande mobile envoyée n'est plus modifiable ni annulable** : l'API n'a aucune route de modification ou d'annulation (seulement création et lecture).
+15. **Révocation** : il n'existe pas de révocation de jeton ; l'API recharge l'utilisateur à chaque appel et refuse un compte désactivé, ce qui joue ce rôle tant que le compte est désactivé côté CRM.
 
 Le suivi de ces points est à rapprocher de `docs/BACKLOG.md` à la racine du dépôt.
