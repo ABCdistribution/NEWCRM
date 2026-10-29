@@ -4,7 +4,8 @@ import { redirect } from 'next/navigation';
 import { headers } from 'next/headers';
 import { apiBase, setSession, clearSession } from './session';
 
-export type LoginState = { error: string | null };
+/** `externe` : adresse d'un autre univers (autre port = autre origine), que le formulaire ouvre lui-même. */
+export type LoginState = { error: string | null; externe?: string };
 
 /** Rôles de l'encadrement → univers ABC Pilot (pilotage). Les autres (COMMERCIAL, ADV) → ABC Sales. */
 const HELIOS_ROLES = ['ADMIN', 'DIRECTION', 'DIRECTEUR_REGIONAL', 'CHEF_SECTEUR'];
@@ -72,8 +73,9 @@ export async function login(_prev: LoginState, formData: FormData): Promise<Logi
     /* si /auth/me échoue, on tombe sur ABC Pilot par défaut */
   }
 
+  // Une Server Action ne peut pas rediriger vers une autre origine (« unexpected response ») : on renvoie l'adresse.
   if (role && !HELIOS_ROLES.includes(role)) {
-    redirect(await seliosUrl());
+    return { error: null, externe: await seliosUrl() };
   }
   redirect(from);
 }
