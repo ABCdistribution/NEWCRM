@@ -1,6 +1,6 @@
 'use client';
 
-import { useActionState, useState } from 'react';
+import { useActionState, useEffect, useState } from 'react';
 import { Eye, EyeOff } from 'lucide-react';
 import { login, type LoginState } from '@/lib/auth-actions';
 
@@ -9,6 +9,11 @@ const initialState: LoginState = { error: null };
 export function LoginForm({ from }: { from: string }) {
   const [state, formAction, pending] = useActionState(login, initialState);
   const [show, setShow] = useState(false);
+
+  // Compte ABC Sales : l'autre univers est sur un autre port, on y va par une navigation complète.
+  useEffect(() => {
+    if (state.externe) window.location.assign(state.externe);
+  }, [state.externe]);
 
   return (
     <form action={formAction} className="flex flex-col gap-4">
