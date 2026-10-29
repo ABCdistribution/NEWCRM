@@ -1,0 +1,23 @@
+name: Déploiement
+
+# Se déclenche à chaque push sur main et lance le script de déploiement
+# sur le serveur (runner auto-hébergé : srvfr-helios).
+on:
+  push:
+    branches: [main]
+  workflow_dispatch: {}
+
+concurrency:
+  group: deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: [self-hosted, helios]
+    timeout-minutes: 20
+    steps:
+      - name: Déployer
+        # RUNNER_TRACKING_ID vide : sinon le runner tue les `next start` à la fin du job.
+        env:
+          RUNNER_TRACKING_ID: ""
+        run: /var/www/scripts/deploy.sh
