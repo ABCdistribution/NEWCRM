@@ -270,7 +270,7 @@ export function SideMenu({
   }, [open]);
 
   const surface =
-    'dark border-navy-700 bg-navy-950 text-neutral-100';
+    'dark border-navy-700 bg-nav text-neutral-100';
 
   return (
     <>

@@ -15,6 +15,7 @@
   --color-navy: #08184d; /* bleu marine historique (texte sur accent en sombre) */
   --color-accent: #2952e3; /* même bleu pour les graphes & accents */
   --color-brand-light: #9db1f7; /* bleu clair (série secondaire des graphes) */
+  --color-nav: #031d44; /* bleu nuit — fond du menu latéral ABC Sales */
 
   /* Surfaces du mode sombre, dérivées du marine (pas de noir neutre) */
   --color-navy-950: #050f33; /* fond des cartes et de la sidebar */
