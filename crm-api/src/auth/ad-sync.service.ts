@@ -3,7 +3,7 @@ import { Role } from '@crm/database';
 import { PrismaService } from '../prisma/prisma.service';
 import { LdapService, LdapFdvEntry } from './ldap.service';
 import { regionFromSt } from '../common/regions.util';
-import { trouverSecteur } from '../common/secteur-match.util';
+import { secteurDepuisSt } from '../common/secteur-st';
 
 /** Rôle imposé par l'OU du compte (consigne AD) — appliqué à la création ET à la mise à jour. */
 const ROLE_PAR_OU: Record<LdapFdvEntry['ou'], Role> = {
@@ -74,7 +74,7 @@ export class AdSyncService {
       conflitsIdRepr: [],
     };
 
-    // Secteurs connus en base : `st` s'y rattache, sans jamais en créer.
+    // Secteurs connus en base : `st` s'y rattache ; un secteur de référence manquant est créé (un secteur = une valeur de `st`).
     const secteurs = await this.prisma.secteur.findMany({ select: { id: true, code: true, nom: true } });
 
     // Cache code région → id (création à la volée).
@@ -100,7 +100,7 @@ export class AdSyncService {
     for (const e of entries) {
       const rId = await regionId(e.region);
       if (!rId) result.sansRegion.push(e.username);
-      const secteur = trouverSecteur(e.region, secteurs);
+      const secteur = await secteurDepuisSt(this.prisma, e.region, secteurs);
       if (!secteur) result.sansSecteur.push(`${e.username} (${e.region ?? 'st vide'})`);
 
       const existant = await this.prisma.user.findUnique({ where: { username: e.username } });

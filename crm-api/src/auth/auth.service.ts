@@ -5,7 +5,7 @@ import { Role } from '@crm/database';
 import { PrismaService } from '../prisma/prisma.service';
 import { LdapService, LdapProfile } from './ldap.service';
 import { regionFromSt } from '../common/regions.util';
-import { trouverSecteur } from '../common/secteur-match.util';
+import { secteurDepuisSt } from '../common/secteur-st';
 
 @Injectable()
 export class AuthService {
@@ -96,13 +96,13 @@ export class AuthService {
   }
 
   /**
-   * Secteur depuis l'attribut AD `st`, tolérant aux fautes de frappe. Ne crée jamais de secteur ;
-   * libellé vide, inconnu ou ambigu → null (l'admin le voit dans la synchro).
+   * Secteur depuis l'attribut AD `st` (un secteur = une valeur de `st`), tolérant aux fautes de frappe ;
+   * le secteur de référence manquant est créé. Libellé vide, étranger ou ambigu → null.
    */
   private async syncSecteur(label: string | null): Promise<string | null> {
     if (!label) return null;
     const secteurs = await this.prisma.secteur.findMany({ select: { id: true, code: true, nom: true } });
-    return trouverSecteur(label, secteurs)?.id ?? null;
+    return (await secteurDepuisSt(this.prisma, label, secteurs))?.id ?? null;
   }
 
   /**
