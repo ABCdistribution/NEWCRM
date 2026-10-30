@@ -138,7 +138,6 @@ export function ProspectionCaChart({ p, moisLabel }: { p: Prospection; moisLabel
 
       <div className="flex items-center gap-3 border-t border-neutral-100 px-5 py-3 text-xs text-neutral-500">
         <span>
-          <span className="font-semibold text-neutral-700">{EUR.format(p.pipelinePondere)}</span> de pipeline pondéré sur{' '}
           <span className="font-semibold text-neutral-700">{p.ouverts}</span> prospect{p.ouverts > 1 ? 's' : ''} en cours
         </span>
         <Link href="/pilotage/prospects" className="ml-auto font-medium text-violet-600 hover:underline">
