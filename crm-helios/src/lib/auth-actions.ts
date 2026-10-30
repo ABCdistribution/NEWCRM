@@ -4,7 +4,7 @@ import { redirect } from 'next/navigation';
 import { headers } from 'next/headers';
 import { apiBase, setSession, clearSession } from './session';
 
-/** `externe` : adresse d'un autre univers (autre port = autre origine), que le formulaire ouvre lui-même. */
+/** `externe` : adresse (chemin interne ou autre univers) que le formulaire ouvre lui-même par une navigation complète. */
 export type LoginState = { error: string | null; externe?: string };
 
 /** Rôles de l'encadrement → univers ABC Pilot (pilotage). Les autres (COMMERCIAL, ADV) → ABC Sales. */
@@ -77,7 +77,9 @@ export async function login(_prev: LoginState, formData: FormData): Promise<Logi
   if (role && !HELIOS_ROLES.includes(role)) {
     return { error: null, externe: await seliosUrl() };
   }
-  redirect(from);
+  // Même principe que ci-dessus : pas de redirect() depuis la Server Action (réponse 303 mal
+  // gérée par le client → « unexpected response ») ; le formulaire navigue lui-même vers `from`.
+  return { error: null, externe: from };
 }
 
 /** Server Action de déconnexion. */
