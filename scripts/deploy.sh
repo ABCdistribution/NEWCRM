@@ -13,16 +13,19 @@ log() { echo "[$(date '+%F %T')] $*"; }
 trap 'log "ÉCHEC du déploiement (ligne $LINENO) — services non redémarrés au-delà de cette étape"' ERR
 
 git fetch -q origin main
-OLD=$(git rev-parse HEAD)
-NEW=$(git rev-parse origin/main)
 [ "$(git rev-parse --abbrev-ref HEAD)" = main ] || { log "branche courante != main, abandon"; exit 1; }
-if [ "$OLD" = "$NEW" ] && [ -z "${FORCE:-}" ]; then exit 0; fi
 git diff --quiet HEAD -- || { log "modifications locales non commitées sur des fichiers suivis, abandon"; exit 1; }
+git merge --ff-only -q origin/main 2>/dev/null || true   # tolère un HEAD local en avance sur origin
+NEW=$(git rev-parse HEAD)
+# Dernier commit réellement DÉPLOYÉ (et non le HEAD local : un `git pull` manuel ne doit pas masquer un déploiement).
+MARQUEUR=/var/www/.deployed-sha
+OLD=$(cat "$MARQUEUR" 2>/dev/null || true)
+if [ -z "$OLD" ] || ! git cat-file -e "$OLD^{commit}" 2>/dev/null; then OLD=$NEW; FORCE=${FORCE:-1}; fi   # historique inconnu/réécrit → tout redéployer
+if [ "$OLD" = "$NEW" ] && [ -z "${FORCE:-}" ]; then exit 0; fi
 
 log "Déploiement ${OLD:0:7} -> ${NEW:0:7}"
 FICHIERS=$(git diff --name-only "$OLD" "$NEW")
 RANGE_CHANGED() { [ -n "${FORCE:-}" ] || grep -qE "$1" <<< "$FICHIERS"; }
-git merge --ff-only -q origin/main
 
 set -a; . ./.env; set +a
 DEPLOY_API=0; DEPLOY_PILOT=0; DEPLOY_SALES=0
@@ -50,7 +53,7 @@ restart_next() { # dossier port
   pid=$(port_pid "$port" || true)
   [ -n "$pid" ] && { kill "$pid" 2>/dev/null || true; sleep 2; }
   # pnpm parent éventuel
-  (cd "$dir" && RUNNER_TRACKING_ID= setsid nohup pnpm exec next start -p "$port" >> "$LOGS/$(basename "$dir").log" 2>&1 < /dev/null 9>&- &)
+  (exec 9>&-; cd "$dir" && RUNNER_TRACKING_ID= setsid nohup pnpm exec next start -p "$port" >> "$LOGS/$(basename "$dir").log" 2>&1 < /dev/null &)
   for _ in $(seq 1 30); do curl -s -o /dev/null "http://localhost:$port/" && { log "$dir OK (:$port)"; return; }; sleep 1; done
   log "$dir ne répond pas sur :$port"; return 1
 }
@@ -64,4 +67,5 @@ if [ $DEPLOY_API = 1 ]; then
 fi
 [ $DEPLOY_PILOT = 1 ] && restart_next /var/www/crm-helios 3001
 [ $DEPLOY_SALES = 1 ] && restart_next /var/www/crm-promoteur 3002
+echo "$NEW" > "$MARQUEUR"
 log "Déploiement terminé (${NEW:0:7})"
