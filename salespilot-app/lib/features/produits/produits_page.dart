@@ -1,3 +1,4 @@
+import '../prechargement.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -184,7 +185,15 @@ class _ProduitsPageState extends ConsumerState<ProduitsPage> {
         ),
         Expanded(
           child: async.when(
-            loading: () => const Center(child: CircularProgressIndicator()),
+            // Une mise à jour en arrière-plan ne doit pas remplacer la liste par un loader.
+            skipLoadingOnReload: true,
+            loading: () => const Center(
+              child: Column(mainAxisSize: MainAxisSize.min, children: [
+                CircularProgressIndicator(),
+                SizedBox(height: 14),
+                Text('Premier chargement du référentiel…', style: TextStyle(color: StatusColors.muted)),
+              ]),
+            ),
             error: (e, _) => Center(
               child: Padding(
                 padding: const EdgeInsets.all(24),
@@ -197,55 +206,30 @@ class _ProduitsPageState extends ConsumerState<ProduitsPage> {
             ),
             data: (_) => RefreshIndicator(
               onRefresh: () async {
-                ref.invalidate(produitsProvider);
-                await ref.read(produitsProvider.future).catchError((_) => cached!);
+                await ref.read(miseAJourLocaleProvider).produits();
               },
-              child: ListView(
+              // Liste paresseuse : seules les lignes visibles sont construites (le référentiel compte des milliers d'articles).
+              child: ListView.builder(
                 padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
-                children: [
-                  SingleChildScrollView(
-                    scrollDirection: Axis.horizontal,
-                    child: Row(children: [
-                      _Pastille(label: 'Tous', actif: _categorieChoisie == null, onTap: () => setState(() => _categorieChoisie = null)),
-                      for (final c in categories) _Pastille(label: c, actif: _categorieChoisie == c, onTap: () => setState(() => _categorieChoisie = c)),
+                itemCount: 1 + (liste.isEmpty ? 1 : liste.length),
+                itemBuilder: (_, i) {
+                  if (i == 0) return _entete(categories, liste.length, bleu);
+                  if (liste.isEmpty) {
+                    return Container(
+                      decoration: _carte(haut: true, bas: true),
+                      padding: const EdgeInsets.all(28),
+                      child: const Center(child: Text('Aucun produit ne correspond.', style: TextStyle(color: StatusColors.muted))),
+                    );
+                  }
+                  final n = i - 1;
+                  return Container(
+                    decoration: _carte(haut: n == 0, bas: n == liste.length - 1),
+                    child: Column(children: [
+                      if (n > 0) const Divider(height: 1, indent: 16, endIndent: 16, color: Color(0xFFEEF0F6)),
+                      _Ligne(produit: liste[n], onTap: () => _fiche(liste[n])),
                     ]),
-                  ),
-                  const SizedBox(height: 12),
-                  Row(children: [
-                    Expanded(
-                      child: Text.rich(TextSpan(children: [
-                        TextSpan(text: '${liste.length}', style: const TextStyle(fontWeight: FontWeight.w800)),
-                        TextSpan(text: ' produit${liste.length > 1 ? 's' : ''}${_categorieChoisie == null ? '' : ' · $_categorieChoisie'}'),
-                      ]), style: const TextStyle(color: StatusColors.muted), maxLines: 1, overflow: TextOverflow.ellipsis),
-                    ),
-                    OutlinedButton.icon(
-                      onPressed: _ouvrirFiltres,
-                      icon: const Icon(Icons.filter_alt_outlined, size: 18),
-                      label: Text(_nbFiltres == 0 ? 'Filtres' : 'Filtres · $_nbFiltres'),
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: bleu,
-                        backgroundColor: Colors.white,
-                        side: BorderSide(color: _nbFiltres == 0 ? const Color(0xFFD1D5DB) : bleu),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                      ),
-                    ),
-                  ]),
-                  const SizedBox(height: 10),
-                  Container(
-                    decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(20), border: Border.all(color: const Color(0xFFE8EAF2))),
-                    child: liste.isEmpty
-                        ? const Padding(
-                            padding: EdgeInsets.all(28),
-                            child: Center(child: Text('Aucun produit ne correspond.', style: TextStyle(color: StatusColors.muted))),
-                          )
-                        : Column(children: [
-                            for (var i = 0; i < liste.length; i++) ...[
-                              if (i > 0) const Divider(height: 1, indent: 16, endIndent: 16, color: Color(0xFFEEF0F6)),
-                              _Ligne(produit: liste[i], onTap: () => _fiche(liste[i])),
-                            ],
-                          ]),
-                  ),
-                ],
+                  );
+                },
               ),
             ),
           ),
@@ -253,6 +237,51 @@ class _ProduitsPageState extends ConsumerState<ProduitsPage> {
       ]),
     );
   }
+
+  /// Fond blanc bordé d'une ligne ; les coins ne sont arrondis qu'en haut de la première et en bas de la dernière.
+  BoxDecoration _carte({required bool haut, required bool bas}) => BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(haut ? 20 : 0), bottom: Radius.circular(bas ? 20 : 0)),
+        border: Border(
+          left: const BorderSide(color: Color(0xFFE8EAF2)),
+          right: const BorderSide(color: Color(0xFFE8EAF2)),
+          top: haut ? const BorderSide(color: Color(0xFFE8EAF2)) : BorderSide.none,
+          bottom: bas ? const BorderSide(color: Color(0xFFE8EAF2)) : BorderSide.none,
+        ),
+      );
+
+  Widget _entete(List<String> categories, int nb, Color bleu) => Padding(
+        padding: const EdgeInsets.only(bottom: 10),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(children: [
+              _Pastille(label: 'Tous', actif: _categorieChoisie == null, onTap: () => setState(() => _categorieChoisie = null)),
+              for (final c in categories) _Pastille(label: c, actif: _categorieChoisie == c, onTap: () => setState(() => _categorieChoisie = c)),
+            ]),
+          ),
+          const SizedBox(height: 12),
+          Row(children: [
+            Expanded(
+              child: Text.rich(TextSpan(children: [
+                TextSpan(text: '$nb', style: const TextStyle(fontWeight: FontWeight.w800)),
+                TextSpan(text: ' produit${nb > 1 ? 's' : ''}${_categorieChoisie == null ? '' : ' · $_categorieChoisie'}'),
+              ]), style: const TextStyle(color: StatusColors.muted), maxLines: 1, overflow: TextOverflow.ellipsis),
+            ),
+            OutlinedButton.icon(
+              onPressed: _ouvrirFiltres,
+              icon: const Icon(Icons.filter_alt_outlined, size: 18),
+              label: Text(_nbFiltres == 0 ? 'Filtres' : 'Filtres · $_nbFiltres'),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: bleu,
+                backgroundColor: Colors.white,
+                side: BorderSide(color: _nbFiltres == 0 ? const Color(0xFFD1D5DB) : bleu),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+              ),
+            ),
+          ]),
+        ]),
+      );
 
   void _fiche(Produit p) => showModalBottomSheet<void>(
         context: context,

@@ -172,8 +172,8 @@ class _Contenu extends ConsumerWidget {
                 label: const Text('Commander'),
                 style: OutlinedButton.styleFrom(
                   minimumSize: const Size(0, 52),
-                  backgroundColor: accent.withValues(alpha: .08),
-                  foregroundColor: accent,
+                  backgroundColor: SpacePalette.sales.bouton,
+                  foregroundColor: SpacePalette.sales.surBouton,
                   side: BorderSide.none,
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                 ),

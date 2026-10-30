@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:dio/dio.dart';
 
 import '../../core/db/cache_repository.dart';
@@ -217,8 +219,22 @@ class MagasinRepository {
     }
   }
 
+  /// Copie locale de la liste (null si jamais chargée).
+  Future<Cached<List<Magasin>>?> local(String userId) async {
+    final cached = await _cache.get(userId, 'magasins');
+    if (cached == null) return null;
+    return Cached(_parse(cached.value as List<dynamic>), cached.fetchedAt, fromCache: Cached.perime(cached.fetchedAt));
+  }
+
+  /// Fiche : la copie locale d'abord (elle se met à jour en arrière-plan pour la prochaine ouverture), le réseau
+  /// seulement si le magasin n'a jamais été chargé.
   Future<Cached<FicheMagasin>> fiche(String userId, String id, Magasin base) async {
     final key = 'fiche:$id';
+    final local = await _cache.get(userId, key);
+    if (local != null) {
+      unawaited(precharger(userId, id));
+      return Cached(_parseFiche(Map<String, dynamic>.from(local.value as Map), base), local.fetchedAt, fromCache: Cached.perime(local.fetchedAt));
+    }
     try {
       final res = await _dio.get<Map<String, dynamic>>('/clients/$id');
       await _cache.put(userId, key, res.data);
@@ -233,6 +249,8 @@ class MagasinRepository {
   /// Historique du magasin ; null si le réseau manque et qu'aucune copie n'existe (la fiche reste utilisable).
   Future<HistoriqueMagasin?> historique(String userId, String id) async {
     final key = 'historique:$id';
+    final local = await _cache.get(userId, key);
+    if (local != null) return HistoriqueMagasin.fromJson(Map<String, dynamic>.from(local.value as Map)); // mis à jour par [fiche]
     try {
       final res = await _dio.get<Map<String, dynamic>>('/clients/$id/historique');
       await _cache.put(userId, key, res.data);
@@ -242,6 +260,24 @@ class MagasinRepository {
       if (cached == null) return null;
       return HistoriqueMagasin.fromJson(Map<String, dynamic>.from(cached.value as Map));
     }
+  }
+
+  /// Copie locale de la fiche et de l'historique d'un magasin, pour les consulter hors ligne sans les avoir ouverts
+  /// avant. Silencieux : un échec réseau ne gêne personne.
+  Future<bool> precharger(String userId, String id, {Duration? sauf}) async {
+    if (sauf != null) {
+      final copie = await _cache.get(userId, 'fiche:$id');
+      if (copie != null && DateTime.now().difference(copie.fetchedAt) < sauf) return true;
+    }
+    for (final (chemin, cle) in [('/clients/$id', 'fiche:$id'), ('/clients/$id/historique', 'historique:$id')]) {
+      try {
+        final res = await _dio.get<Map<String, dynamic>>(chemin);
+        await _cache.put(userId, cle, res.data);
+      } on Object {
+        return false;
+      }
+    }
+    return true;
   }
 
   static List<Magasin> _parse(List<dynamic> rows) => rows.map((e) => Magasin.fromJson(e as Map<String, dynamic>)).toList()

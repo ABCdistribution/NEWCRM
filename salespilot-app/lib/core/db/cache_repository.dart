@@ -11,6 +11,11 @@ class Cached<T> {
 
   /// Vrai si le réseau était indisponible et que ces données viennent du téléphone.
   final bool fromCache;
+
+  /// Au-delà, une copie locale est signalée comme ancienne (la mise à jour n'a pas pu se faire, souvent hors ligne).
+  static const delaiFrais = Duration(minutes: 30);
+
+  static bool perime(DateTime fetchedAt, [DateTime? now]) => (now ?? DateTime.now()).difference(fetchedAt) > delaiFrais;
 }
 
 /// Cache des référentiels (tournée, magasins, catalogue…), cloisonné par utilisateur.

@@ -1,3 +1,4 @@
+import '../prechargement.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -99,17 +100,8 @@ class TourneePage extends ConsumerWidget {
       value: SystemUiOverlayStyle.light,
       child: RefreshIndicator(
         onRefresh: () async {
-          ref.invalidate(tourneeProvider);
-          ref.invalidate(objectifMoisProvider);
-          await ref
-              .read(tourneeProvider.future)
-              .catchError(
-                (_) => TourneeJour(
-                  items: const [],
-                  fetchedAt: DateTime.now(),
-                  fromCache: true,
-                ),
-              );
+          final maj = ref.read(miseAJourLocaleProvider);
+          await Future.wait([maj.tournee(), maj.objectif()]);
           ref.read(syncControllerProvider.notifier).run();
         },
         child: ListView(
@@ -163,6 +155,7 @@ class TourneePage extends ConsumerWidget {
                   ),
                   const SizedBox(height: 12),
                   tournee.when(
+                    skipLoadingOnReload: true,
                     loading: () => const Padding(
                       padding: EdgeInsets.all(48),
                       child: Center(child: CircularProgressIndicator()),
