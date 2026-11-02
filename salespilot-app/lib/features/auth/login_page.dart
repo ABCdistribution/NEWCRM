@@ -77,14 +77,16 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                           crossAxisAlignment: CrossAxisAlignment.stretch,
                           children: [
                             Text(widget.relogin ? 'Reconnexion' : 'Connexion',
+                                textAlign: TextAlign.center,
                                 style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700)),
-                            const SizedBox(height: 4),
-                            Text(
-                              widget.relogin
-                                  ? 'Votre session a expiré. Vos saisies sont conservées et seront envoyées après la reconnexion.'
-                                  : 'Utilisez votre compte Windows (Active Directory).',
-                              style: const TextStyle(color: StatusColors.muted),
-                            ),
+                            if (widget.relogin) ...[
+                              const SizedBox(height: 4),
+                              const Text(
+                                'Votre session a expiré. Vos saisies sont conservées et seront envoyées après la reconnexion.',
+                                textAlign: TextAlign.center,
+                                style: TextStyle(color: StatusColors.muted),
+                              ),
+                            ],
                             const SizedBox(height: 16),
                             TextFormField(
                               controller: _user,
