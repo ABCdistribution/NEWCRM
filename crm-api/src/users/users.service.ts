@@ -46,6 +46,8 @@ export class UsersService {
           : { directeurId: currentUser.id }
         : {}),
       ...(query.role ? { role: query.role } : {}),
+      ...(query.secteurId ? { secteurId: query.secteurId === 'aucun' ? null : query.secteurId } : {}),
+      ...(query.statut ? { isActive: query.statut === 'actif' } : {}),
       // AND explicite pour ne pas écraser le OR du scoping ci-dessus.
       ...(query.search
         ? {

@@ -1,6 +1,6 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
-import { IsEnum, IsInt, IsOptional, IsString, Max, Min } from 'class-validator';
+import { IsEnum, IsIn, IsInt, IsOptional, IsString, Matches, Max, Min } from 'class-validator';
 import { Role } from '@crm/database';
 
 export class QueryUsersDto {
@@ -28,4 +28,15 @@ export class QueryUsersDto {
   @IsOptional()
   @IsEnum(Role)
   role?: Role;
+
+  @ApiPropertyOptional({ description: "Filtrer par secteur (UUID), ou « aucun » pour les comptes sans secteur" })
+  @IsOptional()
+  @IsString()
+  @Matches(/^(aucun|[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/i)
+  secteurId?: string;
+
+  @ApiPropertyOptional({ enum: ['actif', 'inactif'], description: 'Filtrer par statut du compte' })
+  @IsOptional()
+  @IsIn(['actif', 'inactif'])
+  statut?: 'actif' | 'inactif';
 }
