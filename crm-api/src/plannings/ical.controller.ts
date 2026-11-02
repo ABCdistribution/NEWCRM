@@ -58,6 +58,8 @@ export class IcalController {
         fait: true,
         note: true,
         adm: true,
+        libelle: true,
+        adresse: true,
         rdv: true,
         accompagnement: true,
         soireeEtape: true,
@@ -83,12 +85,12 @@ export class IcalController {
       const cible = e.client ?? e.prospect;
       const nom = e.adm
         ? 'ADM — administratif'
-        : (cible?.enseigne || (e.client?.raisonSociale ?? '') || 'Visite').trim();
+        : (cible?.enseigne || (e.client?.raisonSociale ?? '') || e.libelle || 'Visite').trim();
       const prefixe = e.rdv ? '[RDV] ' : '';
       const type = e.adm ? '' : e.prospect ? ' (prospection)' : e.accompagnement ? ' (accompagnement promoteur)' : '';
       const adresse = cible
         ? [cible.adresse1, cible.codePostal, cible.ville].map((x) => x?.trim()).filter(Boolean).join(', ')
-        : '';
+        : (e.adresse ?? '').trim();
       const description = [
         e.fait ? 'Visite effectuée.' : null,
         e.note ? `Observations : ${e.note}` : null,

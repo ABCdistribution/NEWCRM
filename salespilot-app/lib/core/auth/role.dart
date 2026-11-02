@@ -35,6 +35,10 @@ extension RoleAccess on Role {
         _ => {Space.sales},
       };
 
+  /// Espace ouvert à la connexion : l'encadrement arrive directement sur ABC Pilot (comme sur le web), les autres
+  /// rôles sur ABC Sales.
+  Space get defaultSpace => spaces.contains(Space.pilot) ? Space.pilot : Space.sales;
+
   /// Le sélecteur d'espace n'existe que pour les rôles qui ont accès aux deux espaces.
   bool get canSwitchSpace => spaces.length > 1;
 

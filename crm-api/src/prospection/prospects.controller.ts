@@ -62,6 +62,17 @@ export class ProspectsController {
     return this.prospects.pipeline(user);
   }
 
+  // Avant `:id` : sinon « secteurs » serait pris pour un identifiant.
+  @Get('secteurs')
+  @Roles(Role.CHEF_SECTEUR, Role.DIRECTEUR_REGIONAL, Role.ADMIN)
+  @ApiOperation({
+    summary:
+      'Secteurs proposables à la création d\'un prospect — CS : les siens, DR : ceux de sa région, ADMIN : tous (lecture seule)',
+  })
+  secteursDisponibles(@CurrentUser() user: User) {
+    return this.prospects.secteursDisponibles(user);
+  }
+
   @Post()
   @Roles(Role.CHEF_SECTEUR, Role.DIRECTEUR_REGIONAL, Role.ADMIN)
   @ApiOperation({ summary: 'Créer un prospect (CS · DR) — assigné au créateur par défaut' })

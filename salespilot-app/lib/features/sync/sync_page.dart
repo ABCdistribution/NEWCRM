@@ -28,6 +28,8 @@ String _kindLabel(String kind) => switch (kind) {
       OutboxKind.photo => 'Photo',
       OutboxKind.commande => 'Commande',
       OutboxKind.note => 'Note',
+      OutboxKind.etapeTournee => 'Rendez-vous planifié',
+      OutboxKind.prospect => 'Nouveau prospect',
       _ => kind,
     };
 

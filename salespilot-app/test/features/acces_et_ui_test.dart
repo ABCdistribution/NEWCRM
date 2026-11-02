@@ -43,10 +43,16 @@ void main() {
       expect(cs.read(spaceProvider), Space.pilot);
     });
 
-    test('ABC Sales est l\'espace d\'ouverture pour tous', () {
-      final c = ProviderContainer(overrides: [currentRoleProvider.overrideWithValue(Role.admin)]);
-      addTearDown(c.dispose);
-      expect(c.read(spaceProvider), Space.sales);
+    test('l\'encadrement s\'ouvre sur ABC Pilot, le promoteur sur ABC Sales', () {
+      for (final (role, attendu) in [
+        (Role.directeurRegional, Space.pilot),
+        (Role.admin, Space.pilot),
+        (Role.commercial, Space.sales),
+      ]) {
+        final c = ProviderContainer(overrides: [currentRoleProvider.overrideWithValue(role)]);
+        addTearDown(c.dispose);
+        expect(c.read(spaceProvider), attendu, reason: role.api);
+      }
     });
   });
 

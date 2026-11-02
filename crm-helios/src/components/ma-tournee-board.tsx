@@ -17,6 +17,11 @@ import type { TourneeEtapeRow, MagasinGeoPoint, ProspectRow } from '@/lib/api';
 
 type Day = { date: string; nom: string; label: string };
 
+/** Ligne libre : ni magasin, ni prospect, ni ADM (client ou lieu saisi en texte). */
+function estLibre(e: TourneeEtapeRow | null): boolean {
+  return !!e && !e.adm && !e.client && !e.prospect;
+}
+
 /** yyyy-mm-dd local du jour courant. */
 function todayIso(): string {
   const d = new Date();
@@ -112,7 +117,7 @@ function AddEtape({ date, onPick }: { date: string; onPick: (c: CibleTournee, da
 type Drag =
   | { kind: 'etape'; id: string }
   | { kind: 'nouvelle'; type: 'CLIENT' | 'PROSPECT'; id: string; nom?: string }
-  | { kind: 'nouvelle'; type: 'ADM'; id?: string; nom?: string };
+  | { kind: 'nouvelle'; type: 'ADM' | 'LIBRE'; id?: string; nom?: string };
 
 /** Panneau de cibles à glisser dans la semaine (magasins du périmètre / prospects). */
 function PanelCibles({
@@ -184,16 +189,19 @@ export function MaTourneeBoard({
   etapes,
   magasins,
   prospects,
+  verrouillee = false,
 }: {
   days: Day[];
   etapes: TourneeEtapeRow[];
   magasins: MagasinGeoPoint[];
   prospects: ProspectRow[];
+  /** Rapport validé : plus rien n'est modifiable. */
+  verrouillee?: boolean;
 }) {
   const [pending, startTransition] = useTransition();
   const [drag, setDrag] = useState<Drag | null>(null);
   // Nouvelle étape en attente de qualification (dialogue d'options).
-  const [enAttente, setEnAttente] = useState<{ type: 'CLIENT' | 'PROSPECT' | 'ADM'; id?: string; nom: string; date: string } | null>(null);
+  const [enAttente, setEnAttente] = useState<{ type: 'CLIENT' | 'PROSPECT' | 'ADM' | 'LIBRE'; id?: string; nom: string; date: string } | null>(null);
   // Étape existante en cours de requalification.
   const [edition, setEdition] = useState<TourneeEtapeRow | null>(null);
   const aujourdhui = todayIso();
@@ -212,6 +220,8 @@ export function MaTourneeBoard({
         soireeLieu: opts.soireeLieu,
         soireeAdresse: opts.soireeAdresse,
         note: opts.note,
+        adresse: opts.adresse,
+        ...(estLibre(edition) ? { libelle: opts.libelle } : {}),
       });
     });
   };
@@ -230,6 +240,8 @@ export function MaTourneeBoard({
         soireeLieu: opts.soireeLieu || undefined,
         soireeAdresse: opts.soireeAdresse || undefined,
         note: opts.note || undefined,
+        adresse: opts.adresse || undefined,
+        libelle: cible.type === 'LIBRE' ? opts.libelle : undefined,
       });
     });
   };
@@ -238,7 +250,7 @@ export function MaTourneeBoard({
     etapes.filter((e) => e.datePassage.slice(0, 10) === date);
 
   const drop = (date: string) => {
-    if (!drag) return;
+    if (!drag || verrouillee) return;
     const d = drag;
     setDrag(null);
     if (d.kind === 'etape') {
@@ -269,7 +281,11 @@ export function MaTourneeBoard({
             soireeLieu: edition.soireeLieu ?? '',
             soireeAdresse: edition.soireeAdresse ?? '',
             note: edition.note ?? '',
+            libelle: edition.libelle ?? '',
+            adresse: edition.adresse ?? '',
           }}
+          libre={estLibre(edition)}
+          adresseModifiable
           confirmLabel="Enregistrer"
           onConfirm={requalifier}
           onClose={() => setEdition(null)}
@@ -278,14 +294,16 @@ export function MaTourneeBoard({
       ) : null}
       {enAttente ? (
         <EtapeOptionsDialog
-          titre={`Planifier — ${enAttente.nom}`}
+          titre={enAttente.type === 'LIBRE' ? 'Nouvelle ligne libre' : `Planifier — ${enAttente.nom}`}
           dateInitiale={enAttente.date}
+          libre={enAttente.type === 'LIBRE'}
           onConfirm={confirmer}
           onClose={() => setEnAttente(null)}
           pending={pending}
         />
       ) : null}
       {/* Colonne « À planifier » — visuellement distincte des cartes de jours */}
+      {verrouillee ? null : (
       <aside className="flex shrink-0 flex-col gap-3 rounded-2xl border border-neutral-200 bg-neutral-100/70 p-2.5 lg:h-[calc(100vh-13rem)] lg:w-72 dark:border-navy-700 dark:bg-navy-900/50">
         <p className="px-1 text-[11px] font-semibold uppercase tracking-wider text-neutral-400">
           À planifier — glisser vers un jour
@@ -320,8 +338,19 @@ export function MaTourneeBoard({
             <span className="text-xs font-medium">ADM</span>
             <span className="ml-auto text-[10px] text-neutral-400">administratif</span>
           </div>
+          <div
+            draggable
+            onDragStart={() => setDrag({ kind: 'nouvelle', type: 'LIBRE', nom: 'Ligne libre' })}
+            className="mt-1.5 flex cursor-grab items-center gap-2 rounded-lg border border-dashed border-neutral-300 bg-white/60 px-2.5 py-2 active:cursor-grabbing dark:border-navy-600 dark:bg-navy-950/30"
+            title="Glisser vers un jour : client ou lieu saisi en texte libre"
+          >
+            <Pencil size={13} className="shrink-0 text-neutral-400" />
+            <span className="text-xs font-medium">Ligne libre</span>
+            <span className="ml-auto text-[10px] text-neutral-400">texte libre</span>
+          </div>
         </div>
       </aside>
+      )}
 
       {/* Semaine (lundi → vendredi) */}
       <div className="grid min-w-0 flex-1 grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-5">
@@ -342,12 +371,17 @@ export function MaTourneeBoard({
           <ul className="flex flex-1 flex-col gap-1.5">
             {duJour(day.date).map((e) => {
               const prospect = e.prospect != null;
-              const cible = e.prospect ?? e.client ?? { enseigne: 'ADM — administratif', ville: null, niveauClass: null };
+              const cible =
+                e.prospect ??
+                e.client ??
+                (e.adm
+                  ? { enseigne: 'ADM — administratif', ville: null, niveauClass: null }
+                  : { enseigne: e.libelle?.trim() || 'Ligne libre', ville: null, niveauClass: null });
               const enRetard = !e.fait && day.date < aujourdhui;
               return (
                 <li
                   key={e.id}
-                  draggable
+                  draggable={!verrouillee}
                   onDragStart={() => setDrag({ kind: 'etape', id: e.id })}
                   className={`group cursor-grab rounded-lg border-l-2 px-2 py-1.5 active:cursor-grabbing ${
                     e.fait
@@ -378,10 +412,11 @@ export function MaTourneeBoard({
                         e.datePassage.slice(11, 16) !== '00:00' && e.datePassage.length > 10
                           ? e.datePassage.slice(11, 16)
                           : null,
-                        e.adm ? 'Administratif' : prospect ? 'Prospection' : e.accompagnement ? 'Accomp. promoteur' : 'Suivi magasin',
+                        e.adm ? 'Administratif' : prospect ? 'Prospection' : e.client ? (e.accompagnement ? 'Accomp. promoteur' : 'Suivi magasin') : 'Ligne libre',
                         e.rdv ? 'RDV' : null,
                         e.soireeEtape ? 'Soirée étape' : null,
                         cible.ville,
+                        e.adresse,
                       ]
                         .filter(Boolean)
                         .join(' · ')}
@@ -389,12 +424,14 @@ export function MaTourneeBoard({
                     <button
                       type="button"
                       onClick={() => startTransition(async () => void (await toggleEtapeFaite(e.id, !e.fait)))}
-                      className="ml-auto rounded p-0.5 text-neutral-400 transition hover:text-emerald-500"
+                      disabled={verrouillee}
+                      className="ml-auto rounded p-0.5 text-neutral-400 transition hover:text-emerald-500 disabled:pointer-events-none"
                       title={e.fait ? 'Marquer non faite' : 'Marquer faite'}
                       aria-label={e.fait ? 'Marquer non faite' : 'Marquer faite'}
                     >
                       {e.fait ? <CheckCircle2 size={13} className="text-emerald-500" /> : <Circle size={13} />}
                     </button>
+                    {verrouillee ? null : (
                     <button
                       type="button"
                       onClick={() => setEdition(e)}
@@ -404,6 +441,8 @@ export function MaTourneeBoard({
                     >
                       <Pencil size={12} />
                     </button>
+                    )}
+                    {verrouillee ? null : (
                     <button
                       type="button"
                       onClick={() => startTransition(async () => removeEtape(e.id))}
@@ -413,12 +452,15 @@ export function MaTourneeBoard({
                     >
                       <Trash2 size={12} />
                     </button>
+                    )}
                   </div>
                 </li>
               );
             })}
           </ul>
-          <AddEtape date={day.date} onPick={(c, date) => setEnAttente({ type: c.type, id: c.id, nom: c.enseigne, date })} />
+          {verrouillee ? null : (
+            <AddEtape date={day.date} onPick={(c, date) => setEnAttente({ type: c.type, id: c.id, nom: c.enseigne, date })} />
+          )}
         </section>
       ))}
       </div>

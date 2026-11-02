@@ -26,7 +26,7 @@ Les deux fronts ne sont **pas** dans le workspace pnpm (`pnpm-workspace.yaml` = 
 ## Environnement local
 - `.env` (racine, lu par docker compose) et `crm-api/.env` (lu par l'API) : jamais versionnés, jamais recopiés dans le chat ou le code.
 - La connexion passe **toujours** par l'Active Directory, y compris en local : il n'existe volontairement aucun login de contournement. Il faut un accès réseau/VPN à l'AD et les variables `LDAP_*` dans `crm-api/.env`.
-- Sans `crm-api/.env`, l'API ne démarre pas. Variables lues : `DATABASE_URL`, `JWT_SECRET`, `JWT_EXPIRES_IN`, `PORT`, `LDAP_*`, `ADMIN_USERNAMES`, `IMPORT_DIR`, `REDIS_*`.
+- Sans `crm-api/.env`, l'API ne démarre pas. Variables lues : `DATABASE_URL`, `JWT_SECRET`, `JWT_EXPIRES_IN`, `PORT`, `LDAP_*`, `ADMIN_USERNAMES`, `IMPORT_DIR`, `REDIS_*`, `RAPPORT_CLOTURE_DEPUIS` (lundi `yyyy-mm-dd` à partir duquel la clôture automatique des rapports d'activité s'applique ; absente = clôture désactivée, aucune semaine n'est verrouillée).
 - Les fronts lisent `API_URL` (défaut `http://localhost:4000`), `HELIOS_PORT` / `SELIOS_PORT` pour la bascule d'univers.
 
 ## Conventions

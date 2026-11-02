@@ -28,7 +28,7 @@ class SpacePalette {
   static const sales = SpacePalette(
     nav: Color(0xFF031D44),
     active: Color(0xFF123A6B),
-    accent: Color(0xFF031D44),
+    accent: Color(0xFF1D4ED8),
     bouton: Color(0xFFA9D3F2), // bleu clair : texte foncé pour rester lisible
     surBouton: Color(0xFF031D44),
   );

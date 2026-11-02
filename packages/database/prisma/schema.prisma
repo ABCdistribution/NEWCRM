@@ -891,6 +891,11 @@ model TourneeEtape {
   // Étape administrative (ADM) : journée sans cible magasin/prospect.
   adm Boolean @default(false)
 
+  // Saisie libre du rapport d'activité : client ou lieu en texte (le serveur n'oblige pas à choisir dans la liste)
+  // et adresse de la ligne.
+  libelle String?
+  adresse String?
+
   // Qualification de l'étape (reprise de l'outil historique).
   visiteSimple   Boolean @default(true) // visite simple (vs accompagnement)
   accompagnement Boolean @default(false) // accompagnement promoteur
@@ -922,6 +927,11 @@ model PlanningSemaine {
   prevuAt         DateTime? // prévision enregistrée
   valideAt        DateTime? // planning validé
   nbEtapesPrevues Int? // nombre d'étapes au moment de la prévision
+
+  // Tournée prévue : photographie des étapes au dernier enregistrement de la prévision (figée dès le mardi).
+  // La tournée réalisée est la liste vivante des étapes ; la validation la verrouille.
+  previsionEtapes Json?
+  valideAuto      Boolean @default(false) // clôturée automatiquement (badge « Validé auto »)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

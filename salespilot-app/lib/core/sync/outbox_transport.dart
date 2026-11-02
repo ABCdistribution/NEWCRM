@@ -45,6 +45,8 @@ abstract final class OutboxKind {
   static const photo = 'photo';
   static const commande = 'commande';
   static const note = 'note';
+  static const etapeTournee = 'etape_tournee';
+  static const prospect = 'prospect';
 }
 
 /// Transport réel : traduit chaque type d'élément en requête vers l'API et classe les erreurs.
@@ -69,6 +71,12 @@ class HttpOutboxTransport implements OutboxTransport {
         case OutboxKind.note:
           final clientId = payload['clientId'] as String;
           res = await _dio.post('/clients/$clientId/notes', data: payload..remove('clientId'));
+        case OutboxKind.etapeTournee:
+          // `_titre` / `_ville` ne servent qu'à l'affichage de l'étape en attente sur le téléphone.
+          res = await _dio.post('/tournees', data: payload..remove('_titre')..remove('_ville'));
+        case OutboxKind.prospect:
+          // Création idempotente par idApk : un rejeu de la file ne crée jamais de doublon.
+          res = await _dio.post('/prospects/apk', data: payload);
         case OutboxKind.photo:
           if (parentServerId == null || item.filePath == null) {
             return const Rejected('Photo sans visite confirmée ou sans fichier local.');
