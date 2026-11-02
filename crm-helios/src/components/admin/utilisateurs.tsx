@@ -5,13 +5,26 @@ import { ActiveBadge, ROLE_LABELS } from '@/components/badges';
 import { RoleSelect } from '@/components/role-select';
 import { ActiveToggle } from '@/components/active-toggle';
 import { SecteurSelect } from '@/components/secteur-select';
+import { UtilisateursFiltres } from './utilisateurs-filtres';
 
 /** Gestion des comptes : rôle, secteur, activation. Les comptes sont provisionnés depuis l'AD au premier login. */
-export async function AdminUtilisateursOnglet({ search, page }: { search: string; page: number }) {
+export async function AdminUtilisateursOnglet({
+  search,
+  page,
+  role = '',
+  secteur = '',
+  statut = '',
+}: {
+  search: string;
+  page: number;
+  role?: string;
+  secteur?: string;
+  statut?: string;
+}) {
   let result: Paginated<UserRow> | null = null;
   let error: string | null = null;
   try {
-    result = await listUsers({ search, page });
+    result = await listUsers({ search, page, role, secteurId: secteur, statut });
   } catch {
     error = "Impossible de charger les utilisateurs. L'API est-elle démarrée ?";
   }
@@ -24,7 +37,10 @@ export async function AdminUtilisateursOnglet({ search, page }: { search: string
           Comptes provisionnés depuis l&apos;Active Directory au premier login. La synchronisation en masse se lance
           depuis l&apos;onglet Synchronisations.
         </p>
-        <SearchBar placeholder="Login, nom, email…" conserver={['onglet']} />
+        <div className="flex flex-wrap items-center gap-2">
+          <UtilisateursFiltres secteurs={secteurs.map((s) => ({ id: s.id, nom: s.nom }))} />
+          <SearchBar placeholder="Login, nom, email…" conserver={['onglet', 'secteur', 'role', 'statut']} />
+        </div>
       </div>
 
       {error || !result ? (
@@ -97,7 +113,7 @@ export async function AdminUtilisateursOnglet({ search, page }: { search: string
             total={result.total}
             page={result.page}
             limit={result.limit}
-            params={{ onglet: 'utilisateurs', search }}
+            params={{ onglet: 'utilisateurs', search, role, secteur, statut }}
           />
           <p className="text-xs text-neutral-400">
             Rôles disponibles : {Object.values(ROLE_LABELS).join(' · ')}. Le code représentant, la région et le

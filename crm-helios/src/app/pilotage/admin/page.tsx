@@ -20,7 +20,7 @@ const INDISPONIBLE = (
 export default async function AdminPage({
   searchParams,
 }: {
-  searchParams: Promise<{ onglet?: string; search?: string; page?: string }>;
+  searchParams: Promise<{ onglet?: string; search?: string; page?: string; role?: string; secteur?: string; statut?: string }>;
 }) {
   // Réservé aux ADMIN (l'API le vérifie aussi sur chaque route).
   const me = await getMe();
@@ -37,7 +37,15 @@ export default async function AdminPage({
       break;
     }
     case 'utilisateurs':
-      contenu = <AdminUtilisateursOnglet search={sp.search ?? ''} page={Number(sp.page ?? '1') || 1} />;
+      contenu = (
+        <AdminUtilisateursOnglet
+          search={sp.search ?? ''}
+          page={Number(sp.page ?? '1') || 1}
+          role={sp.role ?? ''}
+          secteur={sp.secteur ?? ''}
+          statut={sp.statut ?? ''}
+        />
+      );
       break;
     case 'organisation': {
       const data = await getAdminOrganisation();
