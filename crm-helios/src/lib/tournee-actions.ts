@@ -1,7 +1,7 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
-import { serverFetch, listClients, listProspects } from './api';
+import { serverFetch, listClients, listProspects, getRapportDetail, type RapportDetail } from './api';
 
 const PAGE = '/pilotage/ma-tournee';
 
@@ -50,11 +50,14 @@ export type OptionsEtape = {
   soireeLieu?: string;
   soireeAdresse?: string;
   note?: string;
+  /** Client ou lieu en texte libre (ligne libre du rapport) et adresse de la ligne. */
+  libelle?: string;
+  adresse?: string;
 };
 
-/** Ajoute une étape (prospect, magasin ou ADM) à MON planning. */
+/** Ajoute une étape (prospect, magasin, ADM ou ligne libre) à MON planning. */
 export async function addEtape(
-  cible: { type: 'CLIENT' | 'PROSPECT' | 'ADM'; id?: string },
+  cible: { type: 'CLIENT' | 'PROSPECT' | 'ADM' | 'LIBRE'; id?: string },
   datePassage: string,
   options: OptionsEtape = {},
 ): Promise<{ error: string | null }> {
@@ -72,7 +75,9 @@ export async function addEtape(
           ? { adm: true }
           : cible.type === 'CLIENT'
             ? { clientId: cible.id }
-            : { prospectId: cible.id }),
+            : cible.type === 'PROSPECT'
+              ? { prospectId: cible.id }
+              : {}), // ligne libre : le libellé (client ou lieu en texte) est dans les options
       }),
     });
   } catch {
@@ -186,4 +191,9 @@ export async function getIcalInfo(): Promise<{ userId: string; token: string } |
   } catch {
     return null;
   }
+}
+
+/** Détail d'un rapport (tournée prévue et réalisée) pour la consultation, appelé depuis le tableau des rapports. */
+export async function chargerRapportDetail(userId: string, semaine: string): Promise<RapportDetail | null> {
+  return getRapportDetail(userId, semaine);
 }

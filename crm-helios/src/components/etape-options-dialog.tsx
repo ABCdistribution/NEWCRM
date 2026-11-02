@@ -13,12 +13,18 @@ export type EtapeOptions = {
   soireeLieu: string;
   soireeAdresse: string;
   note: string;
+  /** Client ou lieu en texte libre (ligne libre du rapport). */
+  libelle: string;
+  /** Adresse de la ligne. */
+  adresse: string;
 };
 
 /**
- * Qualification d'une étape du planning d'activité (reprise de l'outil
- * historique) : visite simple / accompagnement promoteur, RDV, heure,
- * soirée étape et observations — avant l'ajout au planning.
+ * Qualification d'une ligne du rapport d'activité (reprise de l'outil historique) : client ou lieu, adresse, visite
+ * simple / accompagnement promoteur, RDV, heure, soirée étape et observations.
+ * `libre` : ligne sans magasin ni prospect de la liste, dont le client est saisi en texte (le serveur n'impose pas de
+ * choisir dans la liste). Aucun champ n'est obligatoire hormis ce libellé d'une ligne libre ; le lieu et l'adresse
+ * d'une soirée étape sont contrôlés à l'enregistrement de la prévision et à la validation du rapport.
  */
 export function EtapeOptionsDialog({
   titre,
@@ -28,6 +34,8 @@ export function EtapeOptionsDialog({
   pending = false,
   initial,
   confirmLabel = 'Ajouter au planning',
+  libre = false,
+  adresseModifiable = true,
 }: {
   titre: string;
   dateInitiale: string;
@@ -37,6 +45,8 @@ export function EtapeOptionsDialog({
   /** Valeurs de départ (requalification d'une étape existante). */
   initial?: Partial<EtapeOptions>;
   confirmLabel?: string;
+  libre?: boolean;
+  adresseModifiable?: boolean;
 }) {
   const [form, setForm] = useState<EtapeOptions>({
     date: dateInitiale,
@@ -48,11 +58,16 @@ export function EtapeOptionsDialog({
     soireeLieu: '',
     soireeAdresse: '',
     note: '',
+    libelle: '',
+    adresse: '',
     ...initial,
   });
 
   const caseCls = 'h-4 w-4 accent-[var(--color-brand)]';
   const ligne = 'flex cursor-pointer select-none items-center gap-2 text-sm';
+  const champ =
+    'w-full rounded-lg border border-neutral-200 px-2.5 py-1.5 text-sm outline-none focus:border-brand dark:border-navy-700 dark:bg-navy-950';
+  const libelleManquant = libre && !form.libelle.trim();
 
   return (
     <div className="fixed inset-0 z-[60] flex items-start justify-center overflow-y-auto bg-black/40 p-4 pt-24" onClick={onClose}>
@@ -65,6 +80,20 @@ export function EtapeOptionsDialog({
         </div>
 
         <div className="flex flex-col gap-4 px-5 py-4">
+          {/* Client ou lieu en texte libre */}
+          {libre ? (
+            <input
+              type="text"
+              value={form.libelle}
+              onChange={(e) => setForm((f) => ({ ...f, libelle: e.target.value }))}
+              placeholder="Client ou lieu"
+              aria-label="Client ou lieu"
+              maxLength={200}
+              autoFocus
+              className={champ}
+            />
+          ) : null}
+
           {/* Date + heure */}
           <div className="flex items-center gap-2">
             <input
@@ -83,6 +112,19 @@ export function EtapeOptionsDialog({
               aria-label="Heure (optionnelle)"
             />
           </div>
+
+          {/* Adresse de la ligne */}
+          {adresseModifiable ? (
+            <input
+              type="text"
+              value={form.adresse}
+              onChange={(e) => setForm((f) => ({ ...f, adresse: e.target.value }))}
+              placeholder="Adresse"
+              aria-label="Adresse"
+              maxLength={300}
+              className={champ}
+            />
+          ) : null}
 
           {/* Type de passage */}
           <div className="flex flex-wrap items-center gap-x-5 gap-y-2">
@@ -127,7 +169,7 @@ export function EtapeOptionsDialog({
             ))}
           </div>
 
-          {/* Soirée étape : où dormir */}
+          {/* Soirée étape : où dormir (obligatoire à la prévision et à la validation) */}
           {form.soireeEtape ? (
             <div className="flex flex-col gap-2 rounded-xl border border-neutral-200 bg-neutral-50 p-2.5 dark:border-navy-700 dark:bg-navy-950/50">
               <input
@@ -135,15 +177,16 @@ export function EtapeOptionsDialog({
                 value={form.soireeLieu}
                 onChange={(e) => setForm((f) => ({ ...f, soireeLieu: e.target.value }))}
                 placeholder="Lieu de l'étape (ville, hôtel…)"
-                className="w-full rounded-lg border border-neutral-200 px-2.5 py-1.5 text-sm outline-none focus:border-brand dark:border-navy-700 dark:bg-navy-950"
+                className={champ}
               />
               <input
                 type="text"
                 value={form.soireeAdresse}
                 onChange={(e) => setForm((f) => ({ ...f, soireeAdresse: e.target.value }))}
                 placeholder="Adresse de l'étape"
-                className="w-full rounded-lg border border-neutral-200 px-2.5 py-1.5 text-sm outline-none focus:border-brand dark:border-navy-700 dark:bg-navy-950"
+                className={champ}
               />
+              <p className="px-0.5 text-[10px] text-neutral-400">Lieu et adresse sont obligatoires pour enregistrer la prévision et valider le rapport.</p>
             </div>
           ) : null}
 
@@ -163,7 +206,7 @@ export function EtapeOptionsDialog({
           </button>
           <button
             type="button"
-            disabled={pending || !form.date}
+            disabled={pending || !form.date || libelleManquant}
             onClick={() => onConfirm(form)}
             className="inline-flex items-center gap-1.5 rounded-xl bg-brand px-4 py-1.5 text-xs font-semibold text-white transition hover:bg-brand/90 disabled:opacity-40 dark:bg-accent dark:text-brand dark:hover:bg-accent/80"
           >

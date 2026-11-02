@@ -55,7 +55,8 @@ const SECTIONS: Section[] = [
       // La planification des tournées vit désormais côté ABC Sales (/planification).
       { href: '/pilotage/alertes', label: 'Alertes', icon: AlertTriangle, roles: ['ADMIN', 'DIRECTION', 'DIRECTEUR_REGIONAL', 'CHEF_SECTEUR'] },
       { href: '/pilotage/mon-equipe', label: 'Mon équipe', icon: UsersRound, roles: ['ADMIN', 'DIRECTEUR_REGIONAL'] },
-      // Rapports d'activité : consultés depuis la fiche d'un chef de secteur (Mon équipe).
+      // Rapports d'activité hebdomadaires des CS / DR : tournée prévue, tournée réalisée, rapport validé (lecture seule).
+      { href: '/pilotage/rapports', label: "Rapports d'activité", icon: ClipboardCheck, roles: ['ADMIN', 'DIRECTION', 'DIRECTEUR_REGIONAL'] },
       // Objectifs : alimentés par API (import), plus de page de saisie.
     ],
   },

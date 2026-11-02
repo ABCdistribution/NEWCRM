@@ -1047,6 +1047,9 @@ export async function listPlanningsMagasin(clientId: string): Promise<PlanningMa
 export type TourneeEtapeRow = {
   id: string;
   adm: boolean;
+  /** Client ou lieu saisi en texte libre (rapport d'activité), à la place d'un magasin ou d'un prospect de la liste. */
+  libelle: string | null;
+  adresse: string | null;
   datePassage: string;
   fait: boolean;
   note: string | null;
@@ -1086,14 +1089,112 @@ export async function listMaTournee(debut: string, fin: string): Promise<Tournee
   }
 }
 
-export type SemaineEtat = { prevuAt: string | null; valideAt: string | null };
+/** Phase d'une semaine : prévision jusqu'au lundi soir, puis rapport (tournée réalisée) dès le mardi. */
+export type PhaseSemaine = 'PREVISION' | 'RAPPORT';
 
-/** État prévision / validation de MA semaine (lundi ISO). */
+export type StatutRapport = 'PREVISION_A_SAISIR' | 'PREVISION_ENREGISTREE' | 'EN_COURS' | 'VALIDE' | 'VALIDE_AUTO';
+
+/**
+ * État de MA semaine. Trois notions distinctes : tournée prévue (photographie, figée dès le mardi), tournée réalisée
+ * (les étapes, modifiables pendant la phase rapport), rapport validé (la réalisée verrouillée à la clôture).
+ */
+export type SemaineEtat = {
+  semaine: string;
+  phase: PhaseSemaine;
+  prevuAt: string | null;
+  valideAt: string | null;
+  valideAuto: boolean;
+  nbEtapesPrevues: number | null;
+  previsionNonRenseignee: boolean;
+  previsionModifiable: boolean;
+  peutValider: boolean;
+  verrouillee: boolean;
+  statut: StatutRapport;
+};
+
+/** État prévision / rapport / validation de MA semaine (lundi ISO). */
 export async function getSemaineEtat(semaine: string): Promise<SemaineEtat | null> {
   try {
     const res = await serverFetch(`/tournees/semaine${qs({ semaine })}`);
     if (!res.ok) return null;
     return (await res.json()) as SemaineEtat;
+  } catch {
+    return null;
+  }
+}
+
+/** Une ligne d'un rapport (prévue ou réalisée), vue de façon uniforme. */
+export type LigneRapport = {
+  id?: string;
+  jour: string;
+  heure: string | null;
+  adm: boolean;
+  titre: string;
+  ville: string | null;
+  adresse: string | null;
+  libelle: string | null;
+  visiteSimple: boolean;
+  accompagnement: boolean;
+  rdv: boolean;
+  soireeEtape: boolean;
+  soireeLieu: string | null;
+  soireeAdresse: string | null;
+  note: string | null;
+  fait: boolean;
+};
+
+/** Tournée PRÉVUE de MA semaine (photographie enregistrée) ; null si la prévision n'a pas été renseignée. */
+export async function getMaPrevue(semaine: string): Promise<LigneRapport[] | null> {
+  try {
+    const res = await serverFetch(`/tournees/semaine/prevue${qs({ semaine })}`);
+    if (!res.ok) return null;
+    return ((await res.json()) as { prevue: LigneRapport[] | null }).prevue;
+  } catch {
+    return null;
+  }
+}
+
+export type RapportAuteur = {
+  userId: string;
+  nom: string;
+  role: Role;
+  region: string | null;
+  secteur: string | null;
+  statut: StatutRapport;
+  prevuAt: string | null;
+  previsionNonRenseignee: boolean;
+  valideAt: string | null;
+  valideAuto: boolean;
+  nbPrevues: number | null;
+  nbRealisees: number;
+  nbFaites: number;
+};
+
+export type RapportsListe = { semaine: string; phase: PhaseSemaine; auteurs: RapportAuteur[] };
+
+/** Rapports de la semaine dans mon périmètre (directeurs régionaux, direction, administrateurs). */
+export async function listRapports(semaine: string): Promise<RapportsListe | null> {
+  try {
+    const res = await serverFetch(`/rapports${qs({ semaine })}`);
+    if (!res.ok) return null;
+    return (await res.json()) as RapportsListe;
+  } catch {
+    return null;
+  }
+}
+
+export type RapportDetail = {
+  auteur: { id: string; displayName: string; role: Role };
+  etat: SemaineEtat;
+  prevue: LigneRapport[] | null;
+  realisee: LigneRapport[];
+};
+
+export async function getRapportDetail(userId: string, semaine: string): Promise<RapportDetail | null> {
+  try {
+    const res = await serverFetch(`/rapports/${userId}${qs({ semaine })}`);
+    if (!res.ok) return null;
+    return (await res.json()) as RapportDetail;
   } catch {
     return null;
   }

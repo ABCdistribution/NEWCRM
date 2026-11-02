@@ -1,9 +1,10 @@
 import Link from 'next/link';
 import { ChevronLeft, ChevronRight, Route, Sprout, Store } from 'lucide-react';
-import { getMe, getSemaineEtat, listMaTournee, listMagasinsGeo, listProspects, type ProspectRow } from '@/lib/api';
+import { getMaPrevue, getMe, getSemaineEtat, listMaTournee, listMagasinsGeo, listProspects, type ProspectRow } from '@/lib/api';
 import { AccesRefuse } from '@/components/acces-refuse';
 import { MaTourneeBoard } from '@/components/ma-tournee-board';
 import { PlanningValidation } from '@/components/planning-validation';
+import { TourneePrevue } from '@/components/tournee-prevue';
 import { OutlookSyncButton } from '@/components/outlook-sync-button';
 
 export const metadata = { title: "Mon planning d'activité — ABC Pilot" };
@@ -50,10 +51,11 @@ export default async function MaTourneePage({
     return { date: iso(d), nom, label: DAY_FMT.format(d) };
   });
 
-  const [etapes, magasins, semaineEtat] = await Promise.all([
+  const [etapes, magasins, semaineEtat, prevue] = await Promise.all([
     listMaTournee(semaineIso, iso(nextMonday)),
     listMagasinsGeo(),
     getSemaineEtat(semaineIso),
+    getMaPrevue(semaineIso),
   ]);
 
   // Mes prospects encore en jeu (à glisser dans la tournée).
@@ -82,15 +84,13 @@ export default async function MaTourneePage({
           <h1 className="flex items-center gap-2 text-2xl font-bold">
             <Route size={22} className="text-brand dark:text-accent" /> Mon planning d'activité
           </h1>
+          <p className="mt-0.5 text-xs text-neutral-400">
+            Tournée prévue (jusqu&apos;au lundi soir) → tournée réalisée (dès le mardi) → rapport validé (verrouillé).
+          </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <OutlookSyncButton />
-          <PlanningValidation
-            semaine={semaineIso}
-            nbEtapes={(etapes ?? []).length}
-            prevuAt={semaineEtat?.prevuAt ?? null}
-            valideAt={semaineEtat?.valideAt ?? null}
-          />
+          <PlanningValidation semaine={semaineIso} nbEtapes={(etapes ?? []).length} etat={semaineEtat} />
         </div>
         <div className="flex items-center gap-0.5 rounded-xl bg-white p-1 shadow-card">
           <Link href={`/pilotage/ma-tournee?semaine=${iso(prevMonday)}`} className={navBtn} aria-label="Semaine précédente">
@@ -140,7 +140,16 @@ export default async function MaTourneePage({
             </span>
           </div>
 
-          <MaTourneeBoard days={days} etapes={etapes} magasins={magasins ?? []} prospects={prospects} />
+          {/* Dès le mardi la prévision est figée : on la garde sous les yeux pour comparer au réalisé. */}
+          {semaineEtat?.phase === 'RAPPORT' ? <TourneePrevue lignes={prevue} /> : null}
+
+          <MaTourneeBoard
+            days={days}
+            etapes={etapes}
+            magasins={magasins ?? []}
+            prospects={prospects}
+            verrouillee={semaineEtat?.verrouillee ?? false}
+          />
         </>
       )}
     </div>
