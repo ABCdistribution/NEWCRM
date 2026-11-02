@@ -87,6 +87,13 @@ class PilotRepository {
 
   static const _maxPromoteurs = 40; // garde-fou : un appel de planning par promoteur
 
+  /// Copie locale de l'accueil Pilot (null si jamais chargé).
+  Future<Cached<AccueilPilot>?> local(String userId) async {
+    final cached = await _cache.get(userId, 'pilot-accueil');
+    if (cached == null) return null;
+    return Cached(AccueilPilot.fromJson(Map<String, dynamic>.from(cached.value as Map)), cached.fetchedAt, fromCache: Cached.perime(cached.fetchedAt));
+  }
+
   Future<Cached<AccueilPilot>> load(String userId, DateTime maintenant) async {
     const key = 'pilot-accueil';
     try {

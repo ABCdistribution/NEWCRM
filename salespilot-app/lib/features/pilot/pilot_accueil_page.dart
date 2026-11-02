@@ -1,3 +1,4 @@
+import '../prechargement.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -23,10 +24,11 @@ final pilotRepositoryProvider = Provider<PilotRepository>(
 
 final pilotAccueilProvider = FutureProvider.autoDispose<Cached<AccueilPilot>>((
   ref,
-) {
+) async {
   final userId = ref.watch(currentUserIdProvider);
   if (userId == null) throw StateError('Aucune session');
-  return ref.watch(pilotRepositoryProvider).load(userId, DateTime.now());
+  final repo = ref.watch(pilotRepositoryProvider);
+  return await repo.local(userId) ?? await repo.load(userId, DateTime.now());
 });
 
 /// Onglet affiché dans l'espace ABC Pilot (Tableau, Équipe, Planning, Prospects).
@@ -68,20 +70,7 @@ class PilotAccueilPage extends ConsumerWidget {
       value: SystemUiOverlayStyle.light,
       child: RefreshIndicator(
         onRefresh: () async {
-          ref.invalidate(pilotAccueilProvider);
-          await ref
-              .read(pilotAccueilProvider.future)
-              .catchError(
-                (_) => Cached(
-                  const AccueilPilot(
-                    caMois: 0,
-                    evolutionPct: null,
-                    mois: 1,
-                    equipe: [],
-                  ),
-                  DateTime.now(),
-                ),
-              );
+          await ref.read(miseAJourLocaleProvider).pilot();
         },
         child: ListView(
           padding: EdgeInsets.zero,
@@ -90,6 +79,7 @@ class PilotAccueilPage extends ConsumerWidget {
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
               child: async.when(
+                skipLoadingOnReload: true,
                 loading: () => const Padding(
                   padding: EdgeInsets.all(48),
                   child: Center(child: CircularProgressIndicator()),

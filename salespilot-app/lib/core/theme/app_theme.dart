@@ -4,7 +4,13 @@ import '../auth/role.dart';
 
 /// Palette de la plateforme : bleu marine pour ABC Sales, violet pour ABC Pilot (comme le web).
 class SpacePalette {
-  const SpacePalette({required this.nav, required this.active, required this.accent});
+  const SpacePalette({
+    required this.nav,
+    required this.active,
+    required this.accent,
+    Color? bouton,
+    this.surBouton = Colors.white,
+  }) : bouton = bouton ?? accent;
 
   /// Fond des barres sombres (en-tête, navigation).
   final Color nav;
@@ -15,7 +21,17 @@ class SpacePalette {
   /// Couleur des boutons et des accents.
   final Color accent;
 
-  static const sales = SpacePalette(nav: Color(0xFF050F33), active: Color(0xFF1C347D), accent: Color(0xFF2952E3));
+  /// Fond des boutons d'action (par défaut la couleur d'accent) et couleur de leur texte.
+  final Color bouton;
+  final Color surBouton;
+
+  static const sales = SpacePalette(
+    nav: Color(0xFF031D44),
+    active: Color(0xFF123A6B),
+    accent: Color(0xFF031D44),
+    bouton: Color(0xFFA9D3F2), // bleu clair : texte foncé pour rester lisible
+    surBouton: Color(0xFF031D44),
+  );
   static const pilot = SpacePalette(nav: Color(0xFF130D25), active: Color(0xFF55399B), accent: Color(0xFF6545C5));
 
   static SpacePalette of(Space space) => space == Space.sales ? sales : pilot;
@@ -72,7 +88,8 @@ ThemeData buildTheme(Space space) {
     ),
     filledButtonTheme: FilledButtonThemeData(
       style: FilledButton.styleFrom(
-        backgroundColor: p.accent,
+        backgroundColor: p.bouton,
+        foregroundColor: p.surBouton,
         minimumSize: const Size.fromHeight(48), // grandes cibles tactiles : utilisable à une main
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       ),

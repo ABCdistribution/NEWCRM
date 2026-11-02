@@ -162,7 +162,7 @@ export default async function ProspectDetailPage({ params }: { params: Promise<{
       <ProspectEtapesStepper prospectId={p.id} statut={p.statut} />
 
       {/* KPIs */}
-      <section className="grid grid-cols-2 gap-4 sm:grid-cols-3">
+      <section className="grid grid-cols-2 gap-4">
         <div className={`${card} p-5`}>
           <div className="flex items-center justify-between">
             <span className="text-sm text-neutral-500">Potentiel CA/an</span>
@@ -179,17 +179,6 @@ export default async function ProspectDetailPage({ params }: { params: Promise<{
           </div>
           <p className="mt-2 text-2xl font-bold text-brand dark:text-accent">
             {p.probabilite != null ? `${p.probabilite}%` : '—'}
-          </p>
-        </div>
-        <div className={`${card} p-5`}>
-          <div className="flex items-center justify-between">
-            <span className="text-sm text-neutral-500">Valeur pondérée</span>
-            <Sparkles size={17} className="text-[#7D8CCE]" />
-          </div>
-          <p className="mt-2 text-2xl font-bold text-brand dark:text-accent">
-            {p.potentielCaAnnuel != null && p.probabilite != null
-              ? EUR.format((p.potentielCaAnnuel * p.probabilite) / 100)
-              : '—'}
           </p>
         </div>
       </section>

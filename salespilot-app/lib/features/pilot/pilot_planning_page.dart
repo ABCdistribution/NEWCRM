@@ -1,3 +1,4 @@
+import '../prechargement.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -30,24 +31,28 @@ class CompteursProspection {
   }
 }
 
-/// Null quand le serveur est injoignable : les compteurs affichent « — ».
+/// Lit le serveur et met la copie locale à jour. Lève une erreur si le serveur est injoignable.
+Future<CompteursProspection> chargerCompteursProspectionReseau(Ref ref, String userId) async {
+  final res = await ref.read(dioProvider).get<Map<String, dynamic>>('/prospects/pipeline');
+  final raw = <String, dynamic>{
+    'etapes': [
+      for (final e in ((res.data?['etapes'] as List?) ?? const []).cast<Map<String, dynamic>>()) {'statut': e['statut'], 'total': e['total']},
+    ],
+  };
+  await ref.read(cacheRepositoryProvider).put(userId, 'pipeline-compteurs', raw);
+  return CompteursProspection.fromPipeline(raw);
+}
+
+/// Copie locale d'abord ; null (« — » à l'écran) si jamais chargé et que le réseau manque.
 final compteursProspectionProvider = FutureProvider.autoDispose<CompteursProspection?>((ref) async {
   final userId = ref.watch(currentUserIdProvider);
   if (userId == null) return null;
-  final cache = ref.watch(cacheRepositoryProvider);
+  final cached = await ref.read(cacheRepositoryProvider).get(userId, 'pipeline-compteurs');
+  if (cached != null) return CompteursProspection.fromPipeline(Map<String, dynamic>.from(cached.value as Map));
   try {
-    final res = await ref.watch(dioProvider).get<Map<String, dynamic>>('/prospects/pipeline');
-    final raw = <String, dynamic>{
-      'etapes': [
-        for (final e in ((res.data?['etapes'] as List?) ?? const []).cast<Map<String, dynamic>>()) {'statut': e['statut'], 'total': e['total']},
-      ],
-    };
-    await cache.put(userId, 'pipeline-compteurs', raw);
-    return CompteursProspection.fromPipeline(raw);
+    return await chargerCompteursProspectionReseau(ref, userId);
   } on Object {
-    final cached = await cache.get(userId, 'pipeline-compteurs');
-    if (cached == null) return null;
-    return CompteursProspection.fromPipeline(Map<String, dynamic>.from(cached.value as Map));
+    return null;
   }
 });
 
@@ -112,8 +117,7 @@ class _PilotPlanningPageState extends ConsumerState<PilotPlanningPage> {
       child: Stack(children: [
         RefreshIndicator(
           onRefresh: () async {
-            ref.invalidate(compteursProspectionProvider);
-            await ref.read(compteursProspectionProvider.future).catchError((_) => null);
+            await ref.read(miseAJourLocaleProvider).prospection();
           },
           child: ListView(
             padding: EdgeInsets.zero,

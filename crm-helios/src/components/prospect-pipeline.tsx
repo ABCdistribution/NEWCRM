@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { Target, X } from 'lucide-react';
+import { X } from 'lucide-react';
 import { setProspectStatut } from '@/lib/prospect-actions';
 import { ClassBadge } from './class-badge';
 import type { PipelineColonne, ProspectRow, ProspectStatut } from '@/lib/api';
@@ -24,8 +24,6 @@ export function ProspectPipeline({ colonnes }: { colonnes: PipelineColonne[] }) 
   }, [colonnes]);
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
-
-  const totalPondere = cols.reduce((s, c) => s + (c.valeurPonderee ?? 0), 0);
 
   const move = (prospectId: string, from: ProspectStatut, to: ProspectStatut) => {
     if (from === to) return;
@@ -48,21 +46,13 @@ export function ProspectPipeline({ colonnes }: { colonnes: PipelineColonne[] }) 
     startTransition(async () => {
       const res = await setProspectStatut(prospectId, to);
       if (res.error) setError(res.error);
-      router.refresh(); // resynchronise totaux + valeur pondérée
+      router.refresh(); // resynchronise les totaux
     });
   };
 
   return (
     <div className="flex flex-col gap-3">
-      <div className="flex flex-wrap items-center gap-2">
-        <p className="text-sm text-neutral-500">
-          <Target size={14} className="mr-1 inline text-brand dark:text-accent" />
-          Valeur pondérée du pipeline&nbsp;:{' '}
-          <span className="font-semibold text-brand dark:text-accent">{EUR.format(totalPondere)}</span>
-          <span className="text-neutral-400"> (CA potentiel × probabilité)</span>
-        </p>
-        {pending ? <span className="text-xs text-neutral-400">Enregistrement…</span> : null}
-      </div>
+      {pending ? <span className="text-xs text-neutral-400">Enregistrement…</span> : null}
 
       {error ? (
         <p className="flex items-center gap-2 rounded-lg border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-700">
@@ -109,9 +99,6 @@ export function ProspectPipeline({ colonnes }: { colonnes: PipelineColonne[] }) 
                   {c.total}
                 </span>
               </header>
-              <div className="border-b border-neutral-100 px-3 py-1.5 text-xs text-neutral-400 dark:border-navy-700">
-                {EUR.format(c.valeurPonderee ?? 0)} pondéré
-              </div>
               <div className="flex min-h-24 flex-col gap-2 p-2.5">
                 {c.prospects.length === 0 ? (
                   <p className={`rounded-lg border border-dashed py-4 text-center text-[10px] transition ${isHover ? 'border-brand text-brand dark:border-accent dark:text-accent' : 'border-neutral-200 text-neutral-300 dark:border-navy-700 dark:text-neutral-600'}`}>

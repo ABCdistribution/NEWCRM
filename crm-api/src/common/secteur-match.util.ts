@@ -1,7 +1,7 @@
 /**
- * Rattachement d'un libellé AD (attribut `st`) à un secteur connu en base, en tolérant les fautes de frappe.
- * On ne crée JAMAIS de secteur à partir d'un libellé : un libellé trop éloigné ou ambigu renvoie null et le compte
- * est signalé à l'admin.
+ * Rapprochement d'un libellé AD (attribut `st`) d'un secteur de la liste fournie, en tolérant les fautes de frappe.
+ * Un libellé trop éloigné ou ambigu renvoie null (jamais deviné). La création éventuelle d'un secteur de référence
+ * manquant est faite par `secteur-st.ts`, pas ici.
  */
 
 export interface SecteurRef {

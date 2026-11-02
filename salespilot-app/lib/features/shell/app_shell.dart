@@ -7,6 +7,8 @@ import '../../core/config.dart';
 import '../../core/providers.dart';
 import '../../core/theme/app_theme.dart';
 import '../pilot/pilot_accueil_page.dart';
+import '../prechargement.dart';
+import 'premier_chargement.dart';
 import '../pilot/pilot_planning_page.dart';
 
 /// Pastille permanente : nombre d'éléments non envoyés, visible sur tous les écrans (CDC §4.3).
@@ -64,6 +66,8 @@ class AppShell extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    // Tout premier lancement : écran de chargement complet. Ensuite, la mise à jour se fait en arrière-plan.
+    if (ref.watch(prechargementProvider.select((e) => e.bloquant))) return const PremierChargement();
     final space = ref.watch(spaceProvider);
     final role = ref.watch(currentRoleProvider);
     final expired = ref.watch(tokenExpiredProvider);

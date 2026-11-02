@@ -59,6 +59,13 @@ class TourneeRepository {
   static String _day(DateTime d) =>
       '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
 
+  /// Copie locale de la tournée du jour (null si jamais chargée) : affichée tout de suite, sans attendre le réseau.
+  Future<TourneeJour?> local(String userId, DateTime day) async {
+    final cached = await _cache.get(userId, 'tournee:${_day(day)}');
+    if (cached == null) return null;
+    return TourneeJour(items: _parse(cached.value as List<dynamic>), fetchedAt: cached.fetchedAt, fromCache: Cached.perime(cached.fetchedAt));
+  }
+
   Future<TourneeJour> load(String userId, DateTime day) async {
     final key = 'tournee:${_day(day)}';
     final debut = DateTime(day.year, day.month, day.day);

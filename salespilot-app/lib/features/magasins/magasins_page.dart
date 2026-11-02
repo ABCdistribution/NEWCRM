@@ -1,3 +1,4 @@
+import '../prechargement.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -59,6 +60,7 @@ class _MagasinsPageState extends ConsumerState<MagasinsPage> {
       ),
       Expanded(
         child: async.when(
+          skipLoadingOnReload: true,
           loading: () => const Center(child: CircularProgressIndicator()),
           error: (e, _) => Center(
             child: Padding(
@@ -80,8 +82,7 @@ class _MagasinsPageState extends ConsumerState<MagasinsPage> {
             }).toList();
             return RefreshIndicator(
               onRefresh: () async {
-                ref.invalidate(magasinsProvider);
-                await ref.read(magasinsProvider.future).catchError((_) => cached);
+                await ref.read(miseAJourLocaleProvider).magasins();
               },
               child: ListView.builder(
                 padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),

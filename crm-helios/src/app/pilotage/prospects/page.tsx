@@ -52,7 +52,6 @@ export default async function ProspectsPage({
   const colonnes = pipeline ?? [];
   const colonnesActives = colonnes.filter((c) => ETAPES_ACTIVES.includes(c.statut));
   const actifs: ProspectRow[] = colonnesActives.flatMap((c) => c.prospects);
-  const pipelinePondere = colonnesActives.reduce((somme, c) => somme + (c.valeurPonderee ?? 0), 0);
   const gagnes = colonnes.find((c) => c.statut === 'GAGNE')?.total ?? 0;
   const perdus = colonnes.find((c) => c.statut === 'PERDU')?.total ?? 0;
   const transformation = gagnes + perdus > 0 ? Math.round((gagnes / (gagnes + perdus)) * 100) : null;
@@ -80,8 +79,7 @@ export default async function ProspectsPage({
       </div>
 
       {/* KPI business */}
-      <section className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-        <KpiTile label="Pipeline pondéré" value={EUR.format(pipelinePondere)} />
+      <section className="grid grid-cols-2 gap-4 lg:grid-cols-3">
         <KpiTile label="Prospects actifs" value={fmt(actifs.length)} />
         <KpiTile
           label="À relancer"

@@ -12,7 +12,6 @@ import {
   ShoppingCart,
   ShieldAlert,
   BadgePercent,
-  Settings,
   LogOut,
   Menu,
   X,
@@ -69,10 +68,6 @@ function sections(role: string): Section[] {
         { href: '/promos', label: 'Les promos / PEM', icon: BadgePercent },
         { href: '/qualite', label: 'Qualité & rappels', icon: ShieldAlert },
       ],
-    },
-    {
-      label: 'Moi',
-      children: [{ href: '/parametres', label: 'Paramètres', icon: Settings }],
     },
   ];
 }
@@ -270,7 +265,7 @@ export function SideMenu({
   }, [open]);
 
   const surface =
-    'dark border-navy-700 bg-navy-950 text-neutral-100';
+    'dark border-navy-700 bg-nav text-neutral-100';
 
   return (
     <>

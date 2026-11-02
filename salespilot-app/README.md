@@ -15,7 +15,9 @@ dart run build_runner build --delete-conflicting-outputs   # code de la base loc
 
 # Émulateur Android : l'API de l'ordinateur est vue sur 10.0.2.2
 flutter run
-# Téléphone réel : adresse de l'ordinateur sur le réseau
+# Serveur de dev (http://192.168.10.139:4000, réseau interne) : une seule variable
+flutter run --dart-define=DEV=true
+# Autre adresse (ordinateur local depuis un téléphone réel, etc.)
 flutter run --dart-define=API_URL=http://192.168.x.x:4000
 ```
 
