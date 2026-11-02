@@ -137,6 +137,20 @@ export class ProspectsService {
     return { data, total, page, limit, scope: { type: scope.type } };
   }
 
+  /** Secteurs que l'utilisateur peut choisir pour un prospect : le périmètre de son rôle, jamais plus. */
+  secteursDisponibles(user: User) {
+    let where: Prisma.SecteurWhereInput;
+    if (user.role === 'CHEF_SECTEUR') {
+      where = { OR: [{ managerId: user.id }, { membres: { some: { id: user.id } } }] };
+    } else if (user.role === 'DIRECTEUR_REGIONAL') {
+      if (!user.regionId) return [];
+      where = { regionId: user.regionId };
+    } else {
+      where = {};
+    }
+    return this.prisma.secteur.findMany({ where, orderBy: { nom: 'asc' }, select: { id: true, code: true, nom: true } });
+  }
+
   /** Prospects groupés par étape — la vue Kanban d'ABC Pilot. */
   async pipeline(user: User) {
     const scope = this.scope(user);
