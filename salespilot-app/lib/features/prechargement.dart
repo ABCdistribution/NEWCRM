@@ -7,6 +7,8 @@ import '../core/config.dart';
 import '../core/providers.dart';
 import 'pilot/pilot_accueil_page.dart';
 import 'pilot/pilot_planning_page.dart';
+import 'pilot/prospects_pipeline.dart';
+import 'pilot/tournee_etapes.dart';
 import 'providers.dart';
 
 /// Met à jour la copie locale depuis le serveur, puis rafraîchit les écrans concernés. Les écrans lisent toujours
@@ -60,9 +62,31 @@ class MiseAJourLocale {
         _ref.invalidate(pilotAccueilProvider);
       });
 
+  /// Étapes de MA tournée (planning d'ABC Pilot) pour la semaine du [lundi].
+  Future<bool> etapes(DateTime lundi) => _etape((userId) async {
+        await chargerEtapesSemaineReseau(_ref, userId, lundi);
+        _ref.invalidate(etapesSemaineProvider);
+      });
+
+  /// Pipeline de prospection (liste des prospects et compteurs) et prochaines étapes planifiées de chaque prospect.
   Future<bool> prospection() => _etape((userId) async {
-        await chargerCompteursProspectionReseau(_ref, userId);
-        _ref.invalidate(compteursProspectionProvider);
+        await chargerProspectsReseau(_ref, userId);
+        _ref.invalidate(prospectsPipelineProvider);
+        await chargerProchainesEtapesReseau(_ref, userId);
+        _ref.invalidate(prochainesEtapesProvider);
+        // Secteurs du formulaire « Nouveau prospect » : un échec ici ne doit pas compter comme un échec du pipeline.
+        try {
+          await chargerSecteursProspectReseau(_ref, userId);
+          _ref.invalidate(secteursProspectProvider);
+        } on Object {
+          // la copie existante reste en place
+        }
+      });
+
+  /// Prochaines étapes planifiées (« prochaine action » des prospects) seulement.
+  Future<bool> prochaines() => _etape((userId) async {
+        await chargerProchainesEtapesReseau(_ref, userId);
+        _ref.invalidate(prochainesEtapesProvider);
       });
 
   /// Fiche et historique de chaque magasin, pour les consulter hors ligne sans les avoir ouverts. Quelques requêtes
@@ -183,6 +207,7 @@ class PrechargementController extends Notifier<EtatPrechargement> {
       ('Produits', maj.produits),
       if (pilot) ('Pilotage', maj.pilot),
       if (pilot) ('Prospection', maj.prospection),
+      if (pilot) ('Tournée', () => maj.etapes(lundiDe(DateTime.now()))),
     ];
     var reussies = 0;
     for (var i = 0; i < etapes.length; i++) {

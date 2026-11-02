@@ -261,13 +261,16 @@ class _Entete extends ConsumerWidget {
                   color: Colors.white.withValues(alpha: .15),
                   borderRadius: BorderRadius.circular(14),
                 ),
-                child: const PendingBadge(),
+                child: const EnteteActions(),
               ),
             ],
           ),
           const SizedBox(height: 16),
-          const SelecteurEspace(space: Space.sales),
-          const SizedBox(height: 12),
+          // Réservé à l'encadrement : promoteur, ADV et marketing n'ont aucune trace d'ABC Pilot.
+          if (ref.watch(currentRoleProvider)?.canSwitchSpace ?? false) ...[
+            const SelecteurEspace(space: Space.sales),
+            const SizedBox(height: 12),
+          ],
           Row(
             children: [
               Expanded(

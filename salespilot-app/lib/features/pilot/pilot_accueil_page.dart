@@ -31,7 +31,7 @@ final pilotAccueilProvider = FutureProvider.autoDispose<Cached<AccueilPilot>>((
   return await repo.local(userId) ?? await repo.load(userId, DateTime.now());
 });
 
-/// Onglet affiché dans l'espace ABC Pilot (Tableau, Équipe, Planning, Prospects).
+/// Onglet affiché dans l'espace ABC Pilot (Tableau, Équipe, Tournée, Prospects).
 class PilotTabNotifier extends Notifier<int> {
   @override
   int build() => 0;
@@ -216,7 +216,7 @@ class _Entete extends ConsumerWidget {
                   color: Colors.white.withValues(alpha: .15),
                   borderRadius: BorderRadius.circular(14),
                 ),
-                child: const PendingBadge(),
+                child: const EnteteActions(),
               ),
             ],
           ),
@@ -602,7 +602,7 @@ class _LignePromoteur extends StatelessWidget {
   }
 }
 
-/// Onglets d'ABC Pilot pas encore développés (Équipe, Planning, Prospects).
+/// Onglets d'ABC Pilot pas encore développés (Équipe, Prospects).
 class PilotBientot extends StatelessWidget {
   const PilotBientot({super.key, required this.titre, required this.icon});
 

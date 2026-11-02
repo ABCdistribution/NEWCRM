@@ -2,9 +2,10 @@ import '../prechargement.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
-import '../../core/providers.dart';
 import '../../core/theme/app_theme.dart';
+import 'tournee_etapes.dart';
 
 /// Nombre de prospects par colonne du planning de prospection, tiré de `GET /prospects/pipeline` (périmètre
 /// appliqué par l'API). Regroupement des sept étapes en quatre colonnes — à valider avec le métier :
@@ -31,31 +32,6 @@ class CompteursProspection {
   }
 }
 
-/// Lit le serveur et met la copie locale à jour. Lève une erreur si le serveur est injoignable.
-Future<CompteursProspection> chargerCompteursProspectionReseau(Ref ref, String userId) async {
-  final res = await ref.read(dioProvider).get<Map<String, dynamic>>('/prospects/pipeline');
-  final raw = <String, dynamic>{
-    'etapes': [
-      for (final e in ((res.data?['etapes'] as List?) ?? const []).cast<Map<String, dynamic>>()) {'statut': e['statut'], 'total': e['total']},
-    ],
-  };
-  await ref.read(cacheRepositoryProvider).put(userId, 'pipeline-compteurs', raw);
-  return CompteursProspection.fromPipeline(raw);
-}
-
-/// Copie locale d'abord ; null (« — » à l'écran) si jamais chargé et que le réseau manque.
-final compteursProspectionProvider = FutureProvider.autoDispose<CompteursProspection?>((ref) async {
-  final userId = ref.watch(currentUserIdProvider);
-  if (userId == null) return null;
-  final cached = await ref.read(cacheRepositoryProvider).get(userId, 'pipeline-compteurs');
-  if (cached != null) return CompteursProspection.fromPipeline(Map<String, dynamic>.from(cached.value as Map));
-  try {
-    return await chargerCompteursProspectionReseau(ref, userId);
-  } on Object {
-    return null;
-  }
-});
-
 const _joursCourts = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven'];
 const _joursLongs = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi', 'Dimanche'];
 const _moisLongs = ['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre'];
@@ -70,18 +46,19 @@ int semaineIso(DateTime d) {
 /// Lundi de la semaine de [d].
 DateTime lundiDe(DateTime d) => DateTime(d.year, d.month, d.day).subtract(Duration(days: d.weekday - 1));
 
-/// Planning de prospection d'ABC Pilot (maquette) : semaine, compteurs du pipeline, créneaux du jour.
+/// Ma tournée de prospection (onglet « Tournée » d'ABC Pilot) : la semaine, puis les étapes du jour.
 ///
-/// Les créneaux (réunions, rendez-vous prospect, accompagnements, négociations) demandent un agenda côté serveur
-/// qui n'existe pas encore : la liste est vide tant que l'API ne le fournit pas.
-class PilotPlanningPage extends ConsumerStatefulWidget {
-  const PilotPlanningPage({super.key});
+/// Les étapes sont celles de MA tournée (`/tournees/me`, les mêmes que sur le web) : visites de magasins ou de
+/// prospects, accompagnements, RDV. Le bouton « Saisir le rapport » ouvre le formulaire qui en ajoute une ; tant
+/// qu'elle n'est pas partie sur le serveur, elle s'affiche « En attente d'envoi ».
+class PilotTourneePage extends ConsumerStatefulWidget {
+  const PilotTourneePage({super.key});
 
   @override
-  ConsumerState<PilotPlanningPage> createState() => _PilotPlanningPageState();
+  ConsumerState<PilotTourneePage> createState() => _PilotTourneePageState();
 }
 
-class _PilotPlanningPageState extends ConsumerState<PilotPlanningPage> {
+class _PilotTourneePageState extends ConsumerState<PilotTourneePage> {
   late DateTime _lundi;
   late DateTime _jour;
 
@@ -104,20 +81,43 @@ class _PilotPlanningPageState extends ConsumerState<PilotPlanningPage> {
     ..hideCurrentSnackBar()
     ..showSnackBar(SnackBar(content: Text('$nom : bientôt disponible.')));
 
+  Future<void> _nouveauRdv() async {
+    final jour = await context.push<DateTime>('/rdv/nouveau?date=${jourIso(_jour)}');
+    // On se place sur le jour du rendez-vous ajouté, dans la semaine qui le contient.
+    if (jour != null && mounted) {
+      setState(() {
+        _lundi = lundiDe(jour);
+        _jour = DateTime(jour.year, jour.month, jour.day);
+      });
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final violet = SpacePalette.pilot.accent;
-    final compteurs = ref.watch(compteursProspectionProvider).value;
     final jours = [for (var i = 0; i < 5; i++) _lundi.add(Duration(days: i))];
-    final auj = DateTime.now();
     bool memeJour(DateTime a, DateTime b) => a.year == b.year && a.month == b.month && a.day == b.day;
+
+    // Étapes de la semaine : celles du serveur (copie locale) plus celles saisies et pas encore envoyées.
+    final finSemaine = _lundi.add(const Duration(days: 7));
+    final etapes = [
+      ...(ref.watch(etapesSemaineProvider(_lundi)).value ?? const <EtapeTournee>[]),
+      for (final e in ref.watch(etapesEnAttenteProvider).value ?? const <EtapeTournee>[])
+        if (!e.jour.isBefore(_lundi) && e.jour.isBefore(finSemaine)) e,
+    ];
+    List<EtapeTournee> duJour(DateTime d) => [for (final e in etapes) if (memeJour(e.jour, d)) e]
+      ..sort((a, b) => (a.heure ?? '99:99').compareTo(b.heure ?? '99:99'));
+    final etapesJour = duJour(_jour);
+    final faites = etapesJour.where((e) => e.fait).length;
+    // Une étape part (ou est refusée) : on relit la semaine pour que la liste suive le serveur.
+    ref.listen(etapesEnAttenteProvider, (_, _) => ref.read(miseAJourLocaleProvider).etapes(_lundi));
 
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: SystemUiOverlayStyle.light,
       child: Stack(children: [
         RefreshIndicator(
           onRefresh: () async {
-            await ref.read(miseAJourLocaleProvider).prospection();
+            await ref.read(miseAJourLocaleProvider).etapes(_lundi);
           },
           child: ListView(
             padding: EdgeInsets.zero,
@@ -129,7 +129,7 @@ class _PilotPlanningPageState extends ConsumerState<PilotPlanningPage> {
                   Row(children: [
                     Expanded(
                       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                        const Text('Planning de prospection', style: TextStyle(color: Colors.white, fontSize: 21, fontWeight: FontWeight.w800)),
+                        const Text('Ma tournée de prospection', style: TextStyle(color: Colors.white, fontSize: 21, fontWeight: FontWeight.w800)),
                         const SizedBox(height: 2),
                         Text(
                           '${_moisLongs[_jour.month - 1][0].toUpperCase()}${_moisLongs[_jour.month - 1].substring(1)} ${_jour.year} · semaine ${semaineIso(_lundi)}',
@@ -141,7 +141,7 @@ class _PilotPlanningPageState extends ConsumerState<PilotPlanningPage> {
                     const SizedBox(width: 6),
                     _BoutonRond(icon: Icons.chevron_right, onTap: () => _changerSemaine(1), tooltip: 'Semaine suivante'),
                     const SizedBox(width: 6),
-                    _BoutonRond(icon: Icons.filter_alt_outlined, onTap: () => _bientot('Filtres'), tooltip: 'Filtres'),
+                    _BoutonRond(icon: Icons.map_outlined, onTap: () => _bientot('Carte de la tournée'), tooltip: 'Carte'),
                   ]),
                   const SizedBox(height: 16),
                   Row(children: [
@@ -152,7 +152,7 @@ class _PilotPlanningPageState extends ConsumerState<PilotPlanningPage> {
                           nom: _joursCourts[i],
                           numero: jours[i].day,
                           actif: memeJour(jours[i], _jour),
-                          aujourdhui: memeJour(jours[i], auj),
+                          rdv: duJour(jours[i]).length,
                           onTap: () => setState(() => _jour = jours[i]),
                         ),
                       ),
@@ -161,33 +161,26 @@ class _PilotPlanningPageState extends ConsumerState<PilotPlanningPage> {
                 ]),
               ),
               Padding(
-                padding: const EdgeInsets.fromLTRB(16, 14, 16, 110),
+                padding: const EdgeInsets.fromLTRB(16, 18, 16, 110),
                 child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
                   Row(children: [
-                    Expanded(child: _Compteur(valeur: compteurs?.aContacter, label: 'À contacter')),
-                    const SizedBox(width: 8),
-                    Expanded(child: _Compteur(valeur: compteurs?.rdvPris, label: 'RDV pris')),
-                    const SizedBox(width: 8),
-                    Expanded(child: _Compteur(valeur: compteurs?.enNego, label: 'En négo')),
-                    const SizedBox(width: 8),
-                    Expanded(child: _Compteur(valeur: compteurs?.references, label: 'Référencé', accent: true)),
-                  ]),
-                  const SizedBox(height: 22),
-                  Row(children: [
                     Expanded(child: Text('${_joursLongs[_jour.weekday - 1]} ${_jour.day} ${_moisLongs[_jour.month - 1]}', style: const TextStyle(fontSize: 19, fontWeight: FontWeight.w800))),
-                    const Text('0 créneau', style: TextStyle(color: StatusColors.muted, fontSize: 13)),
+                    if (etapesJour.isNotEmpty) Text('$faites / ${etapesJour.length} faites', style: const TextStyle(color: StatusColors.muted, fontSize: 13)),
                   ]),
                   const SizedBox(height: 14),
-                  const Card(
-                    child: Padding(
-                      padding: EdgeInsets.all(24),
-                      child: Text(
-                        'Aucun créneau. L\'agenda de prospection (réunions, rendez-vous, accompagnements) n\'est pas encore relié au serveur.',
-                        textAlign: TextAlign.center,
-                        style: TextStyle(color: StatusColors.muted),
+                  if (etapesJour.isEmpty)
+                    const Card(
+                      child: Padding(
+                        padding: EdgeInsets.all(24),
+                        child: Text(
+                          'Aucune étape ce jour. Touchez « Saisir le rapport » pour planifier un rendez-vous.',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(color: StatusColors.muted),
+                        ),
                       ),
-                    ),
-                  ),
+                    )
+                  else
+                    for (final e in etapesJour) _Etape(etape: e),
                 ]),
               ),
             ],
@@ -197,13 +190,13 @@ class _PilotPlanningPageState extends ConsumerState<PilotPlanningPage> {
           right: 16,
           bottom: 16,
           child: FloatingActionButton.extended(
-            onPressed: () => _bientot('Nouveau RDV'),
+            onPressed: _nouveauRdv,
             backgroundColor: violet,
             foregroundColor: Colors.white,
             elevation: 4,
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-            icon: const Icon(Icons.add),
-            label: const Text('Nouveau RDV', style: TextStyle(fontWeight: FontWeight.w800)),
+            icon: const Icon(Icons.description_outlined),
+            label: const Text('Saisir le rapport', style: TextStyle(fontWeight: FontWeight.w800)),
           ),
         ),
       ]),
@@ -234,13 +227,92 @@ class _BoutonRond extends StatelessWidget {
       );
 }
 
+/// Couleurs d'une étape selon son état (maquette) : fait (vert), négociation (jaune), prospect (bleu), client (violet).
+({String libelle, Color fond, Color titre}) _style(EtapeTournee e) {
+  if (e.fait) return (libelle: 'Fait ✓', fond: const Color(0xFFDDF5E6), titre: const Color(0xFF166534));
+  if (e.type == 'ADM') return (libelle: 'ADM', fond: const Color(0xFFEDEFF3), titre: const Color(0xFF374151));
+  if (e.type == 'PROSPECT') {
+    final negociation = e.statutProspect == 'PROPOSITION' || e.statutProspect == 'NEGOCIATION';
+    return negociation
+        ? (libelle: 'Négo', fond: const Color(0xFFFCEFC6), titre: const Color(0xFF92400E))
+        : (libelle: 'Prospect', fond: const Color(0xFFDFE8FF), titre: const Color(0xFF1E3A8A));
+  }
+  return (libelle: 'Client', fond: const Color(0xFFEBE5FF), titre: const Color(0xFF5B21B6));
+}
+
+/// Une étape du jour : heure à gauche, carte colorée à droite (enseigne – ville, qualification, note, statut).
+class _Etape extends StatelessWidget {
+  const _Etape({required this.etape});
+
+  final EtapeTournee etape;
+
+  @override
+  Widget build(BuildContext context) {
+    final s = _style(etape);
+    final details = [
+      if (etape.accompagnement) 'Accompagnement' else if (etape.visiteSimple) 'Visite simple',
+      if (etape.rdv) 'RDV',
+      if (etape.soireeEtape) 'Soirée étape${(etape.soireeLieu ?? '').isEmpty ? '' : ' (${etape.soireeLieu})'}',
+      if ((etape.note ?? '').isNotEmpty) etape.note!,
+    ];
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        SizedBox(
+          width: 54,
+          child: Padding(
+            padding: const EdgeInsets.only(top: 12),
+            child: Text(etape.heure ?? '—', style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w800)),
+          ),
+        ),
+        Expanded(
+          child: Container(
+            padding: const EdgeInsets.fromLTRB(14, 12, 12, 12),
+            decoration: BoxDecoration(color: s.fond, borderRadius: BorderRadius.circular(14)),
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Expanded(
+                  child: Text(
+                    '${etape.titre}${etape.ville == null ? '' : ' – ${etape.ville}'}',
+                    style: TextStyle(fontWeight: FontWeight.w800, fontSize: 14.5, color: s.titre),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(8)),
+                  child: Text(s.libelle, style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w800, color: s.titre)),
+                ),
+              ]),
+              if (details.isNotEmpty) ...[
+                const SizedBox(height: 4),
+                Text(details.join(' · '), style: TextStyle(fontSize: 12.5, color: s.titre.withValues(alpha: .85))),
+              ],
+              if (etape.enAttente) ...[
+                const SizedBox(height: 6),
+                const Row(mainAxisSize: MainAxisSize.min, children: [
+                  Icon(Icons.schedule_send_outlined, size: 14, color: StatusColors.warn),
+                  SizedBox(width: 4),
+                  Text('En attente d\'envoi', style: TextStyle(fontSize: 12, color: StatusColors.warn, fontWeight: FontWeight.w700)),
+                ]),
+              ],
+            ]),
+          ),
+        ),
+      ]),
+    );
+  }
+}
+
 class _Jour extends StatelessWidget {
-  const _Jour({required this.nom, required this.numero, required this.actif, required this.aujourdhui, required this.onTap});
+  const _Jour({required this.nom, required this.numero, required this.actif, required this.rdv, required this.onTap});
 
   final String nom;
   final int numero;
   final bool actif;
-  final bool aujourdhui;
+
+  /// Nombre d'étapes du jour, affiché sous le numéro.
+  final int rdv;
   final VoidCallback onTap;
 
   @override
@@ -256,41 +328,10 @@ class _Jour extends StatelessWidget {
           Text(nom, style: TextStyle(color: actif ? violet : Colors.white70, fontSize: 12, fontWeight: FontWeight.w600)),
           const SizedBox(height: 2),
           Text('$numero', style: TextStyle(color: actif ? const Color(0xFF111827) : Colors.white, fontSize: 20, fontWeight: FontWeight.w800)),
-          const SizedBox(height: 4),
-          // Point sous le jour courant (maquette : point sous les jours qui ont des créneaux).
-          Container(width: 5, height: 5, decoration: BoxDecoration(color: aujourdhui ? (actif ? violet : Colors.white) : Colors.transparent, shape: BoxShape.circle)),
+          const SizedBox(height: 2),
+          Text('$rdv RDV', style: TextStyle(color: actif ? violet : Colors.white70, fontSize: 10.5, fontWeight: FontWeight.w700)),
         ]),
       ),
-    );
-  }
-}
-
-class _Compteur extends StatelessWidget {
-  const _Compteur({required this.valeur, required this.label, this.accent = false});
-
-  final int? valeur;
-  final String label;
-  final bool accent;
-
-  @override
-  Widget build(BuildContext context) {
-    final violet = SpacePalette.pilot.accent;
-    return Container(
-      padding: const EdgeInsets.fromLTRB(10, 10, 10, 10),
-      decoration: BoxDecoration(
-        color: accent ? violet.withValues(alpha: .10) : Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: accent ? Colors.transparent : const Color(0xFFE8EAF2)),
-      ),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Text(valeur == null ? '—' : '$valeur', style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800, color: accent ? violet : null)),
-        const SizedBox(height: 2),
-        FittedBox(
-          fit: BoxFit.scaleDown,
-          alignment: Alignment.centerLeft,
-          child: Text(label, style: TextStyle(fontSize: 11, fontWeight: accent ? FontWeight.w800 : FontWeight.w500, color: accent ? violet : StatusColors.muted)),
-        ),
-      ]),
     );
   }
 }

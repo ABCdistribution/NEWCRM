@@ -89,7 +89,8 @@ final currentRoleProvider = Provider<Role?>((ref) => ref.watch(sessionProvider).
 
 class SpaceNotifier extends Notifier<Space> {
   @override
-  Space build() => Space.sales; // ABC Sales est l'espace par défaut pour tous les rôles
+  // À chaque connexion (changement de rôle), on ouvre l'espace du rôle : ABC Pilot pour l'encadrement, ABC Sales sinon.
+  Space build() => ref.watch(currentRoleProvider)?.defaultSpace ?? Space.sales;
 
   /// N'accepte que les espaces autorisés pour le rôle : masquer un écran ne remplace pas le contrôle du serveur,
   /// mais l'application ne propose jamais un espace interdit.

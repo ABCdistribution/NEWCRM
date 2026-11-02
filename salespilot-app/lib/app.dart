@@ -14,6 +14,8 @@ import 'features/magasins/magasins_page.dart';
 import 'features/produits/produits_page.dart';
 import 'features/profil/plus_page.dart';
 import 'features/shell/app_shell.dart';
+import 'features/pilot/nouveau_prospect_page.dart';
+import 'features/pilot/nouveau_rdv_page.dart';
 import 'features/sync/sync_page.dart';
 import 'features/tournee/tournee_page.dart';
 import 'features/visite/visite_etapes_page.dart';
@@ -65,6 +67,17 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(path: '/visite/:id', builder: (_, state) => VisiteEtapesPage(id: state.pathParameters['id']!)),
       GoRoute(path: '/visite/:id/saisie', builder: (_, state) => VisitePage(id: state.pathParameters['id']!)),
       GoRoute(path: '/sync', builder: (_, _) => const SyncPage()),
+      GoRoute(path: '/prospects/nouveau', builder: (_, _) => const NouveauProspectPage()),
+      // Fiche magasin ouverte depuis ABC Pilot : hors de la coque d'ABC Sales (dont les onglets ne s'affichent pas en Pilot).
+      GoRoute(
+        path: '/pilot/magasins/:id',
+        builder: (_, state) => Scaffold(body: MagasinFichePage(id: state.pathParameters['id']!, magasin: state.extra as Magasin?)),
+      ),
+      // « Nouveau RDV » d'ABC Pilot (planning de l'encadrement) ; `date` = jour proposé au départ (yyyy-mm-dd).
+      GoRoute(
+        path: '/rdv/nouveau',
+        builder: (_, state) => NouveauRdvPage(date: DateTime.tryParse(state.uri.queryParameters['date'] ?? '')),
+      ),
       // Profil : accessible depuis l'avatar des accueils (la navigation du bas porte désormais les Produits).
       GoRoute(
         path: '/profil',

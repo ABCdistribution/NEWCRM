@@ -6,10 +6,13 @@ import '../../core/auth/role.dart';
 import '../../core/config.dart';
 import '../../core/providers.dart';
 import '../../core/theme/app_theme.dart';
+import '../pilot/pilot_accueil_jour_page.dart';
 import '../pilot/pilot_accueil_page.dart';
+import '../pilot/pilot_magasins_page.dart';
 import '../prechargement.dart';
 import 'premier_chargement.dart';
 import '../pilot/pilot_planning_page.dart';
+import '../pilot/pilot_prospects_page.dart';
 
 /// Pastille permanente : nombre d'éléments non envoyés, visible sur tous les écrans (CDC §4.3).
 /// Neutre, orange à partir de 24 h, rouge à partir de 48 h d'ancienneté du plus vieil élément.
@@ -55,6 +58,35 @@ class PendingBadge extends ConsumerWidget {
         ),
       ),
     );
+  }
+}
+
+/// Actions de l'en-tête des accueils : une cloche (les notifications arriveront plus tard), précédée de la pastille
+/// d'envoi uniquement quand des éléments attendent. « Tout est synchronisé » n'est plus affiché : c'est l'état normal ;
+/// la pastille réapparaît (orange, puis rouge) dès qu'une saisie tarde à partir (CDC §4.3).
+class EnteteActions extends ConsumerWidget {
+  const EnteteActions({super.key});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final enAttente = (ref.watch(pendingCountProvider).value ?? 0) > 0;
+    return Row(mainAxisSize: MainAxisSize.min, children: [
+      if (enAttente) const PendingBadge(),
+      Semantics(
+        label: 'Notifications',
+        button: true,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(20),
+          onTap: () => ScaffoldMessenger.of(context)
+            ..hideCurrentSnackBar()
+            ..showSnackBar(const SnackBar(content: Text('Notifications : bientôt disponible.'))),
+          child: const Padding(
+            padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            child: Icon(Icons.notifications_none_outlined, color: Colors.white, size: 24),
+          ),
+        ),
+      ),
+    ]);
   }
 }
 
@@ -113,10 +145,11 @@ class AppShell extends ConsumerWidget {
           Expanded(
             child: space == Space.pilot
                 ? IndexedStack(index: ref.watch(pilotTabProvider), children: const [
-                    PilotAccueilPage(),
-                    PilotBientot(titre: 'Équipe', icon: Icons.groups_outlined),
-                    PilotPlanningPage(),
-                    PilotBientot(titre: 'Prospects', icon: Icons.track_changes),
+                    PilotAccueilJourPage(),
+                    PilotMagasinsPage(),
+                    PilotProspectsPage(),
+                    PilotTourneePage(),
+                    PilotBientot(titre: 'Rapports', icon: Icons.description_outlined),
                   ])
                 // La bannière occupe déjà la zone de la barre d'état : l'en-tête de l'accueil ne la compte pas deux fois.
                 : (expired && accueil ? MediaQuery.removePadding(context: context, removeTop: true, child: shell) : shell),
@@ -128,10 +161,11 @@ class AppShell extends ConsumerWidget {
               selectedIndex: ref.watch(pilotTabProvider),
               onDestinationSelected: (i) => ref.read(pilotTabProvider.notifier).select(i),
               destinations: const [
-                NavigationDestination(icon: Icon(Icons.bar_chart_outlined), selectedIcon: Icon(Icons.bar_chart), label: 'Tableau'),
-                NavigationDestination(icon: Icon(Icons.groups_outlined), selectedIcon: Icon(Icons.groups), label: 'Équipe'),
-                NavigationDestination(icon: Icon(Icons.calendar_today_outlined), selectedIcon: Icon(Icons.calendar_today), label: 'Planning'),
+                NavigationDestination(icon: Icon(Icons.home_outlined), selectedIcon: Icon(Icons.home), label: 'Accueil'),
+                NavigationDestination(icon: Icon(Icons.storefront_outlined), selectedIcon: Icon(Icons.storefront), label: 'Magasins'),
                 NavigationDestination(icon: Icon(Icons.track_changes), label: 'Prospects'),
+                NavigationDestination(icon: Icon(Icons.location_on_outlined), selectedIcon: Icon(Icons.location_on), label: 'Tournée'),
+                NavigationDestination(icon: Icon(Icons.description_outlined), selectedIcon: Icon(Icons.description), label: 'Rapports'),
               ],
             )
           : NavigationBar(

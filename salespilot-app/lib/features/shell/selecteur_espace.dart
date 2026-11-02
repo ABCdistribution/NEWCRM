@@ -5,8 +5,8 @@ import '../../core/auth/role.dart';
 import '../../core/providers.dart';
 import '../../core/theme/app_theme.dart';
 
-/// Sélecteur Sales / Pilotage des en-têtes d'accueil. Pilotage est verrouillé pour les rôles sans accès : le
-/// serveur reste juge, l'application ne propose simplement pas l'espace (CDC §3.0).
+/// Sélecteur Sales / Pilotage des en-têtes d'accueil, réservé à l'encadrement : pour les autres rôles il est masqué.
+/// Le serveur reste juge, l'application ne propose simplement pas l'espace (CDC §3.0).
 class SelecteurEspace extends ConsumerWidget {
   const SelecteurEspace({super.key, required this.space});
 
@@ -15,34 +15,22 @@ class SelecteurEspace extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    // Promoteur, ADV, marketing : aucun accès à ABC Pilot, le sélecteur n'est pas affiché du tout.
     final peutBasculer = ref.watch(currentRoleProvider)?.canSwitchSpace ?? false;
+    if (!peutBasculer) return const SizedBox.shrink();
     final couleur = SpacePalette.of(space).accent;
 
     Widget onglet(Space cible, String label) {
       final actif = cible == space;
-      final verrou = cible == Space.pilot && !peutBasculer;
       return Expanded(
         child: InkWell(
           borderRadius: BorderRadius.circular(12),
-          onTap: actif
-              ? null
-              : () {
-                  if (verrou) {
-                    ScaffoldMessenger.of(context)
-                      ..hideCurrentSnackBar()
-                      ..showSnackBar(const SnackBar(content: Text('ABC Pilot est réservé à l\'encadrement.')));
-                  } else {
-                    ref.read(spaceProvider.notifier).select(cible);
-                  }
-                },
+          onTap: actif ? null : () => ref.read(spaceProvider.notifier).select(cible),
           child: Container(
             height: 40,
             alignment: Alignment.center,
             decoration: BoxDecoration(color: actif ? Colors.white : Colors.transparent, borderRadius: BorderRadius.circular(12)),
-            child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-              if (verrou) const Padding(padding: EdgeInsets.only(right: 6), child: Icon(Icons.lock_outline, size: 16, color: Colors.white)),
-              Text(label, style: TextStyle(color: actif ? couleur : Colors.white, fontWeight: actif ? FontWeight.w800 : FontWeight.w700)),
-            ]),
+            child: Text(label, style: TextStyle(color: actif ? couleur : Colors.white, fontWeight: actif ? FontWeight.w800 : FontWeight.w700)),
           ),
         ),
       );
