@@ -455,6 +455,8 @@ ANNULEE ANNULEE
     Boolean fait 
     String note "❓"
     Boolean adm 
+    String libelle "❓"
+    String adresse "❓"
     Boolean visiteSimple 
     Boolean accompagnement 
     Boolean rdv 
@@ -474,6 +476,8 @@ ANNULEE ANNULEE
     DateTime prevuAt "❓"
     DateTime valideAt "❓"
     Int nbEtapesPrevues "❓"
+    Json previsionEtapes "❓"
+    Boolean valideAuto 
     DateTime createdAt 
     DateTime updatedAt 
     }

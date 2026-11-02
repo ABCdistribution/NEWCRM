@@ -22,6 +22,8 @@ import { Roles } from '../auth/decorators/roles.decorator';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { PrismaService } from '../prisma/prisma.service';
 import { icalToken } from './ical.controller';
+import { RapportsService } from './rapports.service';
+import { dateDePassage, lundiDe } from './rapport-semaine.util';
 
 class CreateEtapeDto {
   @ApiPropertyOptional({ description: 'Étape ADM (administrative) — aucune cible magasin/prospect' })
@@ -38,6 +40,18 @@ class CreateEtapeDto {
   @IsOptional()
   @IsUUID()
   prospectId?: string;
+
+  @ApiPropertyOptional({ description: "Client ou lieu en texte libre (rapport d'activité), à la place de clientId / prospectId" })
+  @IsOptional()
+  @IsString()
+  @MaxLength(200)
+  libelle?: string;
+
+  @ApiPropertyOptional({ description: 'Adresse de la ligne (texte libre)' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(300)
+  adresse?: string;
 
   @ApiPropertyOptional({ description: 'Date de passage (yyyy-mm-dd ou ISO)' })
   @IsDateString()
@@ -89,6 +103,18 @@ class CreateEtapeDto {
 }
 
 class UpdateEtapeDto {
+  @ApiPropertyOptional({ description: 'Client ou lieu en texte libre' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(200)
+  libelle?: string;
+
+  @ApiPropertyOptional({ description: 'Adresse de la ligne' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(300)
+  adresse?: string;
+
   @ApiPropertyOptional()
   @IsOptional()
   @IsBoolean()
@@ -144,18 +170,11 @@ class SemaineDto {
   semaine!: string;
 }
 
-/** Lundi (minuit UTC) de la semaine contenant `d` — colonne @db.Date. */
-function lundiDe(d: string): Date {
-  const x = new Date(d.slice(0, 10) + 'T00:00:00.000Z');
-  x.setUTCDate(x.getUTCDate() - ((x.getUTCDay() + 6) % 7));
-  return x;
-}
-
-const semaineSelect = { semaine: true, prevuAt: true, valideAt: true, nbEtapesPrevues: true } as const;
-
 const etapeSelect = {
   id: true,
   adm: true,
+  libelle: true,
+  adresse: true,
   datePassage: true,
   fait: true,
   note: true,
@@ -165,8 +184,19 @@ const etapeSelect = {
   soireeEtape: true,
   soireeLieu: true,
   soireeAdresse: true,
-  client: { select: { id: true, codeAs400: true, enseigne: true, ville: true, niveauClass: true } },
-  prospect: { select: { id: true, enseigne: true, ville: true, statut: true, niveauClass: true } },
+  // Adresse et coordonnées : pour l'itinéraire depuis l'application mobile.
+  client: {
+    select: {
+      id: true, codeAs400: true, enseigne: true, ville: true, niveauClass: true,
+      adresse1: true, codePostal: true, latitude: true, longitude: true,
+    },
+  },
+  prospect: {
+    select: {
+      id: true, enseigne: true, ville: true, statut: true, niveauClass: true,
+      adresse1: true, codePostal: true, latitude: true, longitude: true,
+    },
+  },
 } as const;
 
 /**
@@ -180,7 +210,10 @@ const etapeSelect = {
 @Roles(Role.CHEF_SECTEUR, Role.DIRECTEUR_REGIONAL, Role.DIRECTION, Role.ADMIN)
 @Controller('tournees')
 export class TourneesController {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly rapports: RapportsService,
+  ) {}
 
   @Get('me')
   @ApiOperation({ summary: 'Mes étapes de tournée sur [debut, fin) — prospects et magasins mêlés' })
@@ -238,60 +271,38 @@ export class TourneesController {
   }
 
   @Get('semaine')
-  @ApiOperation({ summary: "État (prévision / validation) de MA semaine — `null` si rien d'enregistré" })
+  @ApiOperation({
+    summary:
+      "État de MA semaine : phase (prévision jusqu'au lundi soir, puis rapport), prévision enregistrée ou « non renseignée », validation (manuelle ou automatique)",
+  })
   async semaine(@Query('semaine') semaine: string, @CurrentUser() me: User) {
     if (!semaine) throw new BadRequestException('Paramètre `semaine` requis (yyyy-mm-dd).');
-    const lundi = lundiDe(semaine);
-    const ligne = await this.prisma.planningSemaine.findUnique({
-      where: { userId_semaine: { userId: me.id, semaine: lundi } },
-      select: semaineSelect,
-    });
-    return ligne ?? { semaine: lundi, prevuAt: null, valideAt: null, nbEtapesPrevues: null };
+    return this.rapports.etat(me.id, lundiDe(semaine));
+  }
+
+  @Get('semaine/prevue')
+  @ApiOperation({ summary: 'Tournée PRÉVUE de MA semaine (la photographie enregistrée) — null si la prévision n\'a pas été renseignée' })
+  async prevue(@Query('semaine') semaine: string, @CurrentUser() me: User) {
+    if (!semaine) throw new BadRequestException('Paramètre `semaine` requis (yyyy-mm-dd).');
+    return { prevue: await this.rapports.prevuePour(me.id, lundiDe(semaine)) };
   }
 
   @Post('semaine/prevision')
-  @ApiOperation({ summary: 'Enregistre la prévision de MA semaine (idempotent, refusé si déjà validée)' })
-  async prevision(@Body() dto: SemaineDto, @CurrentUser() me: User) {
-    const lundi = lundiDe(dto.semaine);
-    const existante = await this.prisma.planningSemaine.findUnique({
-      where: { userId_semaine: { userId: me.id, semaine: lundi } },
-    });
-    if (existante?.valideAt) throw new ConflictException('Cette semaine est déjà validée.');
-    const nb = await this.nbEtapes(me.id, lundi);
-    if (nb === 0) throw new BadRequestException('Aucune étape planifiée cette semaine.');
-    return this.prisma.planningSemaine.upsert({
-      where: { userId_semaine: { userId: me.id, semaine: lundi } },
-      create: { userId: me.id, semaine: lundi, prevuAt: new Date(), nbEtapesPrevues: nb },
-      update: { prevuAt: new Date(), nbEtapesPrevues: nb },
-      select: semaineSelect,
-    });
+  @ApiOperation({
+    summary:
+      "Enregistre la tournée PRÉVUE de MA semaine (photographie des étapes) : modifiable jusqu'au lundi soir, figée dès le mardi ; refusée si vide",
+  })
+  prevision(@Body() dto: SemaineDto, @CurrentUser() me: User) {
+    return this.rapports.enregistrerPrevision(me.id, lundiDe(dto.semaine));
   }
 
   @Post('semaine/validation')
-  @ApiOperation({ summary: 'Valide MA semaine (verrouille ; enregistre aussi la prévision si absente)' })
-  async validation(@Body() dto: SemaineDto, @CurrentUser() me: User) {
-    const lundi = lundiDe(dto.semaine);
-    const existante = await this.prisma.planningSemaine.findUnique({
-      where: { userId_semaine: { userId: me.id, semaine: lundi } },
-    });
-    if (existante?.valideAt) throw new ConflictException('Cette semaine est déjà validée.');
-    const nb = await this.nbEtapes(me.id, lundi);
-    if (nb === 0) throw new BadRequestException('Aucune étape planifiée cette semaine.');
-    const maintenant = new Date();
-    return this.prisma.planningSemaine.upsert({
-      where: { userId_semaine: { userId: me.id, semaine: lundi } },
-      create: { userId: me.id, semaine: lundi, prevuAt: maintenant, valideAt: maintenant, nbEtapesPrevues: nb },
-      update: { valideAt: maintenant, prevuAt: existante?.prevuAt ?? maintenant, nbEtapesPrevues: existante?.nbEtapesPrevues ?? nb },
-      select: semaineSelect,
-    });
-  }
-
-  private nbEtapes(userId: string, lundi: Date): Promise<number> {
-    const suivant = new Date(lundi);
-    suivant.setUTCDate(suivant.getUTCDate() + 7);
-    return this.prisma.tourneeEtape.count({
-      where: { userId, deletedAt: null, datePassage: { gte: lundi, lt: suivant } },
-    });
+  @ApiOperation({
+    summary:
+      'Valide le rapport de MA semaine (dès le mardi) : la tournée réalisée devient définitive et la semaine est verrouillée. Rapport vide : reprend la prévision si elle existe, sinon refusé',
+  })
+  validation(@Body() dto: SemaineDto, @CurrentUser() me: User) {
+    return this.rapports.valider(me.id, lundiDe(dto.semaine));
   }
 
   @Post()
@@ -301,8 +312,13 @@ export class TourneesController {
       if (dto.clientId || dto.prospectId) {
         throw new BadRequestException('Une étape ADM ne porte pas de cible magasin/prospect.');
       }
+    } else if (dto.libelle?.trim()) {
+      // Saisie libre du rapport d'activité : du texte à la place d'un client ou d'un prospect de la liste.
+      if (dto.clientId || dto.prospectId) {
+        throw new BadRequestException('Une ligne libre ne porte pas de clientId / prospectId.');
+      }
     } else if (!dto.clientId === !dto.prospectId) {
-      throw new BadRequestException('Renseigner soit clientId, soit prospectId (exactement un des deux).');
+      throw new BadRequestException('Renseigner soit clientId, soit prospectId (exactement un des deux), ou un libellé libre.');
     }
     // Rejeu de l'outbox mobile : l'étape existe déjà → on la renvoie telle quelle.
     if (dto.idApk) {
@@ -312,13 +328,17 @@ export class TourneesController {
       });
       if (existante) return existante;
     }
+    // Une semaine validée est verrouillée : plus aucune ligne ne s'y ajoute.
+    await this.rapports.verifierModifiable(me.id, dateDePassage(dto.datePassage));
     return this.prisma.tourneeEtape.create({
       data: {
         userId: me.id,
         adm: dto.adm ?? false,
+        libelle: dto.adm ? null : dto.libelle?.trim() || null,
+        adresse: dto.adresse?.trim() || null,
         clientId: dto.clientId ?? null,
         prospectId: dto.prospectId ?? null,
-        datePassage: new Date(dto.datePassage),
+        datePassage: dateDePassage(dto.datePassage),
         note: dto.note?.trim() || null,
         visiteSimple: dto.visiteSimple ?? !dto.accompagnement,
         accompagnement: dto.accompagnement ?? false,
@@ -343,6 +363,9 @@ export class TourneesController {
       where: { id, userId: me.id, deletedAt: null },
     });
     if (!etape) throw new NotFoundException(`Étape ${id} introuvable`);
+    // Une semaine validée est verrouillée (et on ne déplace pas une étape vers une semaine validée).
+    await this.rapports.verifierModifiable(me.id, etape.datePassage);
+    if (dto.datePassage) await this.rapports.verifierModifiable(me.id, dateDePassage(dto.datePassage));
 
     // Requalification : on ne touche à la qualification que si un de ses champs est fourni.
     const requalifie = [dto.visiteSimple, dto.accompagnement, dto.rdv, dto.soireeEtape, dto.soireeLieu, dto.soireeAdresse]
@@ -365,8 +388,10 @@ export class TourneesController {
       where: { id },
       data: {
         ...(dto.fait !== undefined ? { fait: dto.fait } : {}),
-        ...(dto.datePassage ? { datePassage: new Date(dto.datePassage) } : {}),
+        ...(dto.datePassage ? { datePassage: dateDePassage(dto.datePassage) } : {}),
         ...(dto.note !== undefined ? { note: dto.note.trim() || null } : {}),
+        ...(dto.libelle !== undefined && !etape.adm ? { libelle: dto.libelle.trim() || null } : {}),
+        ...(dto.adresse !== undefined ? { adresse: dto.adresse.trim() || null } : {}),
         ...qualif,
       },
       select: etapeSelect,
@@ -380,6 +405,7 @@ export class TourneesController {
       where: { id, userId: me.id, deletedAt: null },
     });
     if (!etape) throw new NotFoundException(`Étape ${id} introuvable`);
+    await this.rapports.verifierModifiable(me.id, etape.datePassage);
     await this.prisma.tourneeEtape.update({ where: { id }, data: { deletedAt: new Date() } });
     return { ok: true };
   }
