@@ -307,7 +307,14 @@ async function list<T>(path: string): Promise<Paginated<T>> {
   return (await res.json()) as Paginated<T>;
 }
 
-export function listUsers(params: { search?: string; role?: string; page?: number; limit?: number }) {
+export function listUsers(params: {
+  search?: string;
+  role?: string;
+  secteurId?: string;
+  statut?: string;
+  page?: number;
+  limit?: number;
+}) {
   return list<UserRow>(`/users${qs({ ...params, limit: params.limit ?? 20 })}`);
 }
 
