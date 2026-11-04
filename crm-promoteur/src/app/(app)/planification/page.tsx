@@ -5,9 +5,9 @@ import { PromoteurSelect } from '@/components/promoteur-select';
 import { PlanningBoard } from '@/components/planning-board';
 import { RecurrenceCard } from '@/components/recurrence-card';
 
-export const metadata = { title: 'Planification des visites — ABC Sales' };
+export const metadata = { title: 'Planification des visites — Promoteurs' };
 
-/** Rôles encadrement autorisés à planifier (mêmes que la bascule d'univers). */
+/** Rôles encadrement autorisés à planifier (encadrement). */
 const PLANIF_ROLES = ['ADMIN', 'DIRECTION', 'DIRECTEUR_REGIONAL', 'CHEF_SECTEUR'];
 
 const JOURS = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi'];

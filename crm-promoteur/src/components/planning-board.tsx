@@ -242,7 +242,7 @@ export function PlanningBoard({
                     <p className={`rounded-lg border border-dashed py-2 text-center text-[10px] transition ${
                       isHover ? 'border-accent text-accent' : 'border-navy-600 text-neutral-500'
                     }`}>
-                      Déposer un magasin ici
+                      Déposer un client ici
                     </p>
                   ) : null}
                   <AddVisit promoteurId={promoteurId} date={day.date} clients={portefeuille} />
@@ -267,7 +267,7 @@ export function PlanningBoard({
               type="text"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder="Filtrer les magasins…"
+              placeholder="Filtrer les clients…"
               className="w-full bg-transparent text-xs outline-none placeholder:text-neutral-500"
             />
           </div>
@@ -304,7 +304,7 @@ export function PlanningBoard({
               );
             })}
             {magasins.length === 0 ? (
-              <li className="px-2 py-3 text-center text-xs text-neutral-400">Aucun magasin.</li>
+              <li className="px-2 py-3 text-center text-xs text-neutral-400">Aucun client.</li>
             ) : null}
           </ul>
         </aside>

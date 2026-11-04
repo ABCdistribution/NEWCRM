@@ -177,7 +177,7 @@ export function RappelDetail({ bordereau, onRetour }: { bordereau: Bordereau; on
       <h1>Bordereau ${bordereau.numero} — ${bordereau.lignes} ligne(s)</h1>
       <dl><dt>Date retour</dt><dd>${DATE_FMT.format(new Date(bordereau.dateRetour))}</dd>
       <dt>Promoteur</dt><dd>${bordereau.promoteur}</dd>
-      <dt>Magasin</dt><dd>${bordereau.codeMagasin} — ${bordereau.magasin}</dd></dl>
+      <dt>Client</dt><dd>${bordereau.codeMagasin} — ${bordereau.magasin}</dd></dl>
       <table><thead><tr><th>Libellé produit</th><th>N° lot</th><th>Code EAN</th><th>Code produit Minos</th><th>Ref article</th><th>Qté</th><th>Action</th></tr></thead>
       <tbody>${rows}</tbody></table></body></html>`);
     w.document.close();
@@ -230,7 +230,7 @@ export function RappelDetail({ bordereau, onRetour }: { bordereau: Bordereau; on
           <dd>{DATE_FMT.format(new Date(bordereau.dateRetour))}</dd>
           <dt className="font-semibold">Promoteur</dt>
           <dd>{bordereau.promoteur}</dd>
-          <dt className="font-semibold">Magasin</dt>
+          <dt className="font-semibold">Client</dt>
           <dd>{bordereau.codeMagasin} — {bordereau.magasin}</dd>
         </dl>
 

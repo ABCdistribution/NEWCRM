@@ -38,7 +38,7 @@ export function ScatterObjectif({ points }: { points: PointMagasin[] }) {
   }, [points]);
 
   if (points.length === 0) {
-    return <p className="px-5 py-6 text-sm text-neutral-400">Aucun magasin avec objectif défini.</p>;
+    return <p className="px-5 py-6 text-sm text-neutral-400">Aucun client avec objectif défini.</p>;
   }
 
   const x = (v: number) => M.gauche + (v / max) * (L - M.gauche - M.droite);
@@ -48,7 +48,7 @@ export function ScatterObjectif({ points }: { points: PointMagasin[] }) {
   return (
     <div className="flex flex-col gap-1 px-5 py-4">
       <div className="relative">
-        <svg viewBox={`0 0 ${L} ${H}`} className="w-full" role="img" aria-label="Objectif vs CA réalisé par magasin">
+        <svg viewBox={`0 0 ${L} ${H}`} className="w-full" role="img" aria-label="Objectif vs CA réalisé par client">
           {/* Grille + axes */}
           {graduations.map((g) => (
             <g key={g}>
@@ -113,7 +113,7 @@ export function ScatterObjectif({ points }: { points: PointMagasin[] }) {
         <span className="inline-flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-full bg-emerald-500/70" /> Objectif atteint ou dépassé</span>
         <span className="inline-flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-full bg-red-400/70" /> Sous la diagonale — relance ou OP ({enRetard})</span>
         <Link href="/pilotage/magasins" className="ml-auto font-medium text-brand hover:underline dark:text-accent">
-          Ouvrir les magasins
+          Ouvrir les clients
         </Link>
       </div>
     </div>

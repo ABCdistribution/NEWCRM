@@ -44,8 +44,8 @@ const COLONNES: { key: SortKey; label: string; align?: 'right' }[] = [
   { key: 'lignes', label: 'Lignes', align: 'right' },
   { key: 'dateRetour', label: 'Date retour' },
   { key: 'promoteur', label: 'Promoteur' },
-  { key: 'codeMagasin', label: 'Code magasin' },
-  { key: 'magasin', label: 'Libellé magasin' },
+  { key: 'codeMagasin', label: 'Code client' },
+  { key: 'magasin', label: 'Libellé client' },
 ];
 
 /** Tableau des bordereaux de retour (rappels produits) avec filtres, tri et export. */
@@ -83,7 +83,7 @@ export function RappelsBoard() {
     setSort((s) => (s.key === key ? { key, dir: s.dir === 1 ? -1 : 1 } : { key, dir: key === 'dateRetour' ? -1 : 1 }));
 
   const exportCsv = () => {
-    const header = ['N° bordereau', 'Lignes', 'Date retour', 'Promoteur', 'Code magasin', 'Libellé magasin'];
+    const header = ['N° bordereau', 'Lignes', 'Date retour', 'Promoteur', 'Code client', 'Libellé client'];
     const lines = filtres.map((b) => [b.numero, String(b.lignes), DATE_FMT.format(new Date(b.dateRetour)), b.promoteur, b.codeMagasin, b.magasin]);
     const csv = [header, ...lines].map((r) => r.map((c) => `"${c.replace(/"/g, '""')}"`).join(';')).join('\n');
     const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8' });
@@ -107,9 +107,9 @@ export function RappelsBoard() {
       {/* Filtres */}
       <div className="flex flex-wrap items-end gap-2 rounded-2xl bg-white p-3 shadow-card">
         <label className="flex flex-col gap-1 text-[11px] font-semibold uppercase tracking-wider text-neutral-400">
-          Magasin
+          Client
           <select value={magasin} onChange={(e) => setMagasin(e.target.value)} className={selectCls}>
-            <option value="">Tous les magasins</option>
+            <option value="">Tous les clients</option>
             {magasins.map((m) => (
               <option key={m} value={m}>{m}</option>
             ))}
@@ -139,7 +139,7 @@ export function RappelsBoard() {
             <input
               value={q}
               onChange={(e) => setQ(e.target.value)}
-              placeholder="Bordereau, magasin, promoteur…"
+              placeholder="Bordereau, client, promoteur…"
               className="w-44 bg-transparent text-xs outline-none placeholder:text-neutral-400"
             />
           </div>

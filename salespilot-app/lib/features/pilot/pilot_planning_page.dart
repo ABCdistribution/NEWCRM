@@ -4,7 +4,11 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import 'package:dio/dio.dart';
+
+import '../../core/api/api_client.dart';
 import '../../core/theme/app_theme.dart';
+import 'pilot_prospect_fiche_page.dart' show ouvrirFicheDeLigne;
 import 'tournee_etapes.dart';
 
 /// Nombre de prospects par colonne du planning de prospection, tiré de `GET /prospects/pipeline` (périmètre
@@ -61,6 +65,7 @@ class PilotTourneePage extends ConsumerStatefulWidget {
 class _PilotTourneePageState extends ConsumerState<PilotTourneePage> {
   late DateTime _lundi;
   late DateTime _jour;
+  bool _action = false;
 
   @override
   void initState() {
@@ -81,15 +86,66 @@ class _PilotTourneePageState extends ConsumerState<PilotTourneePage> {
     ..hideCurrentSnackBar()
     ..showSnackBar(SnackBar(content: Text('$nom : bientôt disponible.')));
 
-  Future<void> _nouveauRdv() async {
-    final jour = await context.push<DateTime>('/rdv/nouveau?date=${jourIso(_jour)}');
-    // On se place sur le jour du rendez-vous ajouté, dans la semaine qui le contient.
+  void _message(String texte) => ScaffoldMessenger.of(context)
+    ..hideCurrentSnackBar()
+    ..showSnackBar(SnackBar(content: Text(texte)));
+
+  /// Ouvre le formulaire (ajout d'une ligne, ou modification de [etape]) puis se place sur le jour concerné.
+  Future<void> _ouvrirFormulaire({EtapeTournee? etape}) async {
+    final jour = etape == null
+        ? await context.push<DateTime>('/rdv/nouveau?date=${jourIso(_jour)}')
+        : await context.push<DateTime>('/rdv/nouveau', extra: etape);
+    // On se place sur le jour de la ligne, dans la semaine qui le contient.
     if (jour != null && mounted) {
       setState(() {
         _lundi = lundiDe(jour);
         _jour = DateTime(jour.year, jour.month, jour.day);
       });
     }
+  }
+
+  Future<void> _nouveauRdv() => _ouvrirFormulaire();
+
+  void _modifier(EtapeTournee e, EtatSemaine etat) {
+    if (etat.verrouillee) return _message('Rapport validé : plus rien n\'est modifiable.');
+    if (e.enAttente) return _message('Cette ligne n\'est pas encore envoyée : elle pourra être modifiée dès son envoi.');
+    _ouvrirFormulaire(etape: e);
+  }
+
+  /// Exécute une action du rapport auprès du serveur (en ligne), puis affiche le résultat ou le motif du refus.
+  Future<void> _executer(Future<void> Function() action, String succes) async {
+    setState(() => _action = true);
+    try {
+      await action();
+      if (mounted) _message(succes);
+    } on Object catch (e) {
+      final horsLigne = e is DioException && e.response == null;
+      if (mounted) _message(horsLigne ? 'Connexion requise pour cette action.' : errorMessage(e));
+    } finally {
+      if (mounted) setState(() => _action = false);
+    }
+  }
+
+  Future<void> _enregistrerPrevision() =>
+      _executer(() => ref.read(rapportActionsProvider).enregistrerPrevision(_lundi), 'Prévision enregistrée.');
+
+  Future<void> _validerRapport(int enAttente) async {
+    if (enAttente > 0) {
+      return _message('$enAttente ligne${enAttente > 1 ? 's' : ''} en attente d\'envoi : elles doivent d\'abord partir sur le serveur. Connectez-vous puis réessayez.');
+    }
+    final confirme = await showDialog<bool>(
+      context: context,
+      builder: (c) => AlertDialog(
+        title: const Text('Valider le rapport ?'),
+        content: const Text('La tournée réalisée devient définitive et la semaine est verrouillée : plus rien ne sera modifiable.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(c, false), child: const Text('Annuler')),
+          FilledButton(onPressed: () => Navigator.pop(c, true), child: const Text('Valider')),
+        ],
+      ),
+    );
+    if (confirme != true || !mounted) return;
+    await _executer(() => ref.read(rapportActionsProvider).validerRapport(_lundi), 'Rapport validé.');
   }
 
   @override
@@ -108,6 +164,9 @@ class _PilotTourneePageState extends ConsumerState<PilotTourneePage> {
     List<EtapeTournee> duJour(DateTime d) => [for (final e in etapes) if (memeJour(e.jour, d)) e]
       ..sort((a, b) => (a.heure ?? '99:99').compareTo(b.heure ?? '99:99'));
     final etapesJour = duJour(_jour);
+    final etat = ref.watch(etatSemaineProvider(_lundi)).value ?? EtatSemaine.vierge(_lundi);
+    final prevue = ref.watch(prevueSemaineProvider(_lundi)).value;
+    final enAttenteSemaine = etapes.where((e) => e.enAttente).length;
     final faites = etapesJour.where((e) => e.fait).length;
     // Une étape part (ou est refusée) : on relit la semaine pour que la liste suive le serveur.
     ref.listen(etapesEnAttenteProvider, (_, _) => ref.read(miseAJourLocaleProvider).etapes(_lundi));
@@ -129,7 +188,7 @@ class _PilotTourneePageState extends ConsumerState<PilotTourneePage> {
                   Row(children: [
                     Expanded(
                       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                        const Text('Ma tournée de prospection', style: TextStyle(color: Colors.white, fontSize: 21, fontWeight: FontWeight.w800)),
+                        const Text('Mon planning', style: TextStyle(color: Colors.white, fontSize: 21, fontWeight: FontWeight.w800)),
                         const SizedBox(height: 2),
                         Text(
                           '${_moisLongs[_jour.month - 1][0].toUpperCase()}${_moisLongs[_jour.month - 1].substring(1)} ${_jour.year} · semaine ${semaineIso(_lundi)}',
@@ -163,29 +222,48 @@ class _PilotTourneePageState extends ConsumerState<PilotTourneePage> {
               Padding(
                 padding: const EdgeInsets.fromLTRB(16, 18, 16, 110),
                 child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+                  _BandeauRapport(
+                    etat: etat,
+                    nbLignes: etapes.length,
+                    occupe: _action,
+                    onPrevision: _enregistrerPrevision,
+                    onValider: () => _validerRapport(enAttenteSemaine),
+                  ),
+                  // Dès le mardi la prévision est figée : on la garde sous les yeux pour comparer au réalisé.
+                  if (etat.phase == PhaseSemaine.rapport) _PrevueSemaine(lignes: prevue),
+                  const SizedBox(height: 18),
                   Row(children: [
                     Expanded(child: Text('${_joursLongs[_jour.weekday - 1]} ${_jour.day} ${_moisLongs[_jour.month - 1]}', style: const TextStyle(fontSize: 19, fontWeight: FontWeight.w800))),
                     if (etapesJour.isNotEmpty) Text('$faites / ${etapesJour.length} faites', style: const TextStyle(color: StatusColors.muted, fontSize: 13)),
                   ]),
                   const SizedBox(height: 14),
                   if (etapesJour.isEmpty)
-                    const Card(
+                    Card(
                       child: Padding(
-                        padding: EdgeInsets.all(24),
+                        padding: const EdgeInsets.all(24),
                         child: Text(
-                          'Aucune étape ce jour. Touchez « Saisir le rapport » pour planifier un rendez-vous.',
+                          etat.verrouillee ? 'Aucune ligne ce jour.' : 'Aucune étape ce jour. Touchez « Saisir le rapport » pour ajouter une ligne.',
                           textAlign: TextAlign.center,
-                          style: TextStyle(color: StatusColors.muted),
+                          style: const TextStyle(color: StatusColors.muted),
                         ),
                       ),
                     )
                   else
-                    for (final e in etapesJour) _Etape(etape: e),
+                    // Un appui ouvre la fiche du magasin ou du prospect ; le crayon modifie la ligne du rapport.
+                    for (final e in etapesJour)
+                      _Etape(
+                        etape: e,
+                        onTap: () {
+                          if (!ouvrirFicheDeLigne(context, e)) _modifier(e, etat);
+                        },
+                        onModifier: () => _modifier(e, etat),
+                      ),
                 ]),
               ),
             ],
           ),
         ),
+        if (!etat.verrouillee)
         Positioned(
           right: 16,
           bottom: 16,
@@ -231,6 +309,7 @@ class _BoutonRond extends StatelessWidget {
 ({String libelle, Color fond, Color titre}) _style(EtapeTournee e) {
   if (e.fait) return (libelle: 'Fait ✓', fond: const Color(0xFFDDF5E6), titre: const Color(0xFF166534));
   if (e.type == 'ADM') return (libelle: 'ADM', fond: const Color(0xFFEDEFF3), titre: const Color(0xFF374151));
+  if (e.type == 'LIBRE') return (libelle: 'Libre', fond: const Color(0xFFEFEFEF), titre: const Color(0xFF374151));
   if (e.type == 'PROSPECT') {
     final negociation = e.statutProspect == 'PROPOSITION' || e.statutProspect == 'NEGOCIATION';
     return negociation
@@ -242,9 +321,11 @@ class _BoutonRond extends StatelessWidget {
 
 /// Une étape du jour : heure à gauche, carte colorée à droite (enseigne – ville, qualification, note, statut).
 class _Etape extends StatelessWidget {
-  const _Etape({required this.etape});
+  const _Etape({required this.etape, required this.onTap, required this.onModifier});
 
   final EtapeTournee etape;
+  final VoidCallback onTap;
+  final VoidCallback onModifier;
 
   @override
   Widget build(BuildContext context) {
@@ -266,9 +347,14 @@ class _Etape extends StatelessWidget {
           ),
         ),
         Expanded(
-          child: Container(
+          child: Material(
+            color: s.fond,
+            borderRadius: BorderRadius.circular(14),
+            child: InkWell(
+              borderRadius: BorderRadius.circular(14),
+              onTap: onTap,
+              child: Padding(
             padding: const EdgeInsets.fromLTRB(14, 12, 12, 12),
-            decoration: BoxDecoration(color: s.fond, borderRadius: BorderRadius.circular(14)),
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
               Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
                 Expanded(
@@ -283,6 +369,16 @@ class _Etape extends StatelessWidget {
                   decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(8)),
                   child: Text(s.libelle, style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w800, color: s.titre)),
                 ),
+                // Ligne liée à une fiche : l'appui ouvre la fiche, le crayon ouvre la ligne du rapport.
+                if (etape.type == 'CLIENT' || etape.type == 'PROSPECT')
+                  InkWell(
+                    borderRadius: BorderRadius.circular(12),
+                    onTap: onModifier,
+                    child: Padding(
+                      padding: const EdgeInsets.only(left: 8),
+                      child: Icon(Icons.edit_outlined, size: 18, color: s.titre),
+                    ),
+                  ),
               ]),
               if (details.isNotEmpty) ...[
                 const SizedBox(height: 4),
@@ -297,6 +393,8 @@ class _Etape extends StatelessWidget {
                 ]),
               ],
             ]),
+              ),
+            ),
           ),
         ),
       ]),
@@ -331,6 +429,129 @@ class _Jour extends StatelessWidget {
           const SizedBox(height: 2),
           Text('$rdv RDV', style: TextStyle(color: actif ? violet : Colors.white70, fontSize: 10.5, fontWeight: FontWeight.w700)),
         ]),
+      ),
+    );
+  }
+}
+
+String _dateHeure(DateTime d) =>
+    '${d.day.toString().padLeft(2, '0')}/${d.month.toString().padLeft(2, '0')} à ${d.hour.toString().padLeft(2, '0')}:${d.minute.toString().padLeft(2, '0')}';
+
+/// Les trois temps du rapport de la semaine : prévision (jusqu'au lundi soir), rapport en cours (dès le mardi), validé.
+class _BandeauRapport extends StatelessWidget {
+  const _BandeauRapport({required this.etat, required this.nbLignes, required this.occupe, required this.onPrevision, required this.onValider});
+
+  final EtatSemaine etat;
+  final int nbLignes;
+  final bool occupe;
+  final VoidCallback onPrevision;
+  final VoidCallback onValider;
+
+  @override
+  Widget build(BuildContext context) {
+    final p = SpacePalette.pilot;
+    final IconData icone;
+    final Color couleur;
+    final String titre;
+    final String detail;
+    if (etat.verrouillee) {
+      icone = etat.valideAuto ? Icons.lock_clock_outlined : Icons.verified_outlined;
+      couleur = StatusColors.ok;
+      titre = '${etat.valideAuto ? 'Validé auto' : 'Rapport validé'} le ${_dateHeure(etat.valideAt!)}';
+      detail = 'La semaine est verrouillée : plus rien n\'est modifiable.';
+    } else if (etat.phase == PhaseSemaine.prevision) {
+      icone = etat.prevuAt == null ? Icons.edit_calendar_outlined : Icons.save_outlined;
+      couleur = p.accent;
+      titre = etat.prevuAt == null ? 'Prévision à saisir' : 'Prévision enregistrée le ${_dateHeure(etat.prevuAt!)}';
+      detail = 'Modifiable jusqu\'au lundi soir : le rapport se valide à partir du mardi.';
+    } else {
+      icone = Icons.hourglass_top_outlined;
+      couleur = StatusColors.warn;
+      titre = 'Rapport en cours';
+      final n = etat.nbEtapesPrevues ?? 0;
+      detail = etat.previsionNonRenseignee
+          ? 'Prévision non renseignée. Corrigez les lignes pour refléter la réalité, puis validez.'
+          : 'Prévision figée ($n ligne${n > 1 ? 's' : ''}). Corrigez les lignes pour refléter la réalité, puis validez.';
+    }
+    return Card(
+      margin: EdgeInsets.zero,
+      child: Padding(
+        padding: const EdgeInsets.all(14),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Row(children: [
+            Icon(icone, color: couleur, size: 20),
+            const SizedBox(width: 8),
+            Expanded(child: Text(titre, style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 14.5))),
+          ]),
+          const SizedBox(height: 4),
+          Text(detail, style: const TextStyle(fontSize: 12.5, color: StatusColors.muted)),
+          if (etat.previsionModifiable) ...[
+            const SizedBox(height: 10),
+            OutlinedButton.icon(
+              onPressed: occupe || nbLignes == 0 ? null : onPrevision,
+              icon: const Icon(Icons.save_outlined, size: 18),
+              label: Text(etat.prevuAt == null ? 'Enregistrer la prévision' : 'Mettre à jour la prévision'),
+            ),
+          ],
+          if (etat.peutValider) ...[
+            const SizedBox(height: 10),
+            FilledButton.icon(
+              onPressed: occupe ? null : onValider,
+              style: FilledButton.styleFrom(backgroundColor: p.bouton, foregroundColor: p.surBouton),
+              icon: occupe
+                  ? const SizedBox(height: 18, width: 18, child: CircularProgressIndicator(strokeWidth: 2.2, color: Colors.white))
+                  : const Icon(Icons.verified_outlined, size: 18),
+              label: const Text('Valider le rapport'),
+            ),
+          ],
+        ]),
+      ),
+    );
+  }
+}
+
+/// Tournée prévue de la semaine (la photographie figée dès le mardi), à comparer à la tournée réalisée.
+class _PrevueSemaine extends StatelessWidget {
+  const _PrevueSemaine({required this.lignes});
+
+  /// null : prévision non renseignée (ou inconnue hors ligne).
+  final List<EtapeTournee>? lignes;
+
+  @override
+  Widget build(BuildContext context) {
+    final l = lignes;
+    return Card(
+      margin: const EdgeInsets.only(top: 10),
+      clipBehavior: Clip.antiAlias,
+      child: ExpansionTile(
+        shape: const Border(),
+        collapsedShape: const Border(),
+        leading: const Icon(Icons.assignment_outlined),
+        title: const Text('Tournée prévue', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 14.5)),
+        subtitle: Text(l == null ? 'non renseignée' : '${l.length} ligne${l.length > 1 ? 's' : ''} · figée', style: const TextStyle(fontSize: 12.5)),
+        childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+        children: [
+          if (l == null || l.isEmpty)
+            const Padding(
+              padding: EdgeInsets.only(bottom: 8),
+              child: Text('La prévision n\'a pas été renseignée cette semaine.', style: TextStyle(color: StatusColors.muted)),
+            )
+          else
+            for (final e in l)
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 4),
+                child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  SizedBox(
+                    width: 84,
+                    child: Text(
+                      '${_joursCourts[(e.jour.weekday - 1).clamp(0, 4)]} ${e.jour.day}${e.heure == null ? '' : ' ${e.heure}'}',
+                      style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700),
+                    ),
+                  ),
+                  Expanded(child: Text('${e.titre}${e.ville == null ? '' : ' – ${e.ville}'}', style: const TextStyle(fontSize: 13))),
+                ]),
+              ),
+        ],
       ),
     );
   }

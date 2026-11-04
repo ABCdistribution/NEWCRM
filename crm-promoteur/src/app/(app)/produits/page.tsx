@@ -5,7 +5,7 @@ import { Pagination } from '@/components/pagination';
 import { ActiveBadge } from '@/components/badges';
 import { StatTile } from '@/components/stat-tile';
 
-export const metadata = { title: 'Produits — ABC Sales' };
+export const metadata = { title: 'Produits — Promoteurs' };
 
 export default async function ProduitsPage({
   searchParams,

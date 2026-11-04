@@ -1,120 +1,71 @@
+import { redirect } from 'next/navigation';
 import { Users } from 'lucide-react';
-import {
-  getMe,
-  listUsers,
-  getDashboardDirection,
-  countProspectsAssignes,
-  listVisitesRecentes,
-  type UserRow,
-  type DashboardDirection,
-} from '@/lib/api';
-import { AccesRefuse } from '@/components/acces-refuse';
-import { MonEquipeBoard, type Membre } from '@/components/mon-equipe-board';
+import { getMe } from '@/lib/api';
+import { cartesChefs, lignesPromoteurs, listerUtilisateurs } from '@/lib/equipe';
+import { CARTE, ListePromoteurs } from '@/components/equipe-ui';
+import { EquipeDrBoard } from '@/components/equipe-dr-board';
 
-export const metadata = { title: 'Mon équipe — ABC Pilot' };
+export const metadata = { title: 'Mon équipe — Direction commerciale' };
 
-// Vue du DIRECTEUR RÉGIONAL sur ses chefs de secteur (ADMIN : vue technique sur tous).
-const ALLOWED = ['DIRECTEUR_REGIONAL', 'ADMIN'];
+// Chef de secteur : ses promoteurs. Directeur régional (et ADMIN, vue technique) : ses chefs de secteur ou ses promoteurs.
+const ROLES_AUTORISES = ['CHEF_SECTEUR', 'DIRECTEUR_REGIONAL', 'ADMIN'];
 
-const JOURS_30 = 30 * 86_400_000;
+function Indisponible() {
+  return (
+    <div className="flex flex-col gap-4">
+      <h1 className="text-2xl font-bold">Mon équipe</h1>
+      <p role="alert" className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+        Équipe indisponible — l&apos;API est-elle démarrée ?
+      </p>
+    </div>
+  );
+}
 
 export default async function MonEquipePage() {
   const me = await getMe();
-  if (!me || !ALLOWED.includes(me.role)) return <AccesRefuse />;
+  if (!me) redirect('/login');
+  if (!ROLES_AUTORISES.includes(me.role)) redirect('/pilotage');
 
-  const now = new Date();
-  const data = await getDashboardDirection(now.getFullYear(), now.getMonth() + 1);
+  // L'API restreint déjà la liste au périmètre du rôle ; on ne garde ici que ce qu'on présente.
+  const users = await listerUtilisateurs();
+  if (!users) return <Indisponible />;
+  const chefs = users.filter((u) => u.role === 'CHEF_SECTEUR' && u.isActive);
+  const promoteurs = users.filter((u) => u.role === 'COMMERCIAL' && u.isActive);
 
-  // Récupère tous les utilisateurs par pages de 20 (l'API plafonne `limit`).
-  const users: UserRow[] = [];
-  let apiOk = false;
-  try {
-    for (let p = 1; p <= 20; p++) {
-      const res = await listUsers({ page: p, limit: 20 });
-      apiOk = true;
-      users.push(...res.data);
-      if (users.length >= res.total || res.data.length < 20) break;
-    }
-  } catch {
-    apiOk = false;
-  }
-
-  if (!apiOk) {
+  // --- Chef de secteur : liste des promoteurs de son secteur ---
+  if (me.role === 'CHEF_SECTEUR') {
+    const promos = (await lignesPromoteurs(promoteurs, chefs)).sort((a, b) => a.nom.localeCompare(b.nom));
     return (
-      <div className="flex flex-col gap-4">
-        <h1 className="text-2xl font-bold">Mon équipe</h1>
-        <p className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-          Équipe indisponible — l&apos;API est-elle démarrée ?
-        </p>
+      <div className="flex flex-col gap-5">
+        <div>
+          <h1 className="text-2xl font-bold">Mon équipe</h1>
+          <p className="text-sm text-neutral-500">
+            {promos.length} promoteur{promos.length > 1 ? 's' : ''}
+            {users.find((u) => u.id === me.id)?.secteur ? ` · ${users.find((u) => u.id === me.id)!.secteur!.nom}` : ''}
+          </p>
+        </div>
+        <ListePromoteurs promos={promos} vide="Aucun promoteur dans votre secteur." />
+        <p className="text-center text-xs text-neutral-400">Touchez un promoteur pour voir ses visites, ses commandes et son planning.</p>
       </div>
     );
   }
 
-  // Perf par code représentant (classement du mois).
-  const perf = new Map<string, DashboardDirection['classement'][number]>();
-  for (const p of data?.classement ?? []) if (p.idRepr) perf.set(p.idRepr, p);
-
-  // Chefs de secteur de l'équipe : rattachés à MOI (DR) — l'ADMIN voit tous les CS.
-  const chefs = users.filter(
-    (u) =>
-      u.role === 'CHEF_SECTEUR' &&
-      (me.role === 'ADMIN' || u.directeur?.id === me.id),
-  );
-
-  // Activité récente : visites (suivi clients existants) + prospection par CS.
-  const visites = (await listVisitesRecentes(5)) ?? [];
-  const depuis = Date.now() - JOURS_30;
-  const visitesParCs = new Map<string, { total: number; derniere: string }>();
-  for (const v of visites) {
-    if (!v.promoteur) continue;
-    const t = new Date(v.createdAt).getTime();
-    const cur = visitesParCs.get(v.promoteur.id);
-    if (!cur) visitesParCs.set(v.promoteur.id, { total: t >= depuis ? 1 : 0, derniere: v.createdAt });
-    else if (t >= depuis) cur.total += 1;
-  }
-
-  const team: Membre[] = await Promise.all(
-    chefs.map(async (u) => {
-      const p = u.idRepr ? perf.get(u.idRepr) : undefined;
-      const [prospects, gagnes] = await Promise.all([
-        countProspectsAssignes(u.id),
-        countProspectsAssignes(u.id, 'GAGNE'),
-      ]);
-      const suivi = visitesParCs.get(u.id);
-      return {
-        id: u.id,
-        displayName: u.displayName,
-        username: u.username,
-        role: u.role,
-        isActive: u.isActive,
-        idRepr: u.idRepr,
-        secteur: u.secteur,
-        region: u.region,
-        ca: p?.ca ?? null,
-        tauxPct: p?.tauxPct ?? null,
-        prospects: prospects,
-        prospectsGagnes: gagnes,
-        visites30j: suivi?.total ?? 0,
-        derniereVisite: suivi?.derniere ?? null,
-      };
-    }),
-  );
-
-  if (team.length === 0) {
+  // --- Directeur régional / administrateur ---
+  if (chefs.length === 0 && promoteurs.length === 0) {
     return (
       <div className="flex flex-col gap-4">
         <h1 className="text-2xl font-bold">Mon équipe</h1>
-        <div className="rounded-2xl bg-white p-10 text-center shadow-card">
-          <Users size={32} className="mx-auto text-[#A78BDA]" />
-          <p className="mt-3 font-medium">Aucun chef de secteur rattaché.</p>
+        <div className={`${CARTE} p-10 text-center`}>
+          <Users size={32} className="mx-auto text-accent" aria-hidden />
+          <p className="mt-3 font-medium">Aucun chef de secteur ni promoteur dans votre périmètre.</p>
           <p className="mt-1 text-sm text-neutral-400">
-            Les rattachements « directeur » sont synchronisés depuis l&apos;AD. Aucun chef de
-            secteur ne vous a pour directeur pour le moment.
+            Les rattachements « directeur » sont synchronisés depuis l&apos;AD.
           </p>
         </div>
       </div>
     );
   }
-
-  return <MonEquipeBoard team={team} />;
+  const promos = (await lignesPromoteurs(promoteurs, chefs)).sort((a, b) => a.nom.localeCompare(b.nom));
+  const cartes = (await cartesChefs(chefs, promos)).sort((a, b) => a.nom.localeCompare(b.nom));
+  return <EquipeDrBoard chefs={cartes} promos={promos} />;
 }

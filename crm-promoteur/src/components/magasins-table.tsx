@@ -157,7 +157,7 @@ export function MagasinsTable({ rows }: { rows: ClientEnrichedRow[] }) {
           }}
           className="rounded-lg border border-neutral-200 bg-white px-2 py-1.5 text-xs text-neutral-700 dark:border-navy-700 dark:bg-navy-950 dark:text-neutral-200"
         >
-          <option value="magasin:1">Magasin (A→Z)</option>
+          <option value="magasin:1">Client (A→Z)</option>
           <option value="ca:-1">CA mois (haut→bas)</option>
           <option value="delta:1">Δ vs N-1 (pire d’abord)</option>
           <option value="visite:-1">Dern. visite (ancienne d’abord)</option>
@@ -217,7 +217,7 @@ export function MagasinsTable({ rows }: { rows: ClientEnrichedRow[] }) {
         ))}
         {visibles.length === 0 ? (
           <li className="rounded-2xl bg-white px-4 py-8 text-center text-sm text-neutral-400 shadow-card">
-            Aucun magasin ne correspond à ces filtres.
+            Aucun client ne correspond à ces filtres.
           </li>
         ) : null}
       </ul>
@@ -227,7 +227,7 @@ export function MagasinsTable({ rows }: { rows: ClientEnrichedRow[] }) {
         <table className="w-full min-w-[800px] text-sm">
           <thead className="border-b border-neutral-100 text-left text-[11px] uppercase tracking-wider text-neutral-400 dark:border-navy-700">
             <tr>
-              <Th label="Magasin" k="magasin" sort={sort} onSort={toggleSort} />
+              <Th label="Client" k="magasin" sort={sort} onSort={toggleSort} />
               <Th label="Ville" k="ville" sort={sort} onSort={toggleSort} />
               <th className="px-4 py-2.5 font-medium">CS</th>
               <Th label="CA mois" k="ca" sort={sort} onSort={toggleSort} align="right" />
@@ -304,7 +304,7 @@ export function MagasinsTable({ rows }: { rows: ClientEnrichedRow[] }) {
             {visibles.length === 0 ? (
               <tr>
                 <td colSpan={9} className="px-4 py-8 text-center text-neutral-400">
-                  Aucun magasin ne correspond à ces filtres.
+                  Aucun client ne correspond à ces filtres.
                 </td>
               </tr>
             ) : null}
@@ -312,7 +312,7 @@ export function MagasinsTable({ rows }: { rows: ClientEnrichedRow[] }) {
         </table>
       </div>
       <p className="px-1 text-xs text-neutral-400">
-        {visibles.length} magasin{visibles.length > 1 ? 's' : ''} affiché{visibles.length > 1 ? 's' : ''}. Alerte = visite en
+        {visibles.length} client{visibles.length > 1 ? 's' : ''} affiché{visibles.length > 1 ? 's' : ''}. Alerte = visite en
         retard sur la périodicité.
       </p>
     </div>

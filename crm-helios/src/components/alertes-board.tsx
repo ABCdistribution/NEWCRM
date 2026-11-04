@@ -419,7 +419,7 @@ export function AlertesBoard({ canManageRules }: { canManageRules: boolean }) {
   }, [crit, type, q]);
 
   const exportCsv = () => {
-    const header = ['Magasin', 'Classe', 'Criticité', 'Type', 'Motif', 'Signal', 'CS', 'Détecté', 'Âge (j)'];
+    const header = ['Client', 'Classe', 'Criticité', 'Type', 'Motif', 'Signal', 'CS', 'Détecté', 'Âge (j)'];
     const lines = filtered.map((a) => [a.magasin, CLASSE_MAGASIN[a.magasin] ?? '', a.criticite, a.type, a.motif, a.signal, CS_LIST[a.cs]?.nom ?? a.cs, a.detecteLe, String(a.age)]);
     const csv = [header, ...lines].map((r) => r.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(';')).join('\n');
     const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8' });
@@ -462,7 +462,7 @@ export function AlertesBoard({ canManageRules }: { canManageRules: boolean }) {
 
       {/* KPIs criticité */}
       <section className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-        <KpiCard tone="red" icon={AlertCircle} label="Critiques" value={counts.CRITIQUE} sub={`${counts.CRITIQUE} magasins concernés`} />
+        <KpiCard tone="red" icon={AlertCircle} label="Critiques" value={counts.CRITIQUE} sub={`${counts.CRITIQUE} clients concernés`} />
         <KpiCard tone="amber" icon={AlertTriangle} label="Attention" value={counts.ATTENTION} sub="À traiter sous 7j" />
         <KpiCard tone="sky" icon={Info} label="Info" value={counts.INFO} sub="Opportunités détectées" />
         <KpiCard tone="emerald" icon={CheckCircle2} label="Traitées 30j" value={47} sub="Délai moy. 3,2j" subPill />
@@ -474,7 +474,7 @@ export function AlertesBoard({ canManageRules }: { canManageRules: boolean }) {
         <input
           value={q}
           onChange={(e) => setQ(e.target.value)}
-          placeholder="Filtrer par magasin ou motif…"
+          placeholder="Filtrer par client ou motif…"
           className="w-full bg-transparent text-sm outline-none placeholder:text-neutral-400"
         />
       </div>
@@ -499,7 +499,7 @@ export function AlertesBoard({ canManageRules }: { canManageRules: boolean }) {
         <table className="w-full text-sm">
           <thead className="bg-neutral-50 text-left text-neutral-500 dark:bg-navy-950/50">
             <tr>
-              <th className="px-4 py-2.5 font-medium">Magasin / motif</th>
+              <th className="px-4 py-2.5 font-medium">Client / motif</th>
               <th className="px-4 py-2.5 font-medium">Type</th>
               <th className="px-4 py-2.5 font-medium">Signal</th>
               <th className="px-4 py-2.5 font-medium">CS</th>

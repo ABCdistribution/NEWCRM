@@ -21,7 +21,7 @@ import { ActiveBadge } from '@/components/badges';
 import { CaChart } from '@/components/ca-chart';
 import { ContactsCard } from '@/components/contacts-card';
 
-export const metadata = { title: 'Fiche magasin — ABC Pilot' };
+export const metadata = { title: 'Fiche client — Direction commerciale' };
 
 const DATE_FMT = new Intl.DateTimeFormat('fr-FR', { day: '2-digit', month: 'short', year: 'numeric' });
 
@@ -85,7 +85,7 @@ export default async function ClientFiche({ params }: { params: Promise<{ id: st
           <Link
             href="/pilotage/clients"
             className="mt-1 rounded-lg p-1.5 text-neutral-400 transition hover:bg-neutral-100 hover:text-neutral-700 dark:hover:bg-navy-800"
-            aria-label="Retour à mes magasins"
+            aria-label="Retour à mes clients"
           >
             <ArrowLeft size={18} />
           </Link>
@@ -277,7 +277,7 @@ export default async function ClientFiche({ params }: { params: Promise<{ id: st
                 Dernières commandes
               </h2>
               {histo.commandes.length === 0 ? (
-                <p className="px-5 py-4 text-sm text-neutral-400">Aucune commande pour ce magasin.</p>
+                <p className="px-5 py-4 text-sm text-neutral-400">Aucune commande pour ce client.</p>
               ) : (
                 <table className="w-full text-sm">
                   <thead className="text-left text-xs text-neutral-400">

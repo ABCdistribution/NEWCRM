@@ -31,6 +31,13 @@ export function ajouterJours(d: Date, n: number): Date {
   return x;
 }
 
+/** Numéro de semaine ISO 8601 du lundi donné. */
+export function numeroIso(lundi: Date): number {
+  const jeudi = ajouterJours(lundi, 3);
+  const debutAn = new Date(Date.UTC(jeudi.getUTCFullYear(), 0, 1));
+  return Math.ceil(((jeudi.getTime() - debutAn.getTime()) / 86_400_000 + 1) / 7);
+}
+
 /** Jour courant à Paris (yyyy-mm-dd). */
 export function jourParis(now: Date = new Date()): string {
   return JOUR_PARIS.format(now);

@@ -118,6 +118,8 @@ export type CommandeRow = {
   raisonSocialeCmd: string | null;
   idRepr: string | null;
   client: { id: string; codeAs400: string; enseigne: string } | null;
+  /** Suivi de livraison (renvoyé par la liste /commandes). */
+  statutLivraison?: 'EN_PREPARATION' | 'EXPEDIEE' | 'LIVREE_PARTIELLE' | 'LIVREE';
   nbLignes: number;
   total: number;
 };
@@ -823,7 +825,7 @@ export type VisiteActivite = {
   id: string;
   createdAt: string;
   promoteur: { id: string; displayName: string } | null;
-  client: { enseigne: string } | null;
+  client: { id: string; enseigne: string; ville: string | null } | null;
 };
 
 /** Visites récentes (toutes équipes, pages 1..n) — pour le suivi d'activité des CS. */

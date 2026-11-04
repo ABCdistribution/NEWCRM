@@ -4,7 +4,7 @@ import { AlertCircle, CheckCircle2, ChevronLeft, ChevronRight, Repeat, Route } f
 import { getMe, listMesPlannings, type PlanningItem } from '@/lib/api';
 import { ClassBadge } from '@/components/class-badge';
 
-export const metadata = { title: 'Mes visites — ABC Sales' };
+export const metadata = { title: 'Mon planning — Promoteurs' };
 
 const JOURS = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi'];
 const DAY_FMT = new Intl.DateTimeFormat('fr-FR', { day: 'numeric', month: 'short' });
@@ -77,7 +77,7 @@ export default async function TourneesPage({
     <div className="flex flex-col gap-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold">Mes visites</h1>
+          <h1 className="text-2xl font-bold">Mon planning</h1>
         </div>
 
         {/* Navigation de semaine */}

@@ -39,7 +39,7 @@ class SelecteurEspace extends ConsumerWidget {
     return Container(
       padding: const EdgeInsets.all(4),
       decoration: BoxDecoration(color: Colors.white.withValues(alpha: .15), borderRadius: BorderRadius.circular(16)),
-      child: Row(children: [onglet(Space.sales, 'Sales'), onglet(Space.pilot, 'Pilotage')]),
+      child: Row(children: [onglet(Space.sales, 'ABC Sales'), onglet(Space.pilot, 'ABC Pilotage')]),
     );
   }
 }

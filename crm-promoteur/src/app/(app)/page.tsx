@@ -1,4 +1,6 @@
 import Link from 'next/link';
+import { redirect } from 'next/navigation';
+import { headers } from 'next/headers';
 import {
   Wallet,
   ShoppingCart,
@@ -11,7 +13,7 @@ import {
   TrendingDown,
   PackageX,
 } from 'lucide-react';
-import { getPerformances, getDashboard, getEvolutionCa, getVisitesRegions } from '@/lib/api';
+import { getMe, getPerformances, getDashboard, getEvolutionCa, getVisitesRegions } from '@/lib/api';
 import { GaugeCard } from '@/components/gauge-card';
 import { StatTile } from '@/components/stat-tile';
 import { EvolutionCaCommandes } from '@/components/evolution-ca-commandes';
@@ -19,7 +21,7 @@ import { RepartitionVisites } from '@/components/repartition-visites';
 import { CommandesParPromoteur } from '@/components/commandes-par-promoteur';
 import { PackageSearch, Users2 } from 'lucide-react';
 
-export const metadata = { title: 'Accueil — ABC Sales' };
+export const metadata = { title: 'Accueil — Promoteurs' };
 
 const EUR = new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 });
 const MOIS_LABELS = [
@@ -31,11 +33,23 @@ const card = 'rounded-2xl bg-white shadow-card';
 const cardHeader =
   'flex items-center gap-2 border-b border-neutral-100 px-5 py-3 font-semibold text-brand dark:text-accent';
 
+/** Rôles de l'encadrement : leur accueil est l'application Direction commerciale. */
+const ROLES_DIRECTION = ['ADMIN', 'DIRECTION', 'DIRECTEUR_REGIONAL', 'CHEF_SECTEUR'];
+const HELIOS_PORT = process.env.HELIOS_PORT ?? '3001';
+
 export default async function Home({
   searchParams,
 }: {
   searchParams: Promise<{ annee?: string; mois?: string }>;
 }) {
+  // Redirection par rôle pour l'ACCUEIL seulement : les autres pages (ex. /planification, lien profond
+  // depuis Direction commerciale) restent ouvertes à l'encadrement.
+  const me = await getMe();
+  if (me && ROLES_DIRECTION.includes(me.role)) {
+    const host = (await headers()).get('host')?.split(':')[0] ?? 'localhost';
+    redirect(`http://${host}:${HELIOS_PORT}/pilotage`);
+  }
+
   const sp = await searchParams;
   const now = new Date();
   const annee = Number(sp.annee) || now.getFullYear();
@@ -141,7 +155,7 @@ export default async function Home({
               icon={Store}
               label="Couverture portefeuille"
               value={`${perf.couverture.commandants}/${perf.couverture.portefeuille}`}
-              hint={`${perf.couverture.sansCommande} magasin${perf.couverture.sansCommande > 1 ? 's' : ''} sans commande ce mois`}
+              hint={`${perf.couverture.sansCommande} client${perf.couverture.sansCommande > 1 ? 's' : ''} sans commande ce mois`}
             />
           </section>
 
@@ -197,7 +211,7 @@ export default async function Home({
                   )}
                 </p>
                 <p className="text-xs text-neutral-400">
-                  Classement par CA facturé (code {perf.idRepr}) — détail complet dans ABC Pilot.
+                  Classement par CA facturé (code {perf.idRepr}) — détail complet dans Direction commerciale.
                 </p>
               </div>
             </div>
@@ -211,7 +225,7 @@ export default async function Home({
             <section className={card}>
               <h2 className={cardHeader}>
                 <Store size={17} className="text-brand dark:text-accent" />
-                Top de mes magasins — {MOIS_LABELS[perf.periode.mois - 1]}
+                Top de mes clients — {MOIS_LABELS[perf.periode.mois - 1]}
               </h2>
               {perf.topMagasins.length === 0 ? (
                 <p className="px-5 py-4 text-sm text-neutral-400">Aucune commande ce mois.</p>
@@ -246,7 +260,7 @@ export default async function Home({
               </h2>
               {perf.couverture.exemplesSansCommande.length === 0 ? (
                 <p className="px-5 py-4 text-sm text-neutral-400">
-                  🎉 Tous les magasins du portefeuille ont commandé ce mois.
+                  🎉 Tous les clients du portefeuille ont commandé ce mois.
                 </p>
               ) : (
                 <>
@@ -278,7 +292,7 @@ export default async function Home({
           <section className="rounded-2xl bg-white shadow-card">
             <h2 className="flex items-center gap-2 border-b border-neutral-100 px-5 py-3.5 text-sm font-semibold dark:border-navy-700">
               <Users2 size={16} className="text-brand dark:text-accent" />
-              Magasins ayant commandé ce mois — par promoteur
+              Clients ayant commandé ce mois — par promoteur
             </h2>
             <CommandesParPromoteur groupes={dash.commandesParPromoteur ?? []} />
           </section>

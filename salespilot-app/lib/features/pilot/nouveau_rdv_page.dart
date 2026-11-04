@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -9,14 +10,16 @@ import '../../core/api/api_client.dart';
 import '../../core/providers.dart';
 import '../../core/sync/outbox_transport.dart';
 import '../../core/theme/app_theme.dart';
+import '../prechargement.dart';
 import '../providers.dart';
+import 'pilot_planning_page.dart';
 import 'tournee_etapes.dart';
 
 const _joursLongs = ['lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi', 'dimanche'];
 const _moisCourts = ['janv.', 'févr.', 'mars', 'avr.', 'mai', 'juin', 'juil.', 'août', 'sept.', 'oct.', 'nov.', 'déc.'];
 
-/// Cible d'un rendez-vous : un magasin, un prospect ou une tâche administrative (comme sur le web).
-enum _Cible { client, prospect, adm }
+/// Cible d'une ligne du rapport : un magasin, un prospect, du texte libre (client ou lieu) ou une tâche administrative.
+enum _Cible { client, prospect, libre, adm }
 
 class _Choix {
   const _Choix({required this.id, required this.nom, this.ville});
@@ -25,14 +28,27 @@ class _Choix {
   final String? ville;
 }
 
-/// « Saisir le rapport » d'ABC Pilot (bouton de l'onglet Tournée) : formulaire de qualification d'une étape (date, heure, type de passage, RDV, soirée
-/// étape, observations), identique à la fenêtre « Planifier » du web. L'étape est écrite sur le téléphone puis envoyée
-/// à `POST /tournees` : jamais perdue si le réseau manque, sans doublon grâce à l'idApk.
+/// « Saisir le rapport » d'ABC Pilot (bouton de l'onglet Tournée) : une ligne du rapport d'activité (client ou ADM,
+/// adresse, visite simple / accompagnement, RDV, heure, soirée étape, observations), comme sur le web.
+///
+/// Création : la ligne est écrite sur le téléphone puis envoyée à `POST /tournees` (jamais perdue si le réseau manque,
+/// sans doublon grâce à l'idApk). Modification ([etape] fournie) : appel direct au serveur, qui refuse une semaine
+/// validée ; une ligne pas encore envoyée ne se modifie pas.
 class NouveauRdvPage extends ConsumerStatefulWidget {
-  const NouveauRdvPage({super.key, this.date});
+  const NouveauRdvPage({super.key, this.date, this.etape, this.prospectId, this.clientId, this.prospectNom, this.prospectVille});
 
-  /// Jour proposé au départ (celui affiché dans le planning).
+  /// Jour proposé au départ (celui affiché dans la tournée).
   final DateTime? date;
+
+  /// Prospect ou magasin déjà choisi (« Planifier » depuis sa fiche) : la cible démarre sur lui. `prospectNom` et
+  /// `prospectVille` portent le nom et la ville de l'un comme de l'autre.
+  final String? prospectId;
+  final String? clientId;
+  final String? prospectNom;
+  final String? prospectVille;
+
+  /// Ligne existante à modifier ou supprimer.
+  final EtapeTournee? etape;
 
   @override
   ConsumerState<NouveauRdvPage> createState() => _NouveauRdvPageState();
@@ -40,8 +56,10 @@ class NouveauRdvPage extends ConsumerStatefulWidget {
 
 class _NouveauRdvPageState extends ConsumerState<NouveauRdvPage> {
   final _note = TextEditingController();
+  final _libelle = TextEditingController();
+  final _adresseLigne = TextEditingController();
   final _lieu = TextEditingController();
-  final _adresse = TextEditingController();
+  final _soireeAdresse = TextEditingController();
   late DateTime _date;
   TimeOfDay? _heure;
   _Cible _cible = _Cible.client;
@@ -50,21 +68,56 @@ class _NouveauRdvPageState extends ConsumerState<NouveauRdvPage> {
   bool _accompagnement = false;
   bool _rdv = false;
   bool _soiree = false;
+  bool _fait = false;
   bool _busy = false;
   String? _erreur;
+
+  bool get _edition => widget.etape != null;
 
   @override
   void initState() {
     super.initState();
-    final d = widget.date ?? DateTime.now();
-    _date = DateTime(d.year, d.month, d.day);
+    final e = widget.etape;
+    if (e == null) {
+      final d = widget.date ?? DateTime.now();
+      _date = DateTime(d.year, d.month, d.day);
+      if (widget.prospectId != null) {
+        _cible = _Cible.prospect;
+        _choix = _Choix(id: widget.prospectId!, nom: widget.prospectNom ?? 'Prospect', ville: widget.prospectVille);
+      } else if (widget.clientId != null) {
+        _cible = _Cible.client;
+        _choix = _Choix(id: widget.clientId!, nom: widget.prospectNom ?? 'Magasin', ville: widget.prospectVille);
+      }
+      return;
+    }
+    _date = e.jour;
+    if (e.heure != null) {
+      final p = e.heure!.split(':');
+      _heure = TimeOfDay(hour: int.parse(p[0]), minute: int.parse(p[1]));
+    }
+    _cible = switch (e.type) {
+      'PROSPECT' => _Cible.prospect,
+      'ADM' => _Cible.adm,
+      'LIBRE' => _Cible.libre,
+      _ => _Cible.client,
+    };
+    _libelle.text = e.libelle ?? '';
+    _adresseLigne.text = e.adresse ?? '';
+    _note.text = e.note ?? '';
+    _visiteSimple = e.visiteSimple;
+    _accompagnement = e.accompagnement;
+    _rdv = e.rdv;
+    _soiree = e.soireeEtape;
+    _lieu.text = e.soireeLieu ?? '';
+    _soireeAdresse.text = e.soireeAdresse ?? '';
+    _fait = e.fait;
   }
 
   @override
   void dispose() {
-    _note.dispose();
-    _lieu.dispose();
-    _adresse.dispose();
+    for (final c in [_note, _libelle, _adresseLigne, _lieu, _soireeAdresse]) {
+      c.dispose();
+    }
     super.dispose();
   }
 
@@ -74,7 +127,7 @@ class _NouveauRdvPageState extends ConsumerState<NouveauRdvPage> {
     final d = await showDatePicker(
       context: context,
       initialDate: _date,
-      firstDate: DateTime.now().subtract(const Duration(days: 30)),
+      firstDate: DateTime.now().subtract(const Duration(days: 60)),
       lastDate: DateTime.now().add(const Duration(days: 365)),
       locale: const Locale('fr'),
     );
@@ -100,8 +153,17 @@ class _NouveauRdvPageState extends ConsumerState<NouveauRdvPage> {
     if (choix != null) setState(() => _choix = choix);
   }
 
+  String? get _heureTexte => _heure == null ? null : '${_heure!.hour.toString().padLeft(2, '0')}:${_heure!.minute.toString().padLeft(2, '0')}';
+
+  /// « yyyy-mm-dd » ou « yyyy-mm-ddTHH:mm:00 » : la date de passage telle que le serveur la reçoit.
+  String get _datePassage => _heureTexte == null ? jourIso(_date) : '${jourIso(_date)}T$_heureTexte:00';
+
   Future<void> _ajouter() async {
-    if (_cible != _Cible.adm && _choix == null) {
+    if (_cible == _Cible.libre && _libelle.text.trim().isEmpty) {
+      setState(() => _erreur = 'Saisissez le client ou le lieu.');
+      return;
+    }
+    if ((_cible == _Cible.client || _cible == _Cible.prospect) && _choix == null) {
       setState(() => _erreur = _cible == _Cible.client ? 'Choisissez un magasin.' : 'Choisissez un prospect.');
       return;
     }
@@ -111,10 +173,9 @@ class _NouveauRdvPageState extends ConsumerState<NouveauRdvPage> {
       _busy = true;
       _erreur = null;
     });
-    final jour = jourIso(_date);
-    final heure = _heure == null ? null : '${_heure!.hour.toString().padLeft(2, '0')}:${_heure!.minute.toString().padLeft(2, '0')}';
     final idApk = const Uuid().v4();
     final note = _note.text.trim();
+    final adresse = _adresseLigne.text.trim();
     try {
       await ref.read(outboxRepositoryProvider).enqueue(
         userId: userId,
@@ -122,32 +183,108 @@ class _NouveauRdvPageState extends ConsumerState<NouveauRdvPage> {
         idApk: idApk,
         payload: {
           'idApk': idApk,
-          'datePassage': heure == null ? jour : '${jour}T$heure:00',
+          'datePassage': _datePassage,
           'visiteSimple': _visiteSimple,
           'accompagnement': _accompagnement,
           'rdv': _rdv,
           'soireeEtape': _soiree,
           if (_soiree && _lieu.text.trim().isNotEmpty) 'soireeLieu': _lieu.text.trim(),
-          if (_soiree && _adresse.text.trim().isNotEmpty) 'soireeAdresse': _adresse.text.trim(),
+          if (_soiree && _soireeAdresse.text.trim().isNotEmpty) 'soireeAdresse': _soireeAdresse.text.trim(),
           if (note.isNotEmpty) 'note': note,
+          if (adresse.isNotEmpty) 'adresse': adresse,
           if (_cible == _Cible.adm)
             'adm': true
           else if (_cible == _Cible.client)
             'clientId': _choix!.id
+          else if (_cible == _Cible.prospect)
+            'prospectId': _choix!.id
           else
-            'prospectId': _choix!.id,
-          '_titre': _cible == _Cible.adm ? 'Administratif' : _choix!.nom,
-          if (_choix?.ville != null) '_ville': _choix!.ville,
+            'libelle': _libelle.text.trim(),
+          '_titre': switch (_cible) {
+            _Cible.adm => 'Administratif',
+            _Cible.libre => _libelle.text.trim(),
+            _ => _choix!.nom,
+          },
+          if (_choix?.ville != null && (_cible == _Cible.client || _cible == _Cible.prospect)) '_ville': _choix!.ville,
         },
       );
       ref.read(syncControllerProvider.notifier).run();
       if (!mounted) return;
       ScaffoldMessenger.of(context)
         ..hideCurrentSnackBar()
-        ..showSnackBar(const SnackBar(content: Text('Rendez-vous ajouté au planning. Envoi dès que le réseau le permet.')));
+        ..showSnackBar(const SnackBar(content: Text('Ligne ajoutée au rapport. Envoi dès que le réseau le permet.')));
       context.pop(_date);
     } on Object catch (e) {
       if (mounted) setState(() => _erreur = errorMessage(e));
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  /// Message d'une modification qui n'a PAS été enregistrée : sans réseau, on le dit (la saisie n'est pas gardée).
+  String _messageModification(Object e) =>
+      e is DioException && e.response == null ? 'Connexion requise pour modifier une ligne déjà enregistrée.' : errorMessage(e);
+
+  Future<void> _enregistrer() async {
+    final e = widget.etape!;
+    if (_cible == _Cible.libre && _libelle.text.trim().isEmpty) {
+      setState(() => _erreur = 'Saisissez le client ou le lieu.');
+      return;
+    }
+    setState(() {
+      _busy = true;
+      _erreur = null;
+    });
+    try {
+      await ref.read(rapportActionsProvider).modifierEtape(
+        e.id,
+        {
+          'datePassage': _datePassage,
+          'note': _note.text.trim(),
+          'adresse': _adresseLigne.text.trim(),
+          if (_cible == _Cible.libre) 'libelle': _libelle.text.trim(),
+          'visiteSimple': _visiteSimple,
+          'accompagnement': _accompagnement,
+          'rdv': _rdv,
+          'soireeEtape': _soiree,
+          'soireeLieu': _lieu.text.trim(),
+          'soireeAdresse': _soireeAdresse.text.trim(),
+          'fait': _fait,
+        },
+        lundiDe(_date),
+      );
+      // La ligne a pu changer de semaine : on relit aussi l'ancienne.
+      if (lundiDe(e.jour) != lundiDe(_date)) unawaited(ref.read(miseAJourLocaleProvider).etapes(lundiDe(e.jour)));
+      if (mounted) context.pop(_date);
+    } on Object catch (err) {
+      if (mounted) setState(() => _erreur = _messageModification(err));
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  Future<void> _supprimer() async {
+    final confirme = await showDialog<bool>(
+      context: context,
+      builder: (c) => AlertDialog(
+        title: const Text('Supprimer cette ligne ?'),
+        content: const Text('Elle sera retirée de la tournée réalisée.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(c, false), child: const Text('Annuler')),
+          FilledButton(onPressed: () => Navigator.pop(c, true), child: const Text('Supprimer')),
+        ],
+      ),
+    );
+    if (confirme != true || !mounted) return;
+    setState(() {
+      _busy = true;
+      _erreur = null;
+    });
+    try {
+      await ref.read(rapportActionsProvider).supprimerEtape(widget.etape!.id, lundiDe(widget.etape!.jour));
+      if (mounted) context.pop(widget.etape!.jour);
+    } on Object catch (err) {
+      if (mounted) setState(() => _erreur = _messageModification(err));
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -160,7 +297,7 @@ class _NouveauRdvPageState extends ConsumerState<NouveauRdvPage> {
     final titreCible = switch (_cible) {
       _Cible.client => 'Magasin',
       _Cible.prospect => 'Prospect',
-      _Cible.adm => 'Étape administrative',
+      _ => '',
     };
 
     Widget section(String label, Widget enfant) => Padding(
@@ -173,28 +310,35 @@ class _NouveauRdvPageState extends ConsumerState<NouveauRdvPage> {
         );
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Saisir le rapport')),
+      appBar: AppBar(title: Text(_edition ? 'Modifier la ligne' : 'Saisir le rapport')),
       body: SafeArea(
         child: Column(children: [
           Expanded(
             child: ListView(padding: const EdgeInsets.fromLTRB(16, 12, 16, 16), children: [
               section(
-                'Pour',
+                _edition ? 'Ligne' : 'Pour',
                 Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-                  SegmentedButton<_Cible>(
-                    showSelectedIcon: false,
-                    segments: const [
-                      ButtonSegment(value: _Cible.client, label: Text('Magasin')),
-                      ButtonSegment(value: _Cible.prospect, label: Text('Prospect')),
-                      ButtonSegment(value: _Cible.adm, label: Text('ADM')),
-                    ],
-                    selected: {_cible},
-                    onSelectionChanged: (s) => setState(() {
-                      _cible = s.first;
-                      _choix = null;
-                    }),
-                  ),
-                  if (_cible != _Cible.adm) ...[
+                  if (_edition)
+                    Text(
+                      '${widget.etape!.titre}${widget.etape!.ville == null ? '' : ' – ${widget.etape!.ville}'}',
+                      style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
+                    )
+                  else
+                    SegmentedButton<_Cible>(
+                      showSelectedIcon: false,
+                      segments: const [
+                        ButtonSegment(value: _Cible.client, label: Text('Magasin')),
+                        ButtonSegment(value: _Cible.prospect, label: Text('Prospect')),
+                        ButtonSegment(value: _Cible.libre, label: Text('Libre')),
+                        ButtonSegment(value: _Cible.adm, label: Text('ADM')),
+                      ],
+                      selected: {_cible},
+                      onSelectionChanged: (s) => setState(() {
+                        _cible = s.first;
+                        _choix = null;
+                      }),
+                    ),
+                  if (!_edition && (_cible == _Cible.client || _cible == _Cible.prospect)) ...[
                     const SizedBox(height: 10),
                     OutlinedButton.icon(
                       onPressed: _choisirCible,
@@ -206,6 +350,24 @@ class _NouveauRdvPageState extends ConsumerState<NouveauRdvPage> {
                           overflow: TextOverflow.ellipsis,
                         ),
                       ),
+                    ),
+                  ],
+                  if (_cible == _Cible.libre) ...[
+                    const SizedBox(height: 10),
+                    TextField(
+                      controller: _libelle,
+                      maxLength: 200,
+                      textCapitalization: TextCapitalization.sentences,
+                      decoration: const InputDecoration(labelText: 'Client ou lieu *', counterText: ''),
+                    ),
+                  ],
+                  if (_cible != _Cible.adm) ...[
+                    const SizedBox(height: 10),
+                    TextField(
+                      controller: _adresseLigne,
+                      maxLength: 300,
+                      textCapitalization: TextCapitalization.sentences,
+                      decoration: const InputDecoration(labelText: 'Adresse', counterText: ''),
                     ),
                   ],
                 ]),
@@ -264,7 +426,14 @@ class _NouveauRdvPageState extends ConsumerState<NouveauRdvPage> {
                     const SizedBox(height: 10),
                     TextField(controller: _lieu, maxLength: 200, decoration: const InputDecoration(labelText: 'Lieu de l\'étape (ville, hôtel…)', counterText: '')),
                     const SizedBox(height: 10),
-                    TextField(controller: _adresse, maxLength: 300, decoration: const InputDecoration(labelText: 'Adresse de l\'étape', counterText: '')),
+                    TextField(controller: _soireeAdresse, maxLength: 300, decoration: const InputDecoration(labelText: 'Adresse de l\'étape', counterText: '')),
+                    const Padding(
+                      padding: EdgeInsets.only(top: 6),
+                      child: Text(
+                        'Lieu et adresse sont obligatoires pour enregistrer la prévision et valider le rapport.',
+                        style: TextStyle(fontSize: 12, color: StatusColors.muted),
+                      ),
+                    ),
                   ],
                 ]),
               ),
@@ -272,8 +441,28 @@ class _NouveauRdvPageState extends ConsumerState<NouveauRdvPage> {
                 'Observations',
                 TextField(controller: _note, maxLines: 3, maxLength: 500, decoration: const InputDecoration(hintText: 'Observations')),
               ),
+              if (_edition)
+                SwitchListTile(
+                  contentPadding: EdgeInsets.zero,
+                  title: const Text('Visite effectuée'),
+                  value: _fait,
+                  onChanged: (v) => setState(() => _fait = v),
+                ),
               if (_erreur != null)
-                Text(_erreur!, style: theme.textTheme.bodyMedium?.copyWith(color: StatusColors.alert), semanticsLabel: 'Erreur : $_erreur'),
+                Padding(
+                  padding: const EdgeInsets.only(top: 6),
+                  child: Text(_erreur!, style: theme.textTheme.bodyMedium?.copyWith(color: StatusColors.alert), semanticsLabel: 'Erreur : $_erreur'),
+                ),
+              if (_edition)
+                Padding(
+                  padding: const EdgeInsets.only(top: 12),
+                  child: TextButton.icon(
+                    onPressed: _busy ? null : _supprimer,
+                    icon: const Icon(Icons.delete_outline),
+                    label: const Text('Supprimer la ligne'),
+                    style: TextButton.styleFrom(foregroundColor: StatusColors.alert),
+                  ),
+                ),
             ]),
           ),
           Padding(
@@ -283,12 +472,12 @@ class _NouveauRdvPageState extends ConsumerState<NouveauRdvPage> {
               const SizedBox(width: 8),
               Expanded(
                 child: FilledButton.icon(
-                  onPressed: _busy ? null : _ajouter,
+                  onPressed: _busy ? null : (_edition ? _enregistrer : _ajouter),
                   style: FilledButton.styleFrom(backgroundColor: p.bouton, foregroundColor: p.surBouton),
                   icon: _busy
                       ? const SizedBox(height: 18, width: 18, child: CircularProgressIndicator(strokeWidth: 2.2, color: Colors.white))
                       : const Icon(Icons.check),
-                  label: const Text('Ajouter au planning'),
+                  label: Text(_edition ? 'Enregistrer' : 'Ajouter au planning'),
                 ),
               ),
             ]),

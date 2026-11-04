@@ -270,6 +270,12 @@ export class TourneesController {
     return { user: { id: cible.id, displayName: cible.displayName, poste: cible.poste }, etapes };
   }
 
+  @Get('historique')
+  @ApiOperation({ summary: 'MES rapports : semaine en cours et semaines précédentes, avec les chiffres du mois' })
+  historique(@CurrentUser() me: User) {
+    return this.rapports.historique(me.id);
+  }
+
   @Get('semaine')
   @ApiOperation({
     summary:

@@ -2,7 +2,7 @@ import { getMe, listRapports } from '@/lib/api';
 import { AccesRefuse } from '@/components/acces-refuse';
 import { RapportsBoard } from '@/components/rapports-board';
 
-export const metadata = { title: 'Rapports d’activité — ABC Pilot' };
+export const metadata = { title: 'Rapports d’activité — Direction commerciale' };
 
 const ALLOWED = ['ADMIN', 'DIRECTION', 'DIRECTEUR_REGIONAL'];
 

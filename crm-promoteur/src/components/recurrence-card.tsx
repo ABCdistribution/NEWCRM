@@ -70,7 +70,7 @@ export function RecurrenceCard({
     <section className="rounded-2xl bg-white shadow-card">
       <h2 className="flex items-center gap-2 border-b border-neutral-100 px-4 py-2.5 text-sm font-semibold dark:border-navy-700">
         <Repeat size={15} className="text-[#A78BDA]" />
-        Magasins récurrents
+        Clients récurrents
         <span className="rounded-full bg-brand/10 px-2 py-0.5 text-xs font-semibold text-brand dark:bg-accent/10 dark:text-accent">
           {regles.length}
         </span>
@@ -104,7 +104,7 @@ export function RecurrenceCard({
                   type="button"
                   onClick={() => setClientId('')}
                   className="text-neutral-500 hover:text-red-400"
-                  aria-label="Changer de magasin"
+                  aria-label="Changer de client"
                 >
                   <X size={12} />
                 </button>
@@ -117,7 +117,7 @@ export function RecurrenceCard({
                     type="text"
                     value={query}
                     onChange={(e) => setQuery(e.target.value)}
-                    placeholder="Rechercher le magasin…"
+                    placeholder="Rechercher le client…"
                     className="w-full bg-transparent text-xs outline-none placeholder:text-neutral-500"
                   />
                 </div>
@@ -186,7 +186,7 @@ export function RecurrenceCard({
       {/* Règles existantes */}
       {regles.length === 0 && !formOpen ? (
         <p className="px-4 py-3 text-xs text-neutral-400">
-          Aucun magasin récurrent — les règles créées ici génèrent automatiquement les visites des
+          Aucun client récurrent — les règles créées ici génèrent automatiquement les visites des
           semaines à venir.
         </p>
       ) : regles.length > 0 ? (

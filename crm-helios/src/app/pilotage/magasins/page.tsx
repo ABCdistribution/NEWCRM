@@ -4,7 +4,7 @@ import { Pagination } from '@/components/pagination';
 import { AccesRefuse } from '@/components/acces-refuse';
 import { MagasinsSecteurBoard } from '@/components/magasins-secteur-board';
 
-export const metadata = { title: 'Magasins — ABC Pilot' };
+export const metadata = { title: 'Suivi des clients — Direction commerciale' };
 
 const ALLOWED = ['CHEF_SECTEUR', 'DIRECTEUR_REGIONAL', 'DIRECTION', 'ADMIN'];
 
@@ -37,18 +37,18 @@ export default async function MagasinsSecteurPage({
   return (
     <div className="flex flex-col gap-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-2xl font-bold">Magasins</h1>
+        <h1 className="text-2xl font-bold">Suivi des clients</h1>
         <SearchBar placeholder="Enseigne, raison sociale, code…" />
       </div>
 
       {magasins === null ? (
         <p className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-          Magasins indisponibles — l&apos;API est-elle démarrée ?
+          Clients indisponibles — l&apos;API est-elle démarrée ?
         </p>
       ) : (
         <>
           <MagasinsSecteurBoard magasins={magasins.data} points={points ?? []} prospects={prospects} />
-          <Pagination total={magasins.total} page={magasins.page} limit={magasins.limit} params={{ search }} unite="magasin" />
+          <Pagination total={magasins.total} page={magasins.page} limit={magasins.limit} params={{ search }} unite="client" />
         </>
       )}
     </div>

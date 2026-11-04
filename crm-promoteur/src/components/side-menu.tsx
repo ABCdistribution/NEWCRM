@@ -3,11 +3,14 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { Montserrat } from 'next/font/google';
 import {
   Home,
+  Newspaper,
   Store,
   Package,
   Footprints,
+  CalendarDays,
   Route,
   ShoppingCart,
   ShieldAlert,
@@ -15,18 +18,15 @@ import {
   LogOut,
   Menu,
   X,
-  ArrowLeftRight,
-  ExternalLink,
-  BarChart3,
-  ClipboardCheck,
   type LucideIcon,
 } from 'lucide-react';
 import { logout } from '@/lib/auth-actions';
 import { Avatar } from './avatar';
 import { NotificationsBell } from './notifications-bell';
-import { UniverseSwitchOverlay } from './universe-switch-overlay';
 import type { Me, NotificationItem } from '@/lib/api';
-import { UniverseSwitcher } from './universe-switcher';
+
+/** Police du mot-symbole « ABC » en tête de menu (aspect logo). */
+const policeLogo = Montserrat({ subsets: ['latin'], weight: '800' });
 
 type Leaf = { href: string; label: string; icon: LucideIcon; roles?: string[] };
 type Section = { label: string | null; children: Leaf[] };
@@ -36,9 +36,9 @@ type Section = { label: string | null; children: Leaf[] };
  * section change (« Mon terrain » pour un commercial). Les données affichées restent, elles, limitées au
  * périmètre de l'utilisateur par l'API. Libellés toujours visibles (pas de survol nécessaire).
  */
-/** Fond du menu ABC Sales : bleu marine uni. */
+/** Fond du menu Promoteurs : bleu encre uni (#0B2545, couleur de la maquette mobile). */
 const FOND_MENU: React.CSSProperties = {
-  backgroundColor: '#050F33',
+  backgroundColor: '#0B2545',
 };
 
 function sections(role: string): Section[] {
@@ -48,13 +48,16 @@ function sections(role: string): Section[] {
       label: null,
       children: [
         { href: '/', label: 'Accueil', icon: Home },
+        { href: '/news', label: 'Les News', icon: Newspaper },
       ],
     },
     {
       label: moi ? 'Mon terrain' : 'Terrain',
-      // L'agenda / les tournées ne vivent que sur l'app mobile — pas d'entrée web.
+      // Pas d'agenda web (/agenda reste une page « bientôt »). Le promoteur consulte son planning en
+      // lecture seule (/tournees) ; la planification elle-même se fait sur l'app mobile / par l'encadrement.
       children: [
-        { href: '/clients', label: 'Les magasins', icon: Store },
+        { href: '/tournees', label: 'Mon planning', icon: CalendarDays, roles: ['COMMERCIAL'] },
+        { href: '/clients', label: 'Les clients', icon: Store },
         { href: '/visites', label: 'Les visites', icon: Footprints },
         { href: '/commandes', label: 'Les commandes', icon: ShoppingCart },
         // Planification des visites — encadrement uniquement (déplacée depuis ABC Pilot).
@@ -76,15 +79,12 @@ function isActive(pathname: string, href: string) {
   return href === '/' ? pathname === '/' : pathname === href || pathname.startsWith(`${href}/`);
 }
 
-/** Rôles encadrement autorisés à basculer vers l'espace pilotage (miroir du bouton côté ABC Pilot). */
-const SWITCH_ROLES = ['ADMIN', 'DIRECTION', 'DIRECTEUR_REGIONAL', 'CHEF_SECTEUR'];
-
 /** Marque de la plateforme (SalesPilot ABC) : grande dans la sidebar, compacte dans la barre mobile. */
 function Brand({ compact = false }: { compact?: boolean }) {
   return (
-    <Link href="/" className={compact ? 'inline-flex items-center' : 'flex w-full items-center justify-center py-2'}>
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img src="/logo-salespilot.png" alt="SalesPilot ABC" className={compact ? 'h-9 w-auto' : 'h-auto w-full max-w-[224px]'} />
+    <Link href="/" className={`focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent ${compact ? 'inline-flex items-center gap-2' : 'flex w-full flex-col items-center justify-center gap-1.5 py-2'}`}>
+      <span className={`${policeLogo.className} ${compact ? 'text-2xl' : 'text-5xl'} select-none font-extrabold leading-none tracking-[0.18em] text-white`} aria-label="ABC">ABC</span>
+      <span className="text-xs font-medium text-white/70">Promoteurs</span>
     </Link>
   );
 }
@@ -93,52 +93,14 @@ function Brand({ compact = false }: { compact?: boolean }) {
 function MenuPanel({
   me,
   notifications,
-  heliosPort,
 }: {
   me: Me;
   notifications: { nonLues: number; items: NotificationItem[] };
-  heliosPort: string;
 }) {
   const pathname = usePathname();
-  const canSwitch = SWITCH_ROLES.includes(me.role);
-  const [switching, setSwitching] = useState(false);
-  // ABC Pilot tourne sur le même serveur : on reprend l'hôte utilisé pour accéder à ABC Sales.
-  // L'animation de bascule joue d'abord, puis la navigation part (le voile reste jusqu'au déchargement).
-  const goHelios = () => {
-    if (switching) return;
-    setSwitching(true);
-    window.setTimeout(() => {
-      window.location.href = `${window.location.protocol}//${window.location.hostname}:${heliosPort}`;
-    }, 1100);
-  };
-  // AscendoPilot et GoBack : ouverture directe dans un nouvel onglet, sans animation.
-  const goAscendo = () => window.open('https://ascendopilot.abcosmetique.com', '_blank', 'noopener');
-  const goGoBack = () => window.open('https://goback.abcosmetique.com/', '_blank', 'noopener');
 
   return (
     <>
-      {switching ? (
-        <UniverseSwitchOverlay
-          fromSrc="/logo-abc-sales.png"
-          toSrc="/logo-abc-pilot.png"
-          toName="ABC Pilot"
-        />
-      ) : null}
-      {/* Sélecteur d'univers & d'outils (façon Slack) */}
-      <UniverseSwitcher
-        actuel={{ logo: '/logo-abc-sales.png', nom: 'ABC Sales', sousTitre: 'Force de vente' }}
-        items={[
-          ...(canSwitch
-            ? [{
-                logo: '/logo-abc-pilot.png',
-                nom: 'ABC Pilot',
-                description: 'Force commerciale',
-                onClick: goHelios,
-              }]
-            : []),
-        ]}
-      />
-
       {/* Navigation */}
       <nav className="flex-1 overflow-y-auto px-3 pb-4">
         {sections(me.role).map((section, i) => {
@@ -176,36 +138,6 @@ function MenuPanel({
             </div>
           );
         })}
-
-        {/* Outils externes : s'ouvrent dans un nouvel onglet (animation de transition conservée). */}
-        <div className="mt-5">
-          <p className="px-3 pb-1.5 text-xs font-semibold uppercase tracking-wider text-neutral-400 dark:text-white/60">
-            Outils complémentaires
-          </p>
-          <ul className="flex flex-col gap-0.5">
-            {[
-              { label: 'AscendoPilot', detail: 'Statistiques et analyses', icon: BarChart3, onClick: goAscendo },
-              { label: 'GoBack', detail: 'Gestion des litiges', icon: ClipboardCheck, onClick: goGoBack },
-            ].map(({ label, detail, icon: Icon, onClick }) => (
-              <li key={label}>
-                <button
-                  type="button"
-                  onClick={onClick}
-                  className="group flex w-full items-center gap-3 rounded-xl px-2 py-2 text-left transition hover:bg-white/10"
-                >
-                  <span className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-navy-800 text-sky-300">
-                    <Icon size={20} aria-hidden />
-                  </span>
-                  <span className="min-w-0 flex-1">
-                    <span className="block truncate text-[15px] font-semibold leading-tight text-white">{label}</span>
-                    <span className="block truncate text-xs text-white/60">{detail}</span>
-                  </span>
-                  <ExternalLink size={14} className="shrink-0 text-white/70" aria-hidden />
-                </button>
-              </li>
-            ))}
-          </ul>
-        </div>
       </nav>
 
       {/* Utilisateur + déconnexion */}
@@ -238,11 +170,9 @@ function MenuPanel({
 export function SideMenu({
   me,
   notifications,
-  heliosPort,
 }: {
   me: Me;
   notifications: { nonLues: number; items: NotificationItem[] };
-  heliosPort: string;
 }) {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
@@ -274,7 +204,7 @@ export function SideMenu({
         <div className="px-4 py-4">
           <Brand />
         </div>
-        <MenuPanel me={me} notifications={notifications} heliosPort={heliosPort} />
+        <MenuPanel me={me} notifications={notifications} />
       </aside>
 
       {/* < md : barre supérieure avec hamburger. */}
@@ -315,7 +245,7 @@ export function SideMenu({
                 <X size={20} />
               </button>
             </div>
-            <MenuPanel me={me} notifications={notifications} heliosPort={heliosPort} />
+            <MenuPanel me={me} notifications={notifications} />
           </div>
         </div>
       ) : null}
