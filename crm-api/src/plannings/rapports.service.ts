@@ -20,8 +20,10 @@ import {
   derniereSemaineACloturer,
   heureDe,
   isoJour,
+  jourParis,
   ligneVide,
   lundiDe,
+  numeroIso,
   phaseDe,
 } from './rapport-semaine.util';
 
@@ -168,6 +170,68 @@ export class RapportsService implements OnModuleInit, OnModuleDestroy {
       select: { valideAt: true },
     });
     if (row?.valideAt) throw new ConflictException('Cette semaine est validée : plus rien n\'est modifiable.');
+  }
+
+  /**
+   * Historique de MES rapports : la semaine en cours puis les `nb - 1` précédentes (les plus récentes d'abord), et les
+   * chiffres du mois courant. Visites = étapes hors ADM ; réalisé / prévu = lignes faites sur lignes prévues ;
+   * référencés = prospects à moi passés « gagné » (référencé) dans le mois.
+   */
+  async historique(userId: string, nb = 8, now: Date = new Date()) {
+    const courant = lundiDe(jourParis(now));
+    const debut = ajouterJours(courant, -7 * (nb - 1));
+    const fin = ajouterJours(courant, 7);
+    const [etapes, rows] = await Promise.all([
+      this.prisma.tourneeEtape.findMany({
+        where: { userId, deletedAt: null, datePassage: { gte: debut, lt: fin } },
+        select: { datePassage: true, adm: true, fait: true, rdv: true },
+      }),
+      this.prisma.planningSemaine.findMany({ where: { userId, semaine: { gte: debut, lt: fin } } }),
+    ]);
+
+    const semaines = Array.from({ length: nb }, (_, i) => {
+      const lundi = ajouterJours(courant, -7 * i);
+      const jusqua = ajouterJours(lundi, 7);
+      const row = rows.find((r) => isoJour(r.semaine) === isoJour(lundi)) ?? null;
+      const mes = etapes.filter((e) => e.datePassage >= lundi && e.datePassage < jusqua);
+      const visites = mes.filter((e) => !e.adm && e.fait).length;
+      const nbPrevues = row?.nbEtapesPrevues ?? null;
+      return {
+        semaine: isoJour(lundi),
+        numero: numeroIso(lundi),
+        statut: statutDe(phaseDe(lundi, now), row),
+        valideAt: row?.valideAt ?? null,
+        valideAuto: row?.valideAuto ?? false,
+        nbPrevues,
+        nbLignes: mes.length,
+        visites,
+        rdv: mes.filter((e) => e.rdv).length,
+        // Réalisé / prévu : sans prévision enregistrée, il n'y a rien à comparer.
+        pourcentPrevu: nbPrevues ? Math.round((mes.filter((e) => e.fait).length / nbPrevues) * 100) : null,
+      };
+    }).filter((s) => s.nbLignes > 0 || s.nbPrevues !== null || s.valideAt !== null || s.semaine === isoJour(courant));
+
+    // Chiffres du mois courant (mois de Paris).
+    const jour = jourParis(now);
+    const debutMois = new Date(`${jour.slice(0, 7)}-01T00:00:00.000Z`);
+    const finMois = new Date(Date.UTC(debutMois.getUTCFullYear(), debutMois.getUTCMonth() + 1, 1));
+    const [duMois, references] = await Promise.all([
+      this.prisma.tourneeEtape.findMany({
+        where: { userId, deletedAt: null, datePassage: { gte: debutMois, lt: finMois } },
+        select: { adm: true, fait: true },
+      }),
+      this.prisma.prospect.count({
+        where: { assignedToId: userId, deletedAt: null, statut: 'GAGNE', updatedAt: { gte: debutMois, lt: finMois } },
+      }),
+    ]);
+    const lignesMois = duMois.filter((e) => !e.adm);
+    return {
+      mois: jour.slice(0, 7),
+      visitesMois: lignesMois.filter((e) => e.fait).length,
+      pourcentPrevuMois: lignesMois.length ? Math.round((lignesMois.filter((e) => e.fait).length / lignesMois.length) * 100) : null,
+      references,
+      semaines,
+    };
   }
 
   // --- Prévision : photographie des étapes planifiées -------------------------------------------------------------
