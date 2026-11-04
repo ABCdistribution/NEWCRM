@@ -1,3 +1,4 @@
+import { Suspense } from 'react';
 import Link from 'next/link';
 import {
   Wallet,
@@ -21,6 +22,7 @@ import { ScatterObjectif } from '@/components/scatter-objectif';
 import { DonutChart } from '@/components/donut-chart';
 import { ClassBadge } from '@/components/class-badge';
 import { DashboardCS } from '@/components/dashboard-cs';
+import { CarteAccueil, CarteAccueilSquelette } from '@/components/carte-accueil';
 
 export const metadata = { title: 'Pilotage — Direction commerciale' };
 
@@ -90,6 +92,11 @@ export default async function Home({
   const [me, data] = await Promise.all([getMe(), getDashboardDirection(annee, mois)]);
   const prenom = me?.displayName?.split(/\s+/)[0] ?? '';
   const isCS = me?.role === 'CHEF_SECTEUR';
+  const carteMode: 'equipes' | 'secteur' | null = isCS
+    ? 'secteur'
+    : me?.role === 'ADMIN' || me?.role === 'DIRECTION' || me?.role === 'DIRECTEUR_REGIONAL'
+      ? 'equipes'
+      : null;
 
   return (
     <div className="flex flex-col gap-5">
@@ -122,6 +129,13 @@ export default async function Home({
           </Link>
         </div>
       </div>
+
+      {/* Carte en haut de l'accueil ; ne bloque pas le reste de la page (Suspense + erreurs localisées). */}
+      {carteMode ? (
+        <Suspense fallback={<CarteAccueilSquelette />}>
+          <CarteAccueil mode={carteMode} />
+        </Suspense>
+      ) : null}
 
       {!data ? (
         <p className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
