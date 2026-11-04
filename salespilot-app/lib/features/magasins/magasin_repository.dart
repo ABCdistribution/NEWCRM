@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart' show compute;
 
 import '../../core/db/cache_repository.dart';
 
@@ -211,11 +212,11 @@ class MagasinRepository {
         if (rows.length >= total || data.isEmpty) break;
       }
       await _cache.put(userId, 'magasins', rows);
-      return Cached(_parse(rows), DateTime.now());
+      return Cached(await _parse(rows), DateTime.now());
     } on DioException {
       final cached = await _cache.get(userId, 'magasins');
       if (cached == null) rethrow;
-      return Cached(_parse(cached.value as List<dynamic>), cached.fetchedAt, fromCache: true);
+      return Cached(await _parse(cached.value as List<dynamic>), cached.fetchedAt, fromCache: true);
     }
   }
 
@@ -223,7 +224,7 @@ class MagasinRepository {
   Future<Cached<List<Magasin>>?> local(String userId) async {
     final cached = await _cache.get(userId, 'magasins');
     if (cached == null) return null;
-    return Cached(_parse(cached.value as List<dynamic>), cached.fetchedAt, fromCache: Cached.perime(cached.fetchedAt));
+    return Cached(await _parse(cached.value as List<dynamic>), cached.fetchedAt, fromCache: Cached.perime(cached.fetchedAt));
   }
 
   /// Fiche : la copie locale d'abord (elle se met à jour en arrière-plan pour la prochaine ouverture), le réseau
@@ -280,8 +281,8 @@ class MagasinRepository {
     return true;
   }
 
-  static List<Magasin> _parse(List<dynamic> rows) => rows.map((e) => Magasin.fromJson(e as Map<String, dynamic>)).toList()
-    ..sort((a, b) => a.enseigne.toLowerCase().compareTo(b.enseigne.toLowerCase()));
+  /// Lecture et tri de la liste : hors du fil principal dès qu'elle est longue (jusqu'à 2 000 magasins).
+  static Future<List<Magasin>> _parse(List<dynamic> rows) => rows.length > 150 ? compute(_lireMagasins, rows) : Future.value(_lireMagasins(rows));
 
   static FicheMagasin _parseFiche(Map<String, dynamic> j, Magasin base) {
     final adresse = [j['adresse1'], j['codePostal'], j['ville']]
@@ -301,3 +302,6 @@ class MagasinRepository {
     );
   }
 }
+
+List<Magasin> _lireMagasins(List<dynamic> rows) => rows.map((e) => Magasin.fromJson(e as Map<String, dynamic>)).toList()
+  ..sort((a, b) => a.enseigne.toLowerCase().compareTo(b.enseigne.toLowerCase()));

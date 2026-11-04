@@ -33,6 +33,9 @@ class PilotProspectsPage extends ConsumerStatefulWidget {
 class _PilotProspectsPageState extends ConsumerState<PilotProspectsPage> {
   GroupeProspect? _filtre;
 
+  /// Vue « Pipeline » (par étape) ou « Mes prospects » (liste triée par potentiel).
+  bool _pipeline = false;
+
   @override
   Widget build(BuildContext context) {
     final violet = SpacePalette.pilot.accent;
@@ -92,9 +95,19 @@ class _PilotProspectsPageState extends ConsumerState<PilotProspectsPage> {
               Padding(
                 padding: const EdgeInsets.fromLTRB(16, 18, 16, 110),
                 child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+                  SegmentedButton<bool>(
+                    showSelectedIcon: false,
+                    segments: const [
+                      ButtonSegment(value: false, icon: Icon(Icons.format_list_bulleted, size: 18), label: Text('Mes prospects')),
+                      ButtonSegment(value: true, icon: Icon(Icons.view_column_outlined, size: 18), label: Text('Pipeline')),
+                    ],
+                    selected: {_pipeline},
+                    onSelectionChanged: (s) => setState(() => _pipeline = s.first),
+                  ),
+                  const SizedBox(height: 14),
                   Row(children: [
-                    const Expanded(child: Text('Pipeline', style: TextStyle(fontSize: 19, fontWeight: FontWeight.w800))),
-                    const Text('Trié par potentiel', style: TextStyle(color: StatusColors.muted, fontSize: 13)),
+                    Expanded(child: Text(_pipeline ? 'Pipeline' : 'Mes prospects', style: const TextStyle(fontSize: 19, fontWeight: FontWeight.w800))),
+                    Text(_pipeline ? 'Par étape' : 'Trié par potentiel', style: const TextStyle(color: StatusColors.muted, fontSize: 13)),
                   ]),
                   const SizedBox(height: 12),
                   if (async.isLoading && tous.isEmpty)
@@ -110,8 +123,23 @@ class _PilotProspectsPageState extends ConsumerState<PilotProspectsPage> {
                         ),
                       ),
                     )
+                  else if (_pipeline)
+                    // Une section par colonne du pipeline, dans l'ordre de l'avancement.
+                    ...[
+                      for (final g in GroupeProspect.values)
+                        if (liste.any((p) => p.groupe == g)) ...[
+                          Padding(
+                            padding: const EdgeInsets.fromLTRB(2, 6, 2, 8),
+                            child: Row(children: [
+                              Expanded(child: Text(g.libelle, style: TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: _couleurs(g).texte))),
+                              Text('${liste.where((p) => p.groupe == g).length}', style: const TextStyle(color: StatusColors.muted, fontWeight: FontWeight.w700)),
+                            ]),
+                          ),
+                          for (final p in liste.where((p) => p.groupe == g)) _Carte(prospect: p, action: prochaines[p.id]),
+                        ],
+                    ]
                   else
-                    for (final p in liste) _Carte(prospect: p, action: prochaines[p.id]),
+                    ...[for (final p in liste) _Carte(prospect: p, action: prochaines[p.id])],
                 ]),
               ),
             ],
@@ -188,7 +216,15 @@ class _Carte extends StatelessWidget {
     final c = _couleurs(prospect.groupe);
     return Card(
       margin: const EdgeInsets.only(bottom: 10),
-      child: Padding(
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        // Un prospect pas encore envoyé n'existe pas sur le serveur : pas de fiche avant son envoi.
+        onTap: prospect.enAttente
+            ? () => ScaffoldMessenger.of(context)
+              ..hideCurrentSnackBar()
+              ..showSnackBar(const SnackBar(content: Text('Ce prospect n\'est pas encore envoyé : sa fiche s\'ouvrira dès son envoi.')))
+            : () => context.push('/pilot/prospects/${prospect.id}'),
+        child: Padding(
         padding: const EdgeInsets.all(14),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -232,6 +268,7 @@ class _Carte extends StatelessWidget {
             ]),
           ],
         ]),
+        ),
       ),
     );
   }

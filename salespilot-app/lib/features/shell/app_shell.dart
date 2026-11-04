@@ -13,6 +13,7 @@ import '../prechargement.dart';
 import 'premier_chargement.dart';
 import '../pilot/pilot_planning_page.dart';
 import '../pilot/pilot_prospects_page.dart';
+import '../pilot/pilot_rapports_page.dart';
 
 /// Pastille permanente : nombre d'éléments non envoyés, visible sur tous les écrans (CDC §4.3).
 /// Neutre, orange à partir de 24 h, rouge à partir de 48 h d'ancienneté du plus vieil élément.
@@ -149,7 +150,7 @@ class AppShell extends ConsumerWidget {
                     PilotMagasinsPage(),
                     PilotProspectsPage(),
                     PilotTourneePage(),
-                    PilotBientot(titre: 'Rapports', icon: Icons.description_outlined),
+                    PilotRapportsPage(),
                   ])
                 // La bannière occupe déjà la zone de la barre d'état : l'en-tête de l'accueil ne la compte pas deux fois.
                 : (expired && accueil ? MediaQuery.removePadding(context: context, removeTop: true, child: shell) : shell),

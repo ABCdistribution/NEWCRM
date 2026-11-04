@@ -66,6 +66,15 @@ class MiseAJourLocale {
   Future<bool> etapes(DateTime lundi) => _etape((userId) async {
         await chargerEtapesSemaineReseau(_ref, userId, lundi);
         _ref.invalidate(etapesSemaineProvider);
+        // État du rapport (prévision, validation) et tournée prévue : utiles hors ligne ; un échec ici ne compte pas.
+        try {
+          await chargerEtatSemaineReseau(_ref, userId, lundi);
+          await chargerPrevueSemaineReseau(_ref, userId, lundi);
+        } on Object {
+          // la copie existante reste en place
+        }
+        _ref.invalidate(etatSemaineProvider);
+        _ref.invalidate(prevueSemaineProvider);
       });
 
   /// Pipeline de prospection (liste des prospects et compteurs) et prochaines étapes planifiées de chaque prospect.
@@ -104,10 +113,12 @@ class MiseAJourLocale {
           final ok = await magasins.precharger(userId, m.id, sauf: const Duration(hours: 12));
           echecs = ok ? 0 : echecs + 1;
           progression?.call(++fait, liste.length);
+          // Laisse l'interface se dessiner entre deux fiches : ce chargement de fond ne doit jamais la figer.
+          await Future<void>.delayed(const Duration(milliseconds: 60));
         }
       }
 
-      await Future.wait([for (var i = 0; i < 4; i++) ouvrier()]);
+      await Future.wait([for (var i = 0; i < 2; i++) ouvrier()]);
     } on Object {
       // silencieux
     }

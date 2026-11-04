@@ -9,8 +9,10 @@ import '../../core/providers.dart';
 import '../../core/theme/app_theme.dart';
 import '../prechargement.dart';
 import '../shell/app_shell.dart';
+import '../shell/selecteur_espace.dart';
 import 'pilot_accueil_page.dart';
 import 'pilot_planning_page.dart';
+import 'pilot_prospect_fiche_page.dart' show ouvrirFicheDeLigne;
 import 'prospects_pipeline.dart';
 import 'tournee_etapes.dart';
 
@@ -133,6 +135,8 @@ class PilotAccueilJourPage extends ConsumerWidget {
     final prospects = ref.watch(prospectsPipelineProvider).value ?? const <ProspectPipeline>[];
     final enNego = prospects.where((p) => p.groupe == GroupeProspect.enNego).length;
     final peutCreer = role != Role.direction;
+    // Rapport de la semaine validé : plus aucune ligne ne s'ajoute.
+    final semaineVerrouillee = ref.watch(etatSemaineProvider(lundi)).value?.verrouillee ?? false;
 
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: SystemUiOverlayStyle.light,
@@ -149,7 +153,10 @@ class PilotAccueilJourPage extends ConsumerWidget {
               decoration: BoxDecoration(color: violet, borderRadius: const BorderRadius.vertical(bottom: Radius.circular(28))),
               child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
                 EnteteBonjour(sousTitre: '${role?.label ?? ''} · ${_joursCourts[jour.weekday - 1]} ${jour.day} ${_moisCourts[jour.month - 1]}'),
-                const SizedBox(height: 16),
+                const SizedBox(height: 14),
+                // Bascule vers ABC Sales (réservée à l'encadrement, masquée pour les autres rôles).
+                const SelecteurEspace(space: Space.pilot),
+                const SizedBox(height: 14),
                 Row(children: [
                   Expanded(child: TuileChiffre(libelle: 'RDV du jour', valeur: '$faites/${etapes.length}')),
                   const SizedBox(width: 8),
@@ -185,17 +192,19 @@ class PilotAccueilJourPage extends ConsumerWidget {
                     if (identical(e, prochaine))
                       _EtapeProchaine(
                         etape: e,
+                        onTap: () => ouvrirFicheDeLigne(context, e),
                         onItineraire: () => _ouvrirItineraire(context, e),
                       )
                     else
-                      _EtapeLigne(etape: e),
+                      _EtapeLigne(etape: e, onTap: () => ouvrirFicheDeLigne(context, e)),
                 const SizedBox(height: 8),
                 Row(children: [
                   if (peutCreer) ...[
                     Expanded(child: _Raccourci(icone: Icons.add, libelle: 'Prospect', onTap: () => context.push('/prospects/nouveau'))),
                     const SizedBox(width: 10),
                   ],
-                  Expanded(child: _Raccourci(icone: Icons.add, libelle: 'RDV', onTap: () => context.push('/rdv/nouveau?date=${jourIso(jour)}'))),
+                  if (!semaineVerrouillee)
+                    Expanded(child: _Raccourci(icone: Icons.add, libelle: 'RDV', onTap: () => context.push('/rdv/nouveau?date=${jourIso(jour)}'))),
                 ]),
               ]),
             ),
@@ -212,13 +221,15 @@ String _titre(EtapeTournee e) => '${e.titre}${e.ville == null ? '' : ' – ${e.v
 String _nature(EtapeTournee e) => switch (e.type) {
       'PROSPECT' => 'Prospect',
       'CLIENT' => 'Client',
+      'LIBRE' => 'Libre',
       _ => 'ADM',
     };
 
 class _EtapeLigne extends StatelessWidget {
-  const _EtapeLigne({required this.etape});
+  const _EtapeLigne({required this.etape, required this.onTap});
 
   final EtapeTournee etape;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
@@ -231,7 +242,10 @@ class _EtapeLigne extends StatelessWidget {
     return Card(
       margin: const EdgeInsets.only(bottom: 10),
       color: fait ? const Color(0xFFEAF8EF) : null,
-      child: Padding(
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: onTap,
+        child: Padding(
         padding: const EdgeInsets.all(12),
         child: Row(children: [
           Container(
@@ -260,6 +274,7 @@ class _EtapeLigne extends StatelessWidget {
             child: Text(fait ? 'Fait' : 'À venir', style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w800, color: fait ? const Color(0xFF166534) : const Color(0xFF374151))),
           ),
         ]),
+        ),
       ),
     );
   }
@@ -267,9 +282,10 @@ class _EtapeLigne extends StatelessWidget {
 
 /// L'étape suivante, mise en évidence : détail et « Itinéraire ».
 class _EtapeProchaine extends StatelessWidget {
-  const _EtapeProchaine({required this.etape, required this.onItineraire});
+  const _EtapeProchaine({required this.etape, required this.onTap, required this.onItineraire});
 
   final EtapeTournee etape;
+  final VoidCallback onTap;
   final VoidCallback onItineraire;
 
   @override
@@ -283,12 +299,16 @@ class _EtapeProchaine extends StatelessWidget {
     ];
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
-      padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(18),
         border: Border.all(color: p.accent, width: 1.6),
       ),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(16),
+        onTap: onTap,
+        child: Padding(
+      padding: const EdgeInsets.all(14),
       child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
         Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Container(
@@ -323,6 +343,8 @@ class _EtapeProchaine extends StatelessWidget {
         const SizedBox(height: 12),
         OutlinedButton(onPressed: onItineraire, child: const Text('Itinéraire')),
       ]),
+        ),
+      ),
     );
   }
 }

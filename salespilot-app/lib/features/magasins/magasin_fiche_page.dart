@@ -7,6 +7,7 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:uuid/uuid.dart';
 
 import '../../core/api/api_client.dart';
+import '../../core/auth/role.dart' show Space;
 import '../../core/db/cache_repository.dart';
 import '../../core/providers.dart';
 import '../../core/sync/outbox_transport.dart';
@@ -93,6 +94,12 @@ class _FichePageState extends ConsumerState<MagasinFichePage> {
     if (mounted) context.push('/visite/$id');
   }
 
+  /// « Planifier » (ABC Pilot) : nouvelle ligne de tournée sur ce magasin, déjà choisi dans le formulaire.
+  void _planifier(Magasin m) {
+    final q = {'clientId': widget.id, 'nom': m.enseigne, if (m.ville != null) 'ville': m.ville!};
+    context.push(Uri(path: '/rdv/nouveau', queryParameters: q).toString());
+  }
+
   Future<void> _ajouterNote() async {
     final ctrl = TextEditingController();
     final texte = await showDialog<String>(
@@ -137,7 +144,11 @@ class _FichePageState extends ConsumerState<MagasinFichePage> {
               onRetour: () => context.canPop() ? context.pop() : context.go('/magasins'),
               onAppeler: fiche == null ? null : () => _appeler(fiche),
               onItineraire: fiche == null ? null : () => _itineraire(fiche),
+              // ABC Pilot (CS, DR…) : on planifie une ligne de tournée et on note ; la visite promoteur reste à ABC Sales.
+              pilot: ref.watch(spaceProvider) == Space.pilot,
               onVisite: _visite,
+              onPlanifier: () => _planifier(fiche?.magasin ?? base),
+              onNote: _ajouterNote,
             ),
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
@@ -204,7 +215,10 @@ class _Entete extends StatelessWidget {
     required this.onRetour,
     required this.onAppeler,
     required this.onItineraire,
+    required this.pilot,
     required this.onVisite,
+    required this.onPlanifier,
+    required this.onNote,
   });
 
   final Magasin magasin;
@@ -212,11 +226,14 @@ class _Entete extends StatelessWidget {
   final VoidCallback onRetour;
   final VoidCallback? onAppeler;
   final VoidCallback? onItineraire;
+  final bool pilot;
   final VoidCallback onVisite;
+  final VoidCallback onPlanifier;
+  final VoidCallback onNote;
 
   @override
   Widget build(BuildContext context) {
-    final bleu = SpacePalette.sales.accent;
+    final bleu = pilot ? SpacePalette.pilot.accent : SpacePalette.sales.accent;
     final statut = '${magasin.actif ? 'Client actif' : 'Client inactif'}${magasin.niveauClass == null ? '' : ' · ${magasin.niveauClass}'}';
     return Container(
       padding: EdgeInsets.fromLTRB(16, MediaQuery.paddingOf(context).top + 12, 16, 18),
@@ -252,7 +269,12 @@ class _Entete extends StatelessWidget {
           const SizedBox(width: 8),
           Expanded(child: _Action(icon: Icons.near_me_outlined, label: 'Itinéraire', onTap: onItineraire)),
           const SizedBox(width: 8),
-          Expanded(child: _Action(icon: Icons.add, label: 'Visite', onTap: onVisite, plein: true)),
+          if (pilot) ...[
+            Expanded(child: _Action(icon: Icons.calendar_today_outlined, label: 'Planifier', onTap: onPlanifier)),
+            const SizedBox(width: 8),
+            Expanded(child: _Action(icon: Icons.edit_outlined, label: 'Note', onTap: onNote)),
+          ] else
+            Expanded(child: _Action(icon: Icons.add, label: 'Visite', onTap: onVisite, plein: true)),
         ]),
       ]),
     );

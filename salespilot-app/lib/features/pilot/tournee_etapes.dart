@@ -6,8 +6,9 @@ import '../../core/db/app_database.dart';
 import '../../core/providers.dart';
 import '../../core/sync/outbox_transport.dart';
 
-/// Étape de MA tournée d'encadrement (visite d'un magasin ou d'un prospect, ou tâche administrative), telle que le
-/// web la planifie (`/tournees`). Vient du serveur, ou de la file d'envoi tant qu'elle n'est pas partie ([enAttente]).
+/// Ligne de MA tournée d'encadrement : visite d'un magasin ou d'un prospect, tâche administrative, ou ligne libre
+/// (client ou lieu saisi en texte), telle que le web la planifie (`/tournees`). Vient du serveur, ou de la file d'envoi
+/// tant qu'elle n'est pas partie ([enAttente]). Une même ligne sert à la tournée prévue (photographie) et réalisée.
 class EtapeTournee {
   const EtapeTournee({
     required this.id,
@@ -15,6 +16,7 @@ class EtapeTournee {
     required this.titre,
     required this.type,
     this.cibleId,
+    this.libelle,
     this.adresse,
     this.latitude,
     this.longitude,
@@ -26,6 +28,7 @@ class EtapeTournee {
     this.rdv = false,
     this.soireeEtape = false,
     this.soireeLieu,
+    this.soireeAdresse,
     this.note,
     this.fait = false,
     this.enAttente = false,
@@ -41,13 +44,17 @@ class EtapeTournee {
   final String titre;
   final String? ville;
 
-  /// `CLIENT`, `PROSPECT` ou `ADM`.
+  /// `CLIENT`, `PROSPECT`, `ADM` ou `LIBRE` (client ou lieu en texte).
   final String type;
 
-  /// Identifiant du magasin ou du prospect visité (null pour une étape ADM).
+  /// Identifiant du magasin ou du prospect visité (null pour une étape ADM ou libre).
   final String? cibleId;
 
-  /// Adresse postale et coordonnées du magasin ou du prospect, quand elles sont renseignées (itinéraire).
+  /// Client ou lieu saisi en texte libre (ligne libre).
+  final String? libelle;
+
+  /// Adresse de la ligne (saisie) ou, à défaut, adresse postale du magasin ou du prospect ; coordonnées pour
+  /// l'itinéraire quand on les a.
   final String? adresse;
   final double? latitude;
   final double? longitude;
@@ -62,6 +69,7 @@ class EtapeTournee {
   final bool rdv;
   final bool soireeEtape;
   final String? soireeLieu;
+  final String? soireeAdresse;
   final String? note;
   final bool fait;
   final bool enAttente;
@@ -83,30 +91,64 @@ class EtapeTournee {
     return adresse.isEmpty ? null : adresse;
   }
 
+  static String? _texte(Object? v) => (v as String?)?.trim().isEmpty ?? true ? null : (v as String).trim();
+
   factory EtapeTournee.fromApi(Map<String, dynamic> j) {
     final (jour, heure) = _quand(j['datePassage'] as String);
     final client = j['client'] as Map<String, dynamic>?;
     final prospect = j['prospect'] as Map<String, dynamic>?;
     final cible = prospect ?? client;
+    final adm = j['adm'] == true;
+    final libelle = _texte(j['libelle']);
+    final enseigne = _texte(cible?['enseigne']);
     return EtapeTournee(
       id: j['id'] as String,
       jour: jour,
       heure: heure,
       cibleId: cible?['id'] as String?,
-      adresse: _adresseDe(cible),
+      libelle: libelle,
+      // L'adresse saisie sur la ligne prime sur celle du magasin ou du prospect.
+      adresse: _texte(j['adresse']) ?? _adresseDe(cible),
       latitude: (cible?['latitude'] as num?)?.toDouble(),
       longitude: (cible?['longitude'] as num?)?.toDouble(),
-      titre: cible == null ? 'Administratif' : ((cible['enseigne'] as String?)?.trim().isNotEmpty ?? false) ? cible['enseigne'] as String : 'Sans nom',
+      titre: adm ? 'Administratif' : (enseigne ?? libelle ?? 'Sans nom'),
       ville: cible?['ville'] as String?,
       statutProspect: prospect?['statut'] as String?,
-      type: j['adm'] == true ? 'ADM' : (prospect != null ? 'PROSPECT' : 'CLIENT'),
+      type: adm ? 'ADM' : (prospect != null ? 'PROSPECT' : (client != null ? 'CLIENT' : 'LIBRE')),
       visiteSimple: j['visiteSimple'] as bool? ?? true,
       accompagnement: j['accompagnement'] as bool? ?? false,
       rdv: j['rdv'] as bool? ?? false,
       soireeEtape: j['soireeEtape'] as bool? ?? false,
       soireeLieu: j['soireeLieu'] as String?,
+      soireeAdresse: j['soireeAdresse'] as String?,
       note: j['note'] as String?,
       fait: j['fait'] as bool? ?? false,
+    );
+  }
+
+  /// Ligne de la tournée prévue : la photographie enregistrée par le serveur (`/tournees/semaine/prevue`).
+  factory EtapeTournee.fromLigne(Map<String, dynamic> j, int index) {
+    final jour = DateTime.parse((j['jour'] as String).substring(0, 10));
+    final adm = j['adm'] == true;
+    final libelle = _texte(j['libelle']);
+    final titre = _texte(j['titre']);
+    return EtapeTournee(
+      id: 'prevue-${j['jour']}-$index',
+      jour: jour,
+      heure: j['heure'] as String?,
+      cibleId: (j['prospectId'] ?? j['clientId']) as String?,
+      libelle: libelle,
+      adresse: _texte(j['adresse']),
+      titre: adm ? 'Administratif' : (titre ?? libelle ?? 'Sans nom'),
+      ville: j['ville'] as String?,
+      type: adm ? 'ADM' : (j['prospectId'] != null ? 'PROSPECT' : (j['clientId'] != null ? 'CLIENT' : 'LIBRE')),
+      visiteSimple: j['visiteSimple'] as bool? ?? true,
+      accompagnement: j['accompagnement'] as bool? ?? false,
+      rdv: j['rdv'] as bool? ?? false,
+      soireeEtape: j['soireeEtape'] as bool? ?? false,
+      soireeLieu: j['soireeLieu'] as String?,
+      soireeAdresse: j['soireeAdresse'] as String?,
+      note: j['note'] as String?,
     );
   }
 
@@ -114,19 +156,23 @@ class EtapeTournee {
   factory EtapeTournee.fromOutbox(OutboxItem item) {
     final p = jsonDecode(item.payload) as Map<String, dynamic>;
     final (jour, heure) = _quand(p['datePassage'] as String);
+    final adm = p['adm'] == true;
     return EtapeTournee(
       id: item.idApk,
       jour: jour,
       heure: heure,
       cibleId: (p['prospectId'] ?? p['clientId']) as String?,
+      libelle: _texte(p['libelle']),
+      adresse: _texte(p['adresse']),
       titre: p['_titre'] as String? ?? 'Rendez-vous',
       ville: p['_ville'] as String?,
-      type: p['adm'] == true ? 'ADM' : (p['prospectId'] != null ? 'PROSPECT' : 'CLIENT'),
+      type: adm ? 'ADM' : (p['prospectId'] != null ? 'PROSPECT' : (p['clientId'] != null ? 'CLIENT' : 'LIBRE')),
       visiteSimple: p['visiteSimple'] as bool? ?? true,
       accompagnement: p['accompagnement'] as bool? ?? false,
       rdv: p['rdv'] as bool? ?? false,
       soireeEtape: p['soireeEtape'] as bool? ?? false,
       soireeLieu: p['soireeLieu'] as String?,
+      soireeAdresse: p['soireeAdresse'] as String?,
       note: p['note'] as String?,
       enAttente: true,
     );
@@ -137,6 +183,8 @@ String jourIso(DateTime d) =>
     '${d.year.toString().padLeft(4, '0')}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
 
 String _cleSemaine(DateTime lundi) => 'tournee-etapes-${jourIso(lundi)}';
+String _cleEtat(DateTime lundi) => 'tournee-etat-${jourIso(lundi)}';
+String _clePrevue(DateTime lundi) => 'tournee-prevue-${jourIso(lundi)}';
 
 List<EtapeTournee> _lire(Object? brut) => [
       for (final e in (brut as List).cast<Map<String, dynamic>>()) EtapeTournee.fromApi(e),
@@ -165,6 +213,148 @@ final etapesSemaineProvider = FutureProvider.autoDispose.family<List<EtapeTourne
     return const [];
   }
 });
+
+/// Phase d'une semaine : prévision jusqu'au lundi soir inclus, rapport (tournée réalisée) dès le mardi. Calculée sur le
+/// jour du téléphone ; le serveur reste juge et refuse ce qui n'est pas permis.
+enum PhaseSemaine { prevision, rapport }
+
+PhaseSemaine phaseDeSemaine(DateTime lundi, [DateTime? maintenant]) {
+  final n = maintenant ?? DateTime.now();
+  return jourIso(DateTime(n.year, n.month, n.day)).compareTo(jourIso(lundi)) <= 0 ? PhaseSemaine.prevision : PhaseSemaine.rapport;
+}
+
+/// État du rapport d'une semaine : prévision enregistrée ou non, validation (manuelle ou automatique). Les trois notions :
+/// tournée prévue (photographie figée dès le mardi), tournée réalisée (étapes modifiables), rapport validé (verrouillé).
+class EtatSemaine {
+  const EtatSemaine({required this.phase, this.prevuAt, this.valideAt, this.valideAuto = false, this.nbEtapesPrevues});
+
+  /// Rien d'enregistré : semaine vierge (ou état inconnu hors ligne).
+  factory EtatSemaine.vierge(DateTime lundi, [DateTime? maintenant]) => EtatSemaine(phase: phaseDeSemaine(lundi, maintenant));
+
+  /// Depuis `GET /tournees/semaine` ou la copie locale. Seuls les faits (dates, validation) viennent du serveur : la phase
+  /// et ce qui en découle sont recalculés sur le téléphone, pour rester justes même avec une copie ancienne.
+  factory EtatSemaine.fromJson(Map<String, dynamic> j, DateTime lundi, [DateTime? maintenant]) => EtatSemaine(
+        phase: phaseDeSemaine(lundi, maintenant),
+        prevuAt: DateTime.tryParse((j['prevuAt'] as String?) ?? '')?.toLocal(),
+        valideAt: DateTime.tryParse((j['valideAt'] as String?) ?? '')?.toLocal(),
+        valideAuto: j['valideAuto'] as bool? ?? false,
+        nbEtapesPrevues: (j['nbEtapesPrevues'] as num?)?.toInt(),
+      );
+
+  final PhaseSemaine phase;
+  final DateTime? prevuAt;
+  final DateTime? valideAt;
+
+  /// Clôturée automatiquement (badge « Validé auto »).
+  final bool valideAuto;
+  final int? nbEtapesPrevues;
+
+  /// Rapport validé : plus rien n'est modifiable.
+  bool get verrouillee => valideAt != null;
+
+  /// Jusqu'au lundi soir : la prévision est un brouillon qu'on enregistre autant de fois que voulu.
+  bool get previsionModifiable => phase == PhaseSemaine.prevision && !verrouillee;
+
+  /// Dès le mardi : le bouton « Valider le rapport » apparaît.
+  bool get peutValider => phase == PhaseSemaine.rapport && !verrouillee;
+
+  /// Dès le mardi sans prévision enregistrée : « non renseignée », on passe directement au rapport.
+  bool get previsionNonRenseignee => phase == PhaseSemaine.rapport && prevuAt == null;
+}
+
+/// État de la semaine : copie locale d'abord, réseau seulement si la semaine n'a jamais été lue (vierge sans réseau).
+Future<EtatSemaine> chargerEtatSemaineReseau(Ref ref, String userId, DateTime lundi) async {
+  final res = await ref.read(dioProvider).get<Map<String, dynamic>>('/tournees/semaine', queryParameters: {'semaine': jourIso(lundi)});
+  final brut = <String, dynamic>{
+    for (final k in ['prevuAt', 'valideAt', 'valideAuto', 'nbEtapesPrevues']) k: res.data?[k],
+  };
+  await ref.read(cacheRepositoryProvider).put(userId, _cleEtat(lundi), brut);
+  return EtatSemaine.fromJson(brut, lundi);
+}
+
+final etatSemaineProvider = FutureProvider.autoDispose.family<EtatSemaine, DateTime>((ref, lundi) async {
+  final userId = ref.watch(currentUserIdProvider);
+  if (userId == null) return EtatSemaine.vierge(lundi);
+  final cached = await ref.read(cacheRepositoryProvider).get(userId, _cleEtat(lundi));
+  if (cached != null) return EtatSemaine.fromJson(Map<String, dynamic>.from(cached.value as Map), lundi);
+  try {
+    return await chargerEtatSemaineReseau(ref, userId, lundi);
+  } on Object {
+    return EtatSemaine.vierge(lundi);
+  }
+});
+
+/// Tournée PRÉVUE de la semaine (la photographie), ou null quand la prévision n'a pas été renseignée.
+Future<List<EtapeTournee>?> chargerPrevueSemaineReseau(Ref ref, String userId, DateTime lundi) async {
+  final res = await ref.read(dioProvider).get<Map<String, dynamic>>('/tournees/semaine/prevue', queryParameters: {'semaine': jourIso(lundi)});
+  final brut = res.data?['prevue'];
+  await ref.read(cacheRepositoryProvider).put(userId, _clePrevue(lundi), {'prevue': brut});
+  return _lirePrevue(brut);
+}
+
+List<EtapeTournee>? _lirePrevue(Object? brut) {
+  if (brut is! List) return null;
+  final lignes = brut.cast<Map<String, dynamic>>();
+  return [for (var i = 0; i < lignes.length; i++) EtapeTournee.fromLigne(lignes[i], i)];
+}
+
+/// Tournée prévue de la semaine : copie locale d'abord ; null = prévision non renseignée (ou inconnue hors ligne).
+final prevueSemaineProvider = FutureProvider.autoDispose.family<List<EtapeTournee>?, DateTime>((ref, lundi) async {
+  final userId = ref.watch(currentUserIdProvider);
+  if (userId == null) return null;
+  final cached = await ref.read(cacheRepositoryProvider).get(userId, _clePrevue(lundi));
+  if (cached != null) return _lirePrevue((cached.value as Map)['prevue']);
+  try {
+    return await chargerPrevueSemaineReseau(ref, userId, lundi);
+  } on Object {
+    return null;
+  }
+});
+
+/// Actions du rapport d'activité, toujours auprès du serveur (juge des règles : prévision figée dès le mardi, rapport
+/// vide refusé, soirée étape sans lieu, semaine validée verrouillée). Les erreurs portent le message du serveur.
+class RapportActions {
+  RapportActions(this._ref);
+
+  final Ref _ref;
+
+  Future<void> _poster(String chemin, DateTime lundi) async {
+    await _ref.read(dioProvider).post<Map<String, dynamic>>(chemin, data: {'semaine': jourIso(lundi)});
+    await _rafraichir(lundi);
+  }
+
+  /// Enregistre la tournée prévue (photographie des étapes) : modifiable jusqu'au lundi soir.
+  Future<void> enregistrerPrevision(DateTime lundi) => _poster('/tournees/semaine/prevision', lundi);
+
+  /// Valide le rapport (dès le mardi) : la tournée réalisée devient définitive, la semaine est verrouillée.
+  Future<void> validerRapport(DateTime lundi) => _poster('/tournees/semaine/validation', lundi);
+
+  /// Modifie une étape déjà enregistrée sur le serveur (champs de `PATCH /tournees/:id`).
+  Future<void> modifierEtape(String id, Map<String, dynamic> corps, DateTime lundi) async {
+    await _ref.read(dioProvider).patch<Map<String, dynamic>>('/tournees/$id', data: corps);
+    await _rafraichir(lundi);
+  }
+
+  Future<void> supprimerEtape(String id, DateTime lundi) async {
+    await _ref.read(dioProvider).delete<Map<String, dynamic>>('/tournees/$id');
+    await _rafraichir(lundi);
+  }
+
+  /// Relit la semaine (étapes, état, prévue) et les prochaines actions des prospects.
+  Future<void> _rafraichir(DateTime lundi) async {
+    final userId = _ref.read(currentUserIdProvider);
+    if (userId == null) return;
+    await chargerEtapesSemaineReseau(_ref, userId, lundi);
+    await chargerEtatSemaineReseau(_ref, userId, lundi);
+    await chargerPrevueSemaineReseau(_ref, userId, lundi);
+    _ref.invalidate(etapesSemaineProvider);
+    _ref.invalidate(etatSemaineProvider);
+    _ref.invalidate(prevueSemaineProvider);
+    _ref.invalidate(prochainesEtapesProvider);
+  }
+}
+
+final rapportActionsProvider = Provider<RapportActions>(RapportActions.new);
 
 /// Étapes des 90 prochains jours, lues sur le serveur et gardées sur le téléphone (prochaine action de chaque prospect).
 Future<List<EtapeTournee>> chargerProchainesEtapesReseau(Ref ref, String userId) async {

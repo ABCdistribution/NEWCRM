@@ -16,6 +16,8 @@ import 'features/profil/plus_page.dart';
 import 'features/shell/app_shell.dart';
 import 'features/pilot/nouveau_prospect_page.dart';
 import 'features/pilot/nouveau_rdv_page.dart';
+import 'features/pilot/pilot_prospect_fiche_page.dart';
+import 'features/pilot/tournee_etapes.dart';
 import 'features/sync/sync_page.dart';
 import 'features/tournee/tournee_page.dart';
 import 'features/visite/visite_etapes_page.dart';
@@ -73,10 +75,20 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: '/pilot/magasins/:id',
         builder: (_, state) => Scaffold(body: MagasinFichePage(id: state.pathParameters['id']!, magasin: state.extra as Magasin?)),
       ),
-      // « Nouveau RDV » d'ABC Pilot (planning de l'encadrement) ; `date` = jour proposé au départ (yyyy-mm-dd).
+      // Fiche prospect d'ABC Pilot : étape de prospection, contact, timeline.
+      GoRoute(path: '/pilot/prospects/:id', builder: (_, state) => PilotProspectFichePage(id: state.pathParameters['id']!)),
+      // « Nouveau RDV » d'ABC Pilot (planning de l'encadrement) ; `date` = jour proposé au départ (yyyy-mm-dd),
+      // `prospectId` / `nom` / `ville` = prospect déjà choisi (depuis sa fiche).
       GoRoute(
         path: '/rdv/nouveau',
-        builder: (_, state) => NouveauRdvPage(date: DateTime.tryParse(state.uri.queryParameters['date'] ?? '')),
+        builder: (_, state) => NouveauRdvPage(
+          prospectId: state.uri.queryParameters['prospectId'],
+          clientId: state.uri.queryParameters['clientId'],
+          prospectNom: state.uri.queryParameters['nom'],
+          prospectVille: state.uri.queryParameters['ville'],
+          date: DateTime.tryParse(state.uri.queryParameters['date'] ?? ''),
+          etape: state.extra as EtapeTournee?, // fournie : modification d'une ligne existante
+        ),
       ),
       // Profil : accessible depuis l'avatar des accueils (la navigation du bas porte désormais les Produits).
       GoRoute(
