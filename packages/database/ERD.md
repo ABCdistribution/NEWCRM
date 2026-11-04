@@ -688,6 +688,20 @@ ANNULEE ANNULEE
     DateTime createdAt 
     }
   
+
+  "news" {
+    String id "🗝️"
+    String titre 
+    String contenu 
+    String imageUrl "❓"
+    Boolean publiee 
+    DateTime publieeAt "❓"
+    String auteurNom "❓"
+    DateTime createdAt 
+    DateTime updatedAt 
+    DateTime deletedAt "❓"
+    }
+  
     "users" |o--|| "Role" : "enum:role"
     "users" }o--|o secteurs : "secteur"
     "users" }o--|o regions : "region"
@@ -791,4 +805,5 @@ ANNULEE ANNULEE
     "objectifs" }o--|o users : "creePar"
     "notifications" }o--|| users : "user"
     "notifications" }o--|o users : "emetteur"
+    "news" }o--|| users : "auteur"
 ```

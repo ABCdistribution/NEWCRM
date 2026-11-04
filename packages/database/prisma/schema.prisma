@@ -204,6 +204,9 @@ model User {
   notificationsRecues Notification[] @relation("NotificationsRecues")
   notificationsEmises Notification[] @relation("NotificationsEmises")
 
+  // News du siège rédigées par cet utilisateur.
+  newsRedigees News[] @relation("NewsAuteur")
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -1357,4 +1360,26 @@ model Notification {
 
   @@index([userId, luAt])
   @@map("notifications")
+}
+
+/// News du siège (informations diffusées à la force de vente). Globales : pas de périmètre.
+/// Lecture par tous les rôles (brouillons réservés à MARKETING / ADMIN), administration MARKETING / ADMIN.
+model News {
+  id        String    @id @default(uuid()) @db.Uuid
+  titre     String
+  contenu   String // texte long ; l'extrait est calculé par l'API
+  imageUrl  String? // URL ou chemin (pas d'upload de fichier)
+  publiee   Boolean   @default(false)
+  publieeAt DateTime? // fixé à la publication, remis à null à la dépublication
+  auteurId  String    @db.Uuid
+  auteur    User      @relation("NewsAuteur", fields: [auteurId], references: [id])
+  auteurNom String? // nom d'origine affiché si la news a été reprise d'un ancien système
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime? // suppression logique
+
+  @@index([publiee, publieeAt])
+  @@index([deletedAt])
+  @@index([auteurId])
+  @@map("news")
 }
