@@ -20,7 +20,7 @@ import { ContactsCard } from '@/components/contacts-card';
 import { NotesCard } from '@/components/notes-card';
 import { PeriodiciteCard } from '@/components/periodicite-card';
 
-export const metadata = { title: 'Fiche magasin — ABC Sales' };
+export const metadata = { title: 'Fiche client — Promoteurs' };
 
 const DATE_FMT = new Intl.DateTimeFormat('fr-FR', { day: '2-digit', month: 'short', year: 'numeric' });
 
@@ -89,7 +89,7 @@ export default async function ClientFiche({ params }: { params: Promise<{ id: st
           <Link
             href="/clients"
             className="mt-1 rounded-lg p-1.5 text-neutral-400 transition hover:bg-neutral-100 hover:text-neutral-700 dark:hover:bg-navy-800"
-            aria-label="Retour à mes magasins"
+            aria-label="Retour à mes clients"
           >
             <ArrowLeft size={18} />
           </Link>
@@ -242,7 +242,7 @@ export default async function ClientFiche({ params }: { params: Promise<{ id: st
                 Dernières commandes
               </h2>
               {histo.commandes.length === 0 ? (
-                <p className="px-5 py-4 text-sm text-neutral-400">Aucune commande pour ce magasin.</p>
+                <p className="px-5 py-4 text-sm text-neutral-400">Aucune commande pour ce client.</p>
               ) : (
                 <div className="overflow-x-auto">
                 <table className="w-full min-w-[480px] text-sm">

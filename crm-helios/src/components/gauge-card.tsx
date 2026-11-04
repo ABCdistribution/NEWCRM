@@ -31,9 +31,6 @@ export function GaugeCard({
       <div className="mt-3 flex flex-wrap items-baseline gap-x-2">
         <span className="text-3xl font-bold tracking-tight text-brand dark:text-accent">{realiseLabel}</span>
         {cibleLabel ? <span className="text-neutral-400">/ {cibleLabel}</span> : null}
-        {clamped !== null ? (
-          <span className="ml-auto text-sm font-medium text-brand dark:text-accent">{Math.round(clamped)}%</span>
-        ) : null}
       </div>
 
       {clamped !== null ? (

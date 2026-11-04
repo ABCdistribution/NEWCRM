@@ -4,7 +4,7 @@ import { SearchBar } from '@/components/search-bar';
 import { Pagination } from '@/components/pagination';
 import { KpiTile } from '@/components/kpi-tile';
 
-export const metadata = { title: 'Commandes — ABC Pilot' };
+export const metadata = { title: 'Commandes — Direction commerciale' };
 
 const EUR = new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR', maximumFractionDigits: 2 });
 const EUR0 = new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 });
@@ -98,10 +98,10 @@ export default async function CommandesPage({
           pill={{ text: '↑ 4%', tone: 'up' }}
         />
         <KpiTile
-          label="Magasins commandants"
-          info="Magasins ayant passé commande ce mois"
+          label="Clients commandants"
+          info="Clients ayant passé commande ce mois"
           value={k ? NB.format(k.magasinsCommandants) : '—'}
-          sub={k ? `sur ${NB.format(k.magasinsTotal)} magasins` : undefined}
+          sub={k ? `sur ${NB.format(k.magasinsTotal)} clients` : undefined}
         />
       </section>
 

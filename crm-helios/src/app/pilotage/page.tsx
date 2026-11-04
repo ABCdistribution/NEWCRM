@@ -22,7 +22,7 @@ import { DonutChart } from '@/components/donut-chart';
 import { ClassBadge } from '@/components/class-badge';
 import { DashboardCS } from '@/components/dashboard-cs';
 
-export const metadata = { title: 'Pilotage — ABC Pilot' };
+export const metadata = { title: 'Pilotage — Direction commerciale' };
 
 const EUR = new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 });
 const MOIS_LABELS = [
@@ -54,10 +54,24 @@ function Delta({ pct }: { pct: number | null }) {
   );
 }
 
-function TauxObjectif({ pct }: { pct: number | null }) {
-  if (pct == null) return <span className="text-xs text-neutral-400">—</span>;
-  const tone = pct >= 100 ? 'text-emerald-500' : pct >= 70 ? 'text-amber-400' : 'text-red-400';
-  return <span className={`text-xs font-semibold ${tone}`}>{pct}%</span>;
+/** CA réalisé / objectif en euros ; la couleur de seuil suit l'atteinte (sans l'afficher en %). */
+function RealiseObjectif({ ca, objectif, pct }: { ca: number; objectif: number | null; pct: number | null }) {
+  if (objectif == null) {
+    return (
+      <span>
+        <span className="font-semibold dark:text-accent">{EUR.format(ca)}</span>
+        <span className="text-xs text-neutral-400"> / —</span>
+      </span>
+    );
+  }
+  const tone =
+    pct == null ? 'dark:text-accent' : pct >= 100 ? 'text-emerald-500' : pct >= 70 ? 'text-amber-400' : 'text-red-400';
+  return (
+    <span className="whitespace-nowrap">
+      <span className={`font-semibold ${tone}`}>{EUR.format(ca)}</span>
+      <span className="text-xs text-neutral-400"> / {EUR.format(objectif)}</span>
+    </span>
+  );
 }
 
 export default async function Home({
@@ -141,9 +155,9 @@ export default async function Home({
             />
             <StatTile
               icon={Store}
-              label="Magasins commandants"
+              label="Clients commandants"
               value={`${data.kpis.magasinsCommandants}/${data.kpis.magasinsTotal}`}
-              hint={`${data.sansCommande.total} magasin${data.sansCommande.total > 1 ? 's' : ''} sans commande`}
+              hint={`${data.sansCommande.total} client${data.sansCommande.total > 1 ? 's' : ''} sans commande`}
             />
             <StatTile
               icon={Target}
@@ -171,7 +185,7 @@ export default async function Home({
           <section className={card}>
             <h2 className={cardHeader}>
               <Target size={17} className="text-brand dark:text-accent" />
-              Objectif vs CA réalisé — par magasin
+              Objectif vs CA réalisé — par client
             </h2>
             <ScatterObjectif points={data.scatterMagasins} />
           </section>
@@ -232,10 +246,8 @@ export default async function Home({
                         <th className="px-5 py-2 font-medium">#</th>
                         <th className="px-2 py-2 font-medium">Promoteur</th>
                         <th className="px-2 py-2 font-medium">Secteur</th>
-                        <th className="px-2 py-2 text-right font-medium">CA</th>
-                        <th className="px-2 py-2 text-right font-medium">vs N-1</th>
-                        <th className="px-2 py-2 text-right font-medium">Objectif</th>
-                        <th className="px-5 py-2 text-right font-medium">Atteinte</th>
+                        <th className="px-2 py-2 text-right font-medium">CA / objectif</th>
+                        <th className="px-5 py-2 text-right font-medium">vs N-1</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-neutral-100 dark:divide-navy-700">
@@ -259,17 +271,11 @@ export default async function Home({
                               <span className="text-xs text-neutral-400">—</span>
                             )}
                           </td>
-                          <td className="px-2 py-2.5 text-right font-semibold dark:text-accent">
-                            {EUR.format(p.ca)}
-                          </td>
                           <td className="px-2 py-2.5 text-right">
-                            <Delta pct={p.deltaPct} />
-                          </td>
-                          <td className="px-2 py-2.5 text-right text-xs text-neutral-400">
-                            {p.objectif != null ? EUR.format(p.objectif) : '—'}
+                            <RealiseObjectif ca={p.ca} objectif={p.objectif} pct={p.tauxPct} />
                           </td>
                           <td className="px-5 py-2.5 text-right">
-                            <TauxObjectif pct={p.tauxPct} />
+                            <Delta pct={p.deltaPct} />
                           </td>
                         </tr>
                       ))}
@@ -326,7 +332,7 @@ export default async function Home({
                 </h2>
                 {data.sansCommande.exemples.length === 0 ? (
                   <p className="px-5 py-4 text-sm text-neutral-400">
-                    🎉 Tous les magasins actifs ont commandé ce mois.
+                    🎉 Tous les clients actifs ont commandé ce mois.
                   </p>
                 ) : (
                   <>
@@ -349,7 +355,7 @@ export default async function Home({
                     {data.sansCommande.total > data.sansCommande.exemples.length ? (
                       <p className="border-t border-neutral-100 px-5 py-2.5 text-xs text-neutral-400 dark:border-navy-700">
                         … et {data.sansCommande.total - data.sansCommande.exemples.length} autres —{' '}
-                        <Link href="/pilotage/clients" className="underline">tous les magasins</Link>.
+                        <Link href="/pilotage/clients" className="underline">tous les clients</Link>.
                       </p>
                     ) : null}
                   </>

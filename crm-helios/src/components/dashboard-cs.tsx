@@ -61,7 +61,7 @@ export function DashboardCS({ data }: { data: DashboardDirection }) {
         />
         <StatTile
           icon={Store}
-          label="Magasins commandants"
+          label="Clients commandants"
           value={`${data.kpis.magasinsCommandants}/${data.kpis.magasinsTotal}`}
           hint={`${data.sansCommande.total} sans commande ce mois`}
         />
@@ -125,7 +125,7 @@ export function DashboardCS({ data }: { data: DashboardDirection }) {
           </h2>
           {data.sansCommande.exemples.length === 0 ? (
             <p className="px-5 py-6 text-sm text-neutral-400">
-              🎉 Tous les magasins actifs du secteur ont commandé.
+              🎉 Tous les clients actifs du secteur ont commandé.
             </p>
           ) : (
             <>
@@ -149,7 +149,7 @@ export function DashboardCS({ data }: { data: DashboardDirection }) {
                 <span className="text-neutral-400">
                   {data.sansCommande.total > data.sansCommande.exemples.length
                     ? `… et ${data.sansCommande.total - data.sansCommande.exemples.length} autres`
-                    : 'Liste complète des magasins'}
+                    : 'Liste complète des clients'}
                 </span>
                 <SeliosLink
                   path="/planification"
@@ -209,7 +209,7 @@ export function DashboardCS({ data }: { data: DashboardDirection }) {
       {/* Nuage objectif vs réalisé : sous la diagonale = à relancer */}
       <section className={card}>
         <h2 className="flex items-center gap-2 border-b border-neutral-100 px-5 py-3.5 text-sm font-semibold dark:border-navy-700">
-          Objectif vs CA réalisé — par magasin
+          Objectif vs CA réalisé — par client
         </h2>
         <ScatterObjectif points={data.scatterMagasins} />
       </section>
@@ -227,9 +227,8 @@ export function DashboardCS({ data }: { data: DashboardDirection }) {
               <thead className="text-left text-xs text-neutral-400">
                 <tr>
                   <th className="px-5 py-2 font-medium">Promoteur</th>
-                  <th className="px-2 py-2 text-right font-medium">CA</th>
-                  <th className="px-2 py-2 text-right font-medium">vs N-1</th>
-                  <th className="px-5 py-2 text-right font-medium">Objectif</th>
+                  <th className="px-2 py-2 text-right font-medium">CA / objectif</th>
+                  <th className="px-5 py-2 text-right font-medium">vs N-1</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-neutral-100 dark:divide-navy-700">
@@ -239,27 +238,29 @@ export function DashboardCS({ data }: { data: DashboardDirection }) {
                       <p className="font-medium">{p.nom}</p>
                       <p className="font-mono text-[11px] text-neutral-400">code {p.idRepr}</p>
                     </td>
-                    <td className="px-2 py-2.5 text-right font-semibold dark:text-accent">{EUR.format(p.ca)}</td>
-                    <td className="px-2 py-2.5 text-right">
+                    <td className="whitespace-nowrap px-2 py-2.5 text-right">
+                      <span
+                        className={`font-semibold ${
+                          p.tauxPct == null
+                            ? 'dark:text-accent'
+                            : p.tauxPct >= 100
+                              ? 'text-emerald-500'
+                              : p.tauxPct >= 70
+                                ? 'text-amber-400'
+                                : 'text-red-400'
+                        }`}
+                      >
+                        {EUR.format(p.ca)}
+                      </span>
+                      <span className="text-xs text-neutral-400"> / {p.objectif != null ? EUR.format(p.objectif) : '—'}</span>
+                    </td>
+                    <td className="px-5 py-2.5 text-right">
                       {p.deltaPct == null ? (
                         <span className="text-xs text-neutral-400">n/d</span>
                       ) : (
                         <span className={`text-xs font-semibold ${p.deltaPct >= 0 ? 'text-emerald-500' : 'text-red-400'}`}>
                           {p.deltaPct >= 0 ? '+' : ''}
                           {p.deltaPct}%
-                        </span>
-                      )}
-                    </td>
-                    <td className="px-5 py-2.5 text-right">
-                      {p.tauxPct == null ? (
-                        <span className="text-xs text-neutral-400">—</span>
-                      ) : (
-                        <span
-                          className={`text-xs font-semibold ${
-                            p.tauxPct >= 100 ? 'text-emerald-500' : p.tauxPct >= 70 ? 'text-amber-400' : 'text-red-400'
-                          }`}
-                        >
-                          {p.tauxPct}%
                         </span>
                       )}
                     </td>

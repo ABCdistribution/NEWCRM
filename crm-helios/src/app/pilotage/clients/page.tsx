@@ -5,7 +5,7 @@ import { Pagination } from '@/components/pagination';
 import { ActiveBadge } from '@/components/badges';
 import { KpiTile } from '@/components/kpi-tile';
 
-export const metadata = { title: 'Mes magasins — ABC Pilot' };
+export const metadata = { title: 'Mes clients — Direction commerciale' };
 
 const NB = new Intl.NumberFormat('fr-FR');
 const EUR = new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 });
@@ -40,11 +40,11 @@ export default async function ClientsPage({
     <div className="flex flex-col gap-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold">{mine ? 'Mes magasins' : 'Magasins'}</h1>
+          <h1 className="text-2xl font-bold">{mine ? 'Mes clients' : 'Clients'}</h1>
           <p className="text-sm text-neutral-500">
             {mine
               ? `Mon portefeuille (code représentant ${result!.scope.idRepr})`
-              : 'Référentiel complet des magasins.'}
+              : 'Référentiel complet des clients.'}
           </p>
         </div>
         <SearchBar placeholder="Enseigne, raison sociale, code…" />
@@ -53,21 +53,21 @@ export default async function ClientsPage({
       {/* Bandeau KPI magasins — chiffres réels, évolutions « vs mois dernier » illustratives */}
       <section className="grid grid-cols-2 gap-4 lg:grid-cols-4">
         <KpiTile
-          label="Total magasins"
-          info="Magasins actifs dans votre périmètre"
+          label="Total clients"
+          info="Clients actifs dans votre périmètre"
           value={fmt(k?.magasinsTotal)}
           sub="vs mois dernier"
           pill={{ text: '↑ 1%', tone: 'up' }}
         />
         <KpiTile
           label="Commandants ce mois"
-          info="Magasins ayant passé au moins une commande ce mois"
+          info="Clients ayant passé au moins une commande ce mois"
           value={fmt(k?.magasinsCommandants)}
-          sub={k ? `sur ${NB.format(k.magasinsTotal)} magasins` : undefined}
+          sub={k ? `sur ${NB.format(k.magasinsTotal)} clients` : undefined}
         />
         <KpiTile
           label="Sans commande"
-          info="Magasins actifs sans commande ce mois-ci"
+          info="Clients actifs sans commande ce mois-ci"
           value={fmt(sansCmd)}
           pill={sansCmd == null ? undefined : sansCmd > 0 ? { text: 'à relancer', tone: 'warn' } : { text: 'aucun', tone: 'up' }}
         />

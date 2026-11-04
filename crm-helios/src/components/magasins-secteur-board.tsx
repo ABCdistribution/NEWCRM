@@ -144,7 +144,7 @@ function MagasinModal({ magasin, onClose }: { magasin: MagasinSuiviRow; onClose:
               <p className="py-3 text-center text-sm text-neutral-400">Chargement…</p>
             ) : suivi.effectuees.length === 0 ? (
               <p className="rounded-lg border border-dashed border-neutral-200 px-3 py-3 text-sm text-neutral-400 dark:border-navy-700">
-                Aucune tournée enregistrée dans ce magasin.
+                Aucune tournée enregistrée chez ce client.
               </p>
             ) : (
               <ul className="flex flex-col gap-1.5">
@@ -167,7 +167,7 @@ function MagasinModal({ magasin, onClose }: { magasin: MagasinSuiviRow; onClose:
             href={`/pilotage/clients/${magasin.id}`}
             className="inline-flex items-center gap-1.5 self-end text-xs font-medium text-brand hover:underline dark:text-accent"
           >
-            Ouvrir la fiche complète du magasin <ExternalLink size={12} />
+            Ouvrir la fiche complète du client <ExternalLink size={12} />
           </Link>
         </div>
       </div>
@@ -273,7 +273,7 @@ export function MagasinsSecteurBoard({
         <table className="w-full min-w-[860px] text-sm">
           <thead className="border-b border-neutral-100 text-left text-[11px] uppercase tracking-wider text-neutral-400 dark:border-navy-700">
             <tr>
-              <th className="px-4 py-2.5 font-medium">Magasin</th>
+              <th className="px-4 py-2.5 font-medium">Client</th>
               <th className="px-4 py-2.5 text-center font-medium">Classe</th>
               <th className="px-4 py-2.5 font-medium">Promoteur en charge</th>
               <th className="px-4 py-2.5 text-right font-medium">CA mois</th>
@@ -290,7 +290,7 @@ export function MagasinsSecteurBoard({
                   key={m.id}
                   onClick={() => setSelected(m)}
                   className="cursor-pointer hover:bg-neutral-50 dark:hover:bg-navy-800/50"
-                  title="Voir le suivi du magasin"
+                  title="Voir le suivi du client"
                 >
                   <td className="px-4 py-3">
                     <p className="font-medium">{m.enseigne}</p>
@@ -319,7 +319,7 @@ export function MagasinsSecteurBoard({
             })}
             {filtres.length === 0 ? (
               <tr>
-                <td colSpan={7} className="px-4 py-10 text-center text-neutral-400">Aucun magasin pour ces filtres.</td>
+                <td colSpan={7} className="px-4 py-10 text-center text-neutral-400">Aucun client pour ces filtres.</td>
               </tr>
             ) : null}
           </tbody>

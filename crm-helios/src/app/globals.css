@@ -11,9 +11,9 @@
 @theme {
   --font-sans: 'Inter Variable', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
 
-  --color-brand: #3b0764; /* violet profond — couleur principale */
-  --color-accent: #ffc94d; /* or — chiffres, actifs, boutons en contexte sombre */
-  --color-brand-light: #a78bda; /* mauve — série secondaire des graphes sur violet */
+  --color-brand: #7a56e6; /* violet ABC Pilot (maquette mobile) — couleur principale */
+  --color-accent: #b396fb; /* violet clair — chiffres, actifs, séries secondaires */
+  --color-brand-light: #d2c3fc; /* lilas — série tertiaire des graphes */
 
   /* Surfaces sombres, dérivées du violet (les noms `navy-*` sont conservés
      pour que tous les composants copiés de ABC Sales fonctionnent tels quels) */
@@ -31,9 +31,9 @@
 :root {
   /* Fond lilas très clair (pendant clair du violet HELIOS) — les cartes blanches
      y ressortent avec leur ombre lilas. */
-  --background: #f1f4fb;
-  --foreground: #0a0a0a;
-  --color-brand: #6545c5; /* violet royal — boutons et accents (mode clair) */
+  --background: #f3eeff;
+  --foreground: #2e1b56;
+  --color-brand: #7a56e6; /* violet ABC Pilot — boutons et accents (mode clair) */
 }
 
 /*
@@ -45,9 +45,9 @@
   /* Dark permanent « noir bleuté + violet » — le fond des logos (noir pur)
      se fond dans les surfaces. */
   --background: #0b0e14;         /* fond du contenu — noir bleuté */
-  --color-brand: #8b5cf6;        /* accent violet (boutons, actifs, emphase) */
-  --color-brand-light: #2dd4bf;  /* secondaire teal (2ᵉ série des graphes) */
-  --color-accent: #8b5cf6;
+  --color-brand: #7a56e6;        /* violet ABC Pilot (boutons, actifs, emphase) */
+  --color-brand-light: #65b8fd;  /* bleu ABC Sales (2ᵉ série des graphes) */
+  --color-accent: #b396fb;
   --color-navy-950: #000000;     /* fond du menu (sidebar) — noir pur, comme le fond des logos */
   --color-navy-900: #12151f;     /* modales */
   --color-navy-800: #1a1f2c;     /* survols, puces */

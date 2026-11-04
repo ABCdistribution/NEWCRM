@@ -5,7 +5,7 @@ import { MagasinsTable } from '@/components/magasins-table';
 import { MesMagasinsToggle } from '@/components/mes-magasins-toggle';
 import { StatutMagasinsFiltre, type StatutMagasins } from '@/components/statut-magasins-filtre';
 
-export const metadata = { title: 'Mes magasins — ABC Sales' };
+export const metadata = { title: 'Mes clients — Promoteurs' };
 
 export default async function ClientsPage({
   searchParams,
@@ -28,7 +28,7 @@ export default async function ClientsPage({
       actif: statut ? (statut === 'actifs' ? 'true' : 'false') : undefined,
     });
   } catch {
-    error = "Impossible de charger les magasins. L'API est-elle démarrée ?";
+    error = "Impossible de charger les clients. L'API est-elle démarrée ?";
   }
 
   const mine = result?.scope?.type === 'mine';
@@ -40,11 +40,11 @@ export default async function ClientsPage({
     <div className="flex flex-col gap-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold">{mine ? 'Mes magasins' : 'Magasins'}</h1>
+          <h1 className="text-2xl font-bold">{mine ? 'Mes clients' : 'Clients'}</h1>
           <p className="text-sm text-neutral-500">
             {mine
               ? `Mon portefeuille (code représentant ${result!.scope.idRepr})`
-              : 'Référentiel complet des magasins.'}
+              : 'Référentiel complet des clients.'}
           </p>
         </div>
         <div className="flex items-center gap-2">

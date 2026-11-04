@@ -62,7 +62,7 @@ export function CarteSecteur({
           .bindPopup(
             `<b>${m.enseigne}</b> ${m.niveauClass ? `<span style="background:#e5e7eb;border-radius:9999px;padding:0 6px;font-weight:700">${m.niveauClass}</span>` : ''}<br/>` +
               `${[m.codePostal, m.ville].filter(Boolean).join(' ')}<br/>` +
-              `Magasin géré${pos.approx ? ' · <i>position approximative</i>' : ''}<br/>` +
+              `Client géré${pos.approx ? ' · <i>position approximative</i>' : ''}<br/>` +
               `<a href="/pilotage/clients/${m.id}">Ouvrir la fiche</a>`,
           )
           .addTo(clients);
@@ -77,8 +77,8 @@ export function CarteSecteur({
         bounds.push([pos.lat, pos.lng]);
         L.circleMarker([pos.lat, pos.lng], {
           radius: 8,
-          color: '#8b5cf6',
-          fillColor: '#8b5cf6',
+          color: '#7a56e6',
+          fillColor: '#7a56e6',
           fillOpacity: 0.7,
           weight: 2,
           dashArray: '3 3',
@@ -138,7 +138,7 @@ export function CarteSecteur({
           className={chip(showClients, 'border-sky-500 bg-sky-500')}
           aria-pressed={showClients}
         >
-          <Store size={13} /> Mes magasins ({points.length})
+          <Store size={13} /> Mes clients ({points.length})
         </button>
         <button
           type="button"
@@ -155,7 +155,7 @@ export function CarteSecteur({
         ref={containerRef}
         className="z-0 h-[560px] w-full overflow-hidden rounded-2xl shadow-card"
         role="application"
-        aria-label="Carte du secteur : magasins gérés et prospects"
+        aria-label="Carte du secteur : clients gérés et prospects"
       />
     </div>
   );

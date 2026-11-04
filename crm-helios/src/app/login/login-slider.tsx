@@ -5,13 +5,6 @@ import { useEffect, useState } from 'react';
 /** Les univers de la gamme, présentés en boucle à côté du formulaire de connexion. */
 const SLIDES = [
   {
-    src: '/logo-abc-pilot.png',
-    nom: 'ABC Pilot',
-    glow: '124,102,255',
-    titre: 'ABC Pilot, force commerciale',
-    texte: "Pilotez l'activité commerciale et encadrez vos équipes terrain : clients, tournées, objectifs et commandes.",
-  },
-  {
     src: '/logo-thelios.png',
     nom: 'Thelios',
     glow: '251,191,36',
@@ -23,7 +16,7 @@ const SLIDES = [
     nom: 'Ascendo',
     glow: '16,185,129',
     titre: 'AscendoPilot, votre outil statistique',
-    texte: "Suivez et analysez l'activité de vos magasins grâce à des statistiques claires et à jour.",
+    texte: "Suivez et analysez l'activité de vos clients grâce à des statistiques claires et à jour.",
   },
   {
     src: '/logo-goback.png',

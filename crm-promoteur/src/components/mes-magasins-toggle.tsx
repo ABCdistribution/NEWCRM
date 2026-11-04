@@ -27,7 +27,7 @@ export function MesMagasinsToggle() {
         onChange={basculer}
         className="h-4 w-4 accent-[var(--color-brand)]"
       />
-      Mes magasins uniquement
+      Mes clients uniquement
     </label>
   );
 }

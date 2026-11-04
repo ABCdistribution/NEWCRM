@@ -11,11 +11,11 @@
 @theme {
   --font-sans: 'Inter Variable', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
 
-  --color-brand: #2952e3; /* bleu royal (maquette Advisian) — couleur principale */
-  --color-navy: #08184d; /* bleu marine historique (texte sur accent en sombre) */
-  --color-accent: #2952e3; /* même bleu pour les graphes & accents */
-  --color-brand-light: #9db1f7; /* bleu clair (série secondaire des graphes) */
-  --color-nav: #031d44; /* bleu nuit — fond du menu latéral ABC Sales */
+  --color-brand: #1f7aea; /* bleu ABC Sales (maquette mobile) — couleur principale */
+  --color-navy: #0b2545; /* bleu encre (texte sur accent en sombre) */
+  --color-accent: #1f7aea; /* même bleu pour les graphes & accents */
+  --color-brand-light: #65b8fd; /* bleu clair (série secondaire des graphes, haut du dégradé mobile) */
+  --color-nav: #0b2545; /* bleu encre — fond du menu latéral ABC Sales */
 
   /* Surfaces du mode sombre, dérivées du marine (pas de noir neutre) */
   --color-navy-950: #050f33; /* fond des cartes et de la sidebar */
@@ -30,8 +30,8 @@
 
 :root {
   /* Fond gris très clair (maquette Advisian) — cartes blanches bordées par-dessus. */
-  --background: #eef2fc;
-  --foreground: #1e2337;
+  --background: #eef7ff;
+  --foreground: #0b2545;
 }
 
 /*
@@ -42,11 +42,11 @@
  */
 :root.dark {
   /* Dark permanent, surfaces ALIGNÉES sur ABC Pilot (noir bleuté) — seule
-     l'accentuation reste propre à ABC Sales (indigo #7B7FE8). */
+     l'accentuation reste propre à ABC Sales (bleu #1F7AEA). */
   --background: #0b0e14; /* fond du contenu — noir bleuté (identique ABC Pilot) */
-  --color-brand: #7b7fe8; /* indigo — boutons, actifs, emphase */
-  --color-accent: #7b7fe8;
-  --color-brand-light: #b9bcf4; /* série secondaire des graphes */
+  --color-brand: #1f7aea; /* bleu ABC Sales — boutons, actifs, emphase */
+  --color-accent: #1f7aea;
+  --color-brand-light: #65b8fd; /* série secondaire des graphes */
   --color-navy-950: #000000; /* fond du menu (sidebar) — noir pur, comme le fond des logos */
   --color-navy-900: #12151f; /* modales */
   --color-navy-800: #1a1f2c; /* survols, puces */

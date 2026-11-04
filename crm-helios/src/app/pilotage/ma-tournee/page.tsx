@@ -7,7 +7,7 @@ import { PlanningValidation } from '@/components/planning-validation';
 import { TourneePrevue } from '@/components/tournee-prevue';
 import { OutlookSyncButton } from '@/components/outlook-sync-button';
 
-export const metadata = { title: "Mon planning d'activité — ABC Pilot" };
+export const metadata = { title: "Mon planning d'activité — Direction commerciale" };
 
 // La tournée personnelle concerne l'encadrement (prospection + suivi magasins).
 const ALLOWED = ['CHEF_SECTEUR', 'DIRECTEUR_REGIONAL', 'DIRECTION', 'ADMIN'];
@@ -128,7 +128,7 @@ export default async function MaTourneePage({
               <b>{prospections}</b>
             </span>
             <span className="inline-flex items-center gap-1.5">
-              <Store size={13} className="text-sky-500" /> Suivi magasin
+              <Store size={13} className="text-sky-500" /> Suivi client
               <b>{suivis}</b>
             </span>
             <span className="inline-flex items-center gap-1.5">

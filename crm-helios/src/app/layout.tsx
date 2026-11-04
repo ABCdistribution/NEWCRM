@@ -3,7 +3,7 @@ import '@fontsource-variable/inter';
 import './globals.css';
 
 export const metadata: Metadata = {
-  title: 'ABC Pilot — CRM Commercial ABC',
+  title: 'Direction commerciale — CRM Commercial ABC',
   description: 'Portail terrain des commerciaux ABC Distribution',
 };
 

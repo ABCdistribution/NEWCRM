@@ -76,7 +76,7 @@ export function AddVisit({
             type="text"
             value={query}
             disabled={pending}
-            placeholder="+ magasin…"
+            placeholder="+ client…"
             onChange={(e) => {
               setQuery(e.target.value);
               setOpen(true);
@@ -100,7 +100,7 @@ export function AddVisit({
       {open && !pending ? (
         <ul className="absolute left-0 top-full z-30 mt-1 max-h-56 w-64 overflow-y-auto rounded-lg border border-navy-600 bg-navy-900 p-1 shadow-xl">
           {matches.length === 0 ? (
-            <li className="px-2 py-1.5 text-[11px] text-neutral-400">Aucun magasin trouvé.</li>
+            <li className="px-2 py-1.5 text-[11px] text-neutral-400">Aucun client trouvé.</li>
           ) : (
             matches.map((c) => (
               <li key={c.id}>

@@ -9,7 +9,7 @@ import { AdminSynchrosOnglet } from '@/components/admin/synchros';
 import { AdminContenusOnglet } from '@/components/admin/contenus';
 import { AdminBientotOnglet } from '@/components/admin/bientot';
 
-export const metadata = { title: 'Administration — ABC Pilot' };
+export const metadata = { title: 'Administration — Direction commerciale' };
 
 const INDISPONIBLE = (
   <p className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">

@@ -73,7 +73,7 @@ function AddEtape({ date, onPick }: { date: string; onPick: (c: CibleTournee, da
           type="text"
           value={query}
           disabled={pending}
-          placeholder="+ prospect ou magasin…"
+          placeholder="+ prospect ou client…"
           onChange={(e) => {
             setQuery(e.target.value);
             setOpen(true);
@@ -309,7 +309,7 @@ export function MaTourneeBoard({
           À planifier — glisser vers un jour
         </p>
         <PanelCibles
-          titre="Magasins du secteur"
+          titre="Clients du secteur"
           icone={<Store size={14} className="text-sky-500" />}
           items={magasins}
           type="CLIENT"
@@ -412,7 +412,7 @@ export function MaTourneeBoard({
                         e.datePassage.slice(11, 16) !== '00:00' && e.datePassage.length > 10
                           ? e.datePassage.slice(11, 16)
                           : null,
-                        e.adm ? 'Administratif' : prospect ? 'Prospection' : e.client ? (e.accompagnement ? 'Accomp. promoteur' : 'Suivi magasin') : 'Ligne libre',
+                        e.adm ? 'Administratif' : prospect ? 'Prospection' : e.client ? (e.accompagnement ? 'Accomp. promoteur' : 'Suivi client') : 'Ligne libre',
                         e.rdv ? 'RDV' : null,
                         e.soireeEtape ? 'Soirée étape' : null,
                         cible.ville,

@@ -54,11 +54,10 @@ export function ObjectifsProgress({ classement }: { classement: Ligne[] }) {
         <div className="mb-1.5 flex items-baseline justify-between">
           <span className="text-sm font-semibold">Force de vente</span>
           <span className="text-sm tabular-nums">
-            <span className="font-bold">{EUR.format(caTotal)}</span>
-            <span className="text-neutral-400"> / {EUR.format(objectifTotal)}</span>
-            <span className={`ml-2 font-bold ${tauxGlobal >= 100 ? 'text-emerald-500' : tauxGlobal >= 70 ? 'text-amber-500' : 'text-red-400'}`}>
-              {tauxGlobal} %
+            <span className={`font-bold ${tauxGlobal >= 100 ? 'text-emerald-500' : tauxGlobal >= 70 ? 'text-amber-500' : 'text-red-400'}`}>
+              {EUR.format(caTotal)}
             </span>
+            <span className="text-neutral-400"> / {EUR.format(objectifTotal)}</span>
           </span>
         </div>
         <Barre taux={tauxGlobal} />
@@ -76,10 +75,10 @@ export function ObjectifsProgress({ classement }: { classement: Ligne[] }) {
                   {p.secteur ? <span className="ml-1.5 text-[10px] font-normal text-neutral-400">{p.secteur.nom}</span> : null}
                 </span>
                 <span className="shrink-0 text-xs tabular-nums text-neutral-500">
-                  {EUR.format(p.ca)} / {EUR.format(p.objectif!)}
-                  <span className={`ml-1.5 font-semibold ${taux >= 100 ? 'text-emerald-500' : taux >= 70 ? 'text-amber-500' : 'text-red-400'}`}>
-                    {taux} %
-                  </span>
+                  <span className={`font-semibold ${taux >= 100 ? 'text-emerald-500' : taux >= 70 ? 'text-amber-500' : 'text-red-400'}`}>
+                    {EUR.format(p.ca)}
+                  </span>{' '}
+                  / {EUR.format(p.objectif!)}
                 </span>
               </div>
               <Barre taux={taux} />

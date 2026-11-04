@@ -4,7 +4,7 @@ import { ArrowLeft } from 'lucide-react';
 import { getClient } from '@/lib/api';
 import { VisiteCommercialeForm } from '@/components/visite-commerciale-form';
 
-export const metadata = { title: 'Visite commerciale — ABC Pilot' };
+export const metadata = { title: 'Visite commerciale — Direction commerciale' };
 
 export default async function VisiteCommercialePage({
   params,
@@ -21,7 +21,7 @@ export default async function VisiteCommercialePage({
         <Link
           href="/pilotage/magasins"
           className="rounded-lg border border-neutral-200 p-2 text-neutral-500 transition hover:bg-neutral-50 dark:border-navy-700 dark:hover:bg-navy-800"
-          aria-label="Retour aux magasins"
+          aria-label="Retour aux clients"
         >
           <ArrowLeft size={16} />
         </Link>

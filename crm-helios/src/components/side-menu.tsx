@@ -1,8 +1,8 @@
 'use client';
 
-import { useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { Montserrat } from 'next/font/google';
 import {
   Home,
   Store,
@@ -16,18 +16,16 @@ import {
   Database,
   Settings,
   LogOut,
-  ArrowLeftRight,
-  ExternalLink,
-  BarChart3,
   ClipboardCheck,
   ShieldCheck,
   type LucideIcon,
 } from 'lucide-react';
 import { logout } from '@/lib/auth-actions';
 import { Avatar } from './avatar';
-import { UniverseSwitchOverlay } from './universe-switch-overlay';
 import type { Me } from '@/lib/api';
-import { UniverseSwitcher } from './universe-switcher';
+
+/** Police du mot-symbole « ABC » en tête de menu (aspect logo). */
+const policeLogo = Montserrat({ subsets: ['latin'], weight: '800' });
 
 type Leaf = { href: string; label: string; icon: LucideIcon; roles?: string[] };
 type Section = { label: string | null; children: Leaf[] };
@@ -51,10 +49,10 @@ const SECTIONS: Section[] = [
       { href: '/pilotage/ma-tournee', label: "Mon planning d'activité", icon: Route, roles: ['ADMIN', 'DIRECTION', 'DIRECTEUR_REGIONAL', 'CHEF_SECTEUR'] },
       { href: '/pilotage/prospects', label: 'Prospection', icon: Sprout, roles: ['ADMIN', 'DIRECTION', 'DIRECTEUR_REGIONAL', 'CHEF_SECTEUR'] },
       // Suivi des magasins déjà gérés : classification, KPI, visites, promoteur en charge.
-      { href: '/pilotage/magasins', label: 'Magasins', icon: Store, roles: ['ADMIN', 'DIRECTION', 'DIRECTEUR_REGIONAL', 'CHEF_SECTEUR'] },
+      { href: '/pilotage/magasins', label: 'Clients', icon: Store, roles: ['ADMIN', 'DIRECTION', 'DIRECTEUR_REGIONAL', 'CHEF_SECTEUR'] },
       // La planification des tournées vit désormais côté ABC Sales (/planification).
       { href: '/pilotage/alertes', label: 'Alertes', icon: AlertTriangle, roles: ['ADMIN', 'DIRECTION', 'DIRECTEUR_REGIONAL', 'CHEF_SECTEUR'] },
-      { href: '/pilotage/mon-equipe', label: 'Mon équipe', icon: UsersRound, roles: ['ADMIN', 'DIRECTEUR_REGIONAL'] },
+      { href: '/pilotage/mon-equipe', label: 'Mon équipe', icon: UsersRound, roles: ['ADMIN', 'DIRECTEUR_REGIONAL', 'CHEF_SECTEUR'] },
       // Rapports d'activité hebdomadaires des CS / DR : tournée prévue, tournée réalisée, rapport validé (lecture seule).
       { href: '/pilotage/rapports', label: "Rapports d'activité", icon: ClipboardCheck, roles: ['ADMIN', 'DIRECTION', 'DIRECTEUR_REGIONAL'] },
       // Objectifs : alimentés par API (import), plus de page de saisie.
@@ -68,63 +66,25 @@ const SECTIONS: Section[] = [
   },
 ];
 
-/** Fond du menu ABC Pilot : violet nuit uni (#130D25). */
+/** Fond du menu Direction commerciale : violet encre uni (#2E1B56, couleur de la maquette mobile). */
 const FOND_MENU: React.CSSProperties = {
-  backgroundColor: '#130D25',
+  backgroundColor: '#2E1B56',
 };
 
 function isActive(pathname: string, href: string) {
   return href === '/pilotage' ? pathname === '/pilotage' : pathname === href || pathname.startsWith(`${href}/`);
 }
 
-const SWITCH_ROLES = ['ADMIN', 'DIRECTION', 'DIRECTEUR_REGIONAL', 'CHEF_SECTEUR'];
-
-export function SideMenu({ me, seliosPort }: { me: Me; seliosPort: string }) {
+export function SideMenu({ me }: { me: Me }) {
   const pathname = usePathname();
-  const canSwitch = SWITCH_ROLES.includes(me.role);
-  const [switching, setSwitching] = useState(false);
-  // AscendoPilot et GoBack : ouverture directe dans un nouvel onglet, sans animation.
-  const goAscendo = () => window.open('https://ascendopilot.abcosmetique.com', '_blank', 'noopener');
-  const goGoBack = () => window.open('https://goback.abcosmetique.com/', '_blank', 'noopener');
-  // ABC Sales tourne sur le même serveur : on reprend l'hôte utilisé pour accéder à ABC Pilot.
-  // L'animation de bascule joue d'abord, puis la navigation part (le voile reste jusqu'au déchargement).
-  const goSelios = () => {
-    if (switching) return;
-    setSwitching(true);
-    window.setTimeout(() => {
-      window.location.href = `${window.location.protocol}//${window.location.hostname}:${seliosPort}`;
-    }, 1100);
-  };
 
   return (
     <aside className="dark sticky top-0 z-20 flex h-screen w-64 shrink-0 flex-col border-r border-navy-700 bg-navy-950 text-neutral-100" style={FOND_MENU}>
-      {switching ? (
-        <UniverseSwitchOverlay
-          fromSrc="/logo-abc-pilot.png"
-          toSrc="/logo-abc-sales.png"
-          toName="ABC Sales"
-        />
-      ) : null}
       {/* Marque */}
-      <Link href="/pilotage" className="flex items-center justify-center px-4 py-5">
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src="/logo-salespilot.png" alt="SalesPilot ABC" className="h-auto w-full max-w-[224px]" />
+      <Link href="/pilotage" className="flex flex-col items-center justify-center gap-1.5 px-4 py-5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent">
+        <span className={`${policeLogo.className} select-none text-5xl font-extrabold leading-none tracking-[0.18em] text-white`} aria-label="ABC">ABC</span>
+        <span className="text-xs font-medium text-white/70">Direction commerciale</span>
       </Link>
-
-      {/* Sélecteur d'univers & d'outils (façon Slack) */}
-      <UniverseSwitcher
-        actuel={{ logo: '/logo-abc-pilot.png', nom: 'ABC Pilot', sousTitre: 'Force commerciale' }}
-        items={[
-          ...(canSwitch
-            ? [{
-                logo: '/logo-abc-sales.png',
-                nom: 'ABC Sales',
-                description: 'Force de vente — promoteurs',
-                onClick: goSelios,
-              }]
-            : []),
-        ]}
-      />
 
       {/* Navigation */}
       <nav className="flex-1 overflow-y-auto px-3 pb-4 [scrollbar-color:#A6A4D5_transparent]">
@@ -164,37 +124,6 @@ export function SideMenu({ me, seliosPort }: { me: Me; seliosPort: string }) {
             </div>
           );
         })}
-
-        {/* Outils externes : s'ouvrent dans un nouvel onglet (animation de transition conservée). */}
-        <div className="mt-5">
-          <p className="flex items-center gap-3 px-3 pb-1.5 text-xs font-semibold uppercase tracking-wider text-neutral-400 dark:text-indigo-200/80">
-            <span>Outils complémentaires</span>
-            <span aria-hidden className="h-px flex-1 bg-white/15" />
-          </p>
-          <ul className="flex flex-col gap-2">
-            {[
-              { label: 'AscendoPilot', detail: 'Statistiques et analyses', icon: BarChart3, tuile: 'bg-blue-900 text-sky-300', onClick: goAscendo },
-              { label: 'GoBack', detail: 'Gestion des litiges', icon: ClipboardCheck, tuile: 'bg-violet-800 text-white', onClick: goGoBack },
-            ].map(({ label, detail, icon: Icon, tuile, onClick }) => (
-              <li key={label}>
-                <button
-                  type="button"
-                  onClick={onClick}
-                  className="group flex w-full items-center gap-3 rounded-xl border border-white/15 bg-white/5 px-2 py-2 text-left transition hover:bg-white/10"
-                >
-                  <span className={`inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl ${tuile}`}>
-                    <Icon size={20} aria-hidden />
-                  </span>
-                  <span className="min-w-0 flex-1">
-                    <span className="block truncate text-[15px] font-semibold leading-tight text-white">{label}</span>
-                    <span className="block truncate text-xs text-white/60">{detail}</span>
-                  </span>
-                  <ExternalLink size={14} className="shrink-0 text-white/70" aria-hidden />
-                </button>
-              </li>
-            ))}
-          </ul>
-        </div>
       </nav>
 
       {/* Utilisateur + déconnexion */}

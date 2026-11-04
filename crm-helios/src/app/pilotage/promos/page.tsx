@@ -2,7 +2,7 @@ import { ShieldAlert } from 'lucide-react';
 import { getMe, listPromos, listPem } from '@/lib/api';
 import { PromosEditor } from '@/components/promos-editor';
 
-export const metadata = { title: 'Promos / PEM — ABC Pilot' };
+export const metadata = { title: 'Promos / PEM — Direction commerciale' };
 
 export default async function PromosPage() {
   const me = await getMe();

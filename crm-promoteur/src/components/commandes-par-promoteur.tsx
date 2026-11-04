@@ -10,7 +10,7 @@ type Groupe = {
 };
 
 /** Camaïeu de bleus (marque → clair) + gris pour « Autres ». */
-const COULEURS = ['#2952e3', '#4d6ceb', '#7189f1', '#93a6f5', '#b5c3f9', '#d3dbfb', '#94a3b8'];
+const COULEURS = ['#1f7aea', '#4a94ee', '#65b8fd', '#8ccbfe', '#b2dbfe', '#d6ecff', '#94a3b8'];
 const MAX_SEGMENTS = 6;
 
 /**
@@ -58,7 +58,7 @@ export function CommandesParPromoteur({ groupes }: { groupes: Groupe[] }) {
   return (
     <div className="flex flex-col items-center gap-5 px-5 py-4 sm:flex-row sm:items-center">
       <div className="relative shrink-0">
-        <svg width="150" height="150" viewBox="0 0 150 150" role="img" aria-label="Répartition des magasins commandants par promoteur">
+        <svg width="150" height="150" viewBox="0 0 150 150" role="img" aria-label="Répartition des clients commandants par promoteur">
           {segments.map((seg, i) => {
             const frac = seg.valeur / total;
             const longueur = Math.max(frac * C - ESPACE, 1);
@@ -88,7 +88,7 @@ export function CommandesParPromoteur({ groupes }: { groupes: Groupe[] }) {
         <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center text-center">
           <span className="text-2xl font-bold tabular-nums leading-none">{centre ? centre.valeur : total}</span>
           <span className="mt-1 max-w-24 truncate text-[10px] text-neutral-400">
-            {centre ? centre.nom.split(' ')[0] : 'magasins'}
+            {centre ? centre.nom.split(' ')[0] : 'clients'}
           </span>
         </div>
       </div>

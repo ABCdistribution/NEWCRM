@@ -37,7 +37,7 @@ export function CaChart({
   if (max <= 0) {
     return (
       <p className="px-5 py-8 text-center text-sm text-neutral-400">
-        Aucun chiffre d&apos;affaires sur {anneeN - 1}–{anneeN} pour ce magasin.
+        Aucun chiffre d&apos;affaires sur {anneeN - 1}–{anneeN} pour ce client.
       </p>
     );
   }

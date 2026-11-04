@@ -28,7 +28,7 @@ export function StatutMagasinsFiltre({
   };
 
   return (
-    <div className="flex items-center gap-1.5" role="group" aria-label="Filtrer les magasins par état">
+    <div className="flex items-center gap-1.5" role="group" aria-label="Filtrer les clients par état">
       <span className="mr-1 text-[11px] font-semibold uppercase tracking-wider text-neutral-400">État</span>
       {OPTIONS.map((o) => {
         const actif = o.valeur === statut;

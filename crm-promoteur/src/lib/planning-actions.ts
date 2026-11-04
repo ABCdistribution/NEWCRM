@@ -15,7 +15,7 @@ export async function addPlanning(
   const datePassage = String(formData.get('datePassage') ?? '');
 
   if (!promoteurId || !clientId || !datePassage) {
-    return { error: 'Magasin requis.', ok: false };
+    return { error: 'Client requis.', ok: false };
   }
 
   let res: Response;
@@ -117,7 +117,7 @@ export async function addRegle(_prev: RegleState, formData: FormData): Promise<R
   const recurrence = Number(formData.get('recurrence') ?? 1);
   const jours = formData.getAll('jours').map(Number).filter((n) => n >= 1 && n <= 6);
 
-  if (!clientId) return { error: 'Choisis un magasin.', ok: false };
+  if (!clientId) return { error: 'Choisis un client.', ok: false };
   if (jours.length === 0) return { error: 'Coche au moins un jour.', ok: false };
 
   let res: Response;

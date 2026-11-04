@@ -20,7 +20,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
 
   return (
     <div className="flex min-h-screen">
-      <SideMenu me={me} seliosPort={SELIOS_PORT} />
+      <SideMenu me={me} />
       <main className="min-w-0 flex-1">
         <div className="mx-auto max-w-[1400px] px-6 py-6">{children}</div>
       </main>

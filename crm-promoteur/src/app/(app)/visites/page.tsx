@@ -4,7 +4,7 @@ import { listVisites, type VisitesResult } from '@/lib/api';
 import { SearchBar } from '@/components/search-bar';
 import { Pagination } from '@/components/pagination';
 
-export const metadata = { title: 'Historique de visites — ABC Sales' };
+export const metadata = { title: 'Historique de visites — Promoteurs' };
 
 const DATE = new Intl.DateTimeFormat('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' });
 
@@ -42,7 +42,7 @@ export default async function VisitesPage({
               : 'Les comptes-rendus terrain de toute la force de vente : relevé DN, PEM, photos.'}
           </p>
         </div>
-        <SearchBar placeholder="Magasin, ville, code…" />
+        <SearchBar placeholder="Client, ville, code…" />
       </div>
 
       {error ? (
@@ -96,7 +96,7 @@ export default async function VisitesPage({
             <table className="w-full min-w-[820px] text-sm">
               <thead className="border-b border-neutral-100 text-left text-[11px] uppercase tracking-wider text-neutral-400 dark:border-navy-700">
                 <tr>
-                  <th className="px-4 py-2.5 font-medium">Magasin</th>
+                  <th className="px-4 py-2.5 font-medium">Client</th>
                   {!mine ? <th className="px-4 py-2.5 font-medium">Promoteur</th> : null}
                   <th className="px-4 py-2.5 font-medium">Date</th>
                   <th className="px-4 py-2.5 font-medium">Motif</th>
