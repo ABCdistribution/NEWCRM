@@ -18,6 +18,7 @@ import {
   LogOut,
   ClipboardCheck,
   ShieldCheck,
+  CalendarCog,
   type LucideIcon,
 } from 'lucide-react';
 import { logout } from '@/lib/auth-actions';
@@ -53,6 +54,8 @@ const SECTIONS: Section[] = [
       // La planification des tournées vit désormais côté ABC Sales (/planification).
       { href: '/pilotage/alertes', label: 'Alertes', icon: AlertTriangle, roles: ['ADMIN', 'DIRECTION', 'DIRECTEUR_REGIONAL', 'CHEF_SECTEUR'] },
       { href: '/pilotage/mon-equipe', label: 'Mon équipe', icon: UsersRound, roles: ['ADMIN', 'DIRECTEUR_REGIONAL', 'CHEF_SECTEUR'] },
+      // Planning des visites des promoteurs (ajout / déplacement / suppression) : périmètre appliqué par l'API.
+      { href: '/pilotage/planning-equipe', label: "Planning de l'équipe", icon: CalendarCog, roles: ['ADMIN', 'DIRECTION', 'DIRECTEUR_REGIONAL', 'CHEF_SECTEUR'] },
       // Rapports d'activité hebdomadaires des CS / DR : tournée prévue, tournée réalisée, rapport validé (lecture seule).
       { href: '/pilotage/rapports', label: "Rapports d'activité", icon: ClipboardCheck, roles: ['ADMIN', 'DIRECTION', 'DIRECTEUR_REGIONAL'] },
       // Objectifs : alimentés par API (import), plus de page de saisie.
