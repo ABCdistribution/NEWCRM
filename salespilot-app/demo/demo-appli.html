@@ -2058,6 +2058,8 @@ Object.assign(SA, {
   'liv-filtre'(d) { S.sLiv = d.f; render(); },
   'liv-suivre'() { toast('Ouverture du suivi du transporteur (lien externe).'); },
 });
+/** Sur petit écran le téléphone passe sous la liste des nouveautés : on y amène l'écran après un appui. */
+const versTel = () => { const t = document.querySelector('.tel'); if (!t) return; const b = t.getBoundingClientRect(); if (b.top < 0 || b.bottom > window.innerHeight + 4) t.scrollIntoView({ behavior: 'smooth', block: 'start' }); };
 A.feat = function (d) {
   if (['conc', 'bilan', 'objop', 'secteur', 'typevisite', 'equipe'].includes(d.f)) return A.featNouv(d);
   S.espace = 'sales'; S.pile = []; S.modale = null; S.plusOuvert = false; S.pick = false; S.focus = null;
@@ -2076,7 +2078,7 @@ A.feat = function (d) {
     if (d.f === 'attente') { S.cmd.l.push({ id: 'a1', qty: 12, remplace: null }); S.pile.push({ type: 'cmd-panier' }); S.focus = 'attente'; }
     else S.modale = { type: 'cmd-remp', id: 'a13' };
   }
-  render();
+  render(); versTel();
   if (S.focus) { clearTimeout(A.feat.t); A.feat.t = setTimeout(() => { S.focus = null; render(); }, 4500); }
 };
 A.featNouv = function (d) {
@@ -2095,6 +2097,7 @@ A.featNouv = function (d) {
   }
   render();
   if (d.f === 'typevisite') { const b = document.querySelector('[data-act=planifier]'); if (b) b.click(); }
+  versTel();
 };
 Object.assign(A, SA);
 function erreurForm(t) { S.modale.erreur = t; render(); const v = document.querySelector('.feuille'); if (v) v.scrollTop = 0; }
