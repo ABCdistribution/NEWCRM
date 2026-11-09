@@ -63,3 +63,22 @@ Les agents `backend-db` et `frontend-ux` peuvent travailler en parallèle (fichi
 - **Phase 1 faite** : page à onglets (Vue d'ensemble, Utilisateurs, Organisation, Synchronisations, Contenus) ; routes API `GET /admin/apercu` et `GET /admin/organisation` (ADMIN) ; page Utilisateurs d'ABC Sales supprimée. Indicateurs en lecture seule, sans état d'alerte.
 - **À venir** : Mobile (nécessite que l'application remonte version, modèle, dernière synchro), Configuration (table de paramètres), Journal d'audit (enregistrement des opérations sensibles), « dernière connexion », diagnostic par utilisateur, relance des lignes d'import en erreur.
 - **À trancher** : champs pilotés par l'AD vs modifiables dans le CRM (le rôle des comptes en OU force de vente est écrasé à chaque connexion).
+
+## crm-web (front unique) — points relevés à la vérification finale, hors périmètre du front
+Rien n'est compensé côté front : les données sont filtrées par rôle ET périmètre par l'API.
+
+**API — nouveaux trous de périmètre** (à rattacher à la famille du point 1.1 : `GET /commandes`, `/commandes/:id`, `/clients/:id` et historique ; la mention « dashboard » y est trop générique)
+- `GET /dashboard/direction` non borné pour DIRECTEUR_REGIONAL : `scopeSecteur` n'est vrai que pour CHEF_SECTEUR (`dashboard.service.ts`, ~l.227). Un DR reçoit CA, classement nominatif, CA par secteur, magasins sans commande, prospection et scatter de toute la force de vente. Le borner par le périmètre de `perimetreEquipe` (regionId / directeurId du DR).
+- `blocProspection` (~l.689-715) et `scatterMagasins` (~l.556-563) n'ont aucun paramètre de périmètre : pour un CHEF_SECTEUR, le bloc prospection et « Objectif vs CA réalisé — par client » (jusqu'à 300 magasins) couvrent tout le réseau.
+- COMMERCIAL sans `idRepr` : `GET /dashboard/me` (`dashboard.service.ts` ~l.45-48 et 191-193) et `GET /commandes` (`commandes.service.ts` ~l.17) basculent en vue globale ; ils doivent renvoyer un périmètre vide. Le périmètre d'un ADV (pas d'`idRepr`) est à décider avec l'utilisateur.
+- Clients : `POST` / `PATCH` / `DELETE /clients` sans `@Roles` (ADMIN seul ou ADMIN + DIRECTION : décision métier) ; contacts, notes, périodicité, visites commerciales, appels et emails sans contrôle de périmètre ; `findAll` accepte n'importe quel `?repr=` pour tout rôle non COMMERCIAL.
+- Prospects : `scope()` renvoie « global » pour tout rôle autre que CS / DR (un COMMERCIAL lit et écrit tout prospect : pièces jointes, notes, appels, emails) ; `secteurId` et `assignedToId` sont écrits sans vérifier le périmètre de l'appelant ; `FileInterceptor('fichier')` sans `limits` (voir 1.7).
+- Un endpoint qui renvoie, par promoteur du périmètre, le nombre de clients et les visites prévues / faites de la semaine remplacerait les 2 appels par promoteur de `lignesPromoteurs` (crm-web).
+- Pas de moteur d'alertes ni de flux de bordereaux de rappel côté API : les écrans Alertes et Qualité (bordereaux) de crm-web sont des maquettes, signalées par un bandeau « Données d'exemple ».
+
+**Déploiement de crm-web**
+- Définir `TZ=Europe/Paris` dans l'environnement du processus Next. Le code de planning ne dépend plus du fuseau du serveur (`aujourdhuiParis`, `FUSEAU`), mais des formats de date sans fuseau explicite en dépendent encore.
+- Les redirections de `src/lib/redirections.ts` ne servent qu'une fois les anciens hôtes ou ports d'ABC Sales (3000) et d'ABC Pilot (3001) dirigés vers crm-web (3002). `PERMANENT` doit passer à `true` à la mise en production, une fois la table figée.
+- Pour 1.11 : HSTS et `COOKIE_SECURE=true` au reverse proxy TLS, puis une CSP stricte avec nonce, à valider écran par écran.
+- Pièces jointes : `serverActions.bodySizeLimit` est à 11 Mo (`next.config.ts`). À tester avec un fichier de 9 à 10 Mo derrière le middleware ; si le corps est tronqué, ajouter `experimental.middlewareClientMaxBodySize: '11mb'`.
+- Ancien front `crm-helios/src/lib/api.ts` (l.884-909) : même défaut de lecture du pipeline prospects (`json.etapes` lu en premier, seules les clés de `PROSPECT_STATUTS` retenues). À corriger seulement si l'ancien front reste en service.
