@@ -3,6 +3,7 @@
 import { useActionState, useEffect, useState } from 'react';
 import { Users, Phone, Mail, Plus, Pencil, Trash2, X } from 'lucide-react';
 import { saveContact, deleteContact, type ContactFormState } from '@/lib/client-actions';
+import { SuppressionForm } from './suppression-form';
 
 export type ContactItem = {
   id: string;
@@ -162,33 +163,21 @@ export function ContactsCard({ clientId, contacts }: { clientId: string; contact
                 </div>
 
                 {/* Actions (visibles au survol) */}
-                <div className="flex shrink-0 gap-1 opacity-0 transition group-hover:opacity-100">
+                <div className="flex shrink-0 gap-1 opacity-0 transition group-hover:opacity-100 focus-within:opacity-100">
                   <button
                     type="button"
                     onClick={() => setEditing(c.id)}
-                    className="rounded-lg p-1.5 text-neutral-400 transition hover:bg-neutral-100 hover:text-brand dark:hover:bg-navy-800"
+                    className="rounded-lg p-1.5 text-neutral-400 transition hover:bg-neutral-100 hover:text-brand focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-brand dark:hover:bg-navy-800 dark:focus-visible:outline-accent"
                     aria-label={`Modifier ${c.nom}`}
                   >
                     <Pencil size={14} />
                   </button>
-                  <form
+                  <SuppressionForm
                     action={deleteContact}
-                    onSubmit={(e) => {
-                      if (!confirm(`Supprimer le contact ${[c.prenom, c.nom].filter(Boolean).join(' ')} ?`)) {
-                        e.preventDefault();
-                      }
-                    }}
-                  >
-                    <input type="hidden" name="clientId" value={clientId} />
-                    <input type="hidden" name="contactId" value={c.id} />
-                    <button
-                      type="submit"
-                      className="rounded-lg p-1.5 text-neutral-400 transition hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950/40"
-                      aria-label={`Supprimer ${c.nom}`}
-                    >
-                      <Trash2 size={14} />
-                    </button>
-                  </form>
+                    champs={{ clientId, contactId: c.id }}
+                    confirmation={`Supprimer le contact ${[c.prenom, c.nom].filter(Boolean).join(' ')} ?`}
+                    libelle={`Supprimer ${c.nom}`}
+                  />
                 </div>
               </li>
             ),
