@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { listCommandes, getDashboardDirection, type CommandesResult } from '@/lib/api';
 import { SearchBar } from '@/components/search-bar';
 import { Pagination } from '@/components/pagination';
+import { OrigineBadge, OrigineFilter, parseOrigine, type Origine } from '@/components/origine-commande';
 import { KpiTile } from '@/components/kpi-tile';
 
 export const metadata = { title: 'Commandes — Direction commerciale' };
@@ -22,17 +23,28 @@ function StatutBadge({ annulee }: { annulee: boolean }) {
 export default async function CommandesPage({
   searchParams,
 }: {
-  searchParams: Promise<{ search?: string; page?: string; annulees?: string }>;
+  searchParams: Promise<{ search?: string; page?: string; annulees?: string; origine?: string }>;
 }) {
   const sp = await searchParams;
   const search = sp.search ?? '';
   const page = Number(sp.page ?? '1') || 1;
   const annulees = sp.annulees === 'true';
+  const origine = parseOrigine(sp.origine);
+
+  /** URL de la page avec une autre origine / un autre état « annulées » (recherche conservée). */
+  const lien = (opts: { annulees: boolean; origine?: Origine }) => {
+    const q = new URLSearchParams();
+    if (search) q.set('search', search);
+    if (opts.annulees) q.set('annulees', 'true');
+    if (opts.origine) q.set('origine', opts.origine);
+    const str = q.toString();
+    return str ? `/pilotage/commandes?${str}` : '/pilotage/commandes';
+  };
 
   let result: CommandesResult | null = null;
   let error: string | null = null;
   try {
-    result = await listCommandes({ search, page, annulees });
+    result = await listCommandes({ search, page, annulees, origine });
   } catch {
     error = "Impossible de charger les commandes. L'API est-elle démarrée ?";
   }
@@ -58,7 +70,7 @@ export default async function CommandesPage({
         <div className="flex items-center gap-2">
           {/* Filtre annulées */}
           <Link
-            href={annulees ? '/pilotage/commandes' : '/pilotage/commandes?annulees=true'}
+            href={lien({ annulees: !annulees, origine })}
             className={`rounded-lg border px-3 py-1.5 text-xs font-medium transition ${
               annulees
                 ? 'border-red-300 bg-red-50 text-red-700 dark:border-red-900 dark:bg-red-950/40 dark:text-red-400'
@@ -105,6 +117,11 @@ export default async function CommandesPage({
         />
       </section>
 
+      {/* Filtre par origine (côté API : GET /commandes?origine=edi|appli). */}
+      <div className="flex flex-wrap items-center gap-1.5 rounded-2xl bg-white p-3 shadow-card">
+        <OrigineFilter actuelle={origine} href={(o) => lien({ annulees, origine: o })} />
+      </div>
+
       {error ? (
         <p className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800 dark:border-amber-900/50 dark:bg-amber-950/30 dark:text-amber-300">
           {error}
@@ -122,6 +139,7 @@ export default async function CommandesPage({
                   <th className="px-4 py-2.5 text-right font-medium">Lignes</th>
                   <th className="px-4 py-2.5 text-right font-medium">Total</th>
                   <th className="px-4 py-2.5 font-medium">Statut</th>
+                  <th className="px-4 py-2.5 font-medium">Origine</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-neutral-100 dark:divide-navy-700">
@@ -158,11 +176,14 @@ export default async function CommandesPage({
                     <td className="px-4 py-2.5">
                       <StatutBadge annulee={c.annulee} />
                     </td>
+                    <td className="px-4 py-2.5">
+                      <OrigineBadge commande={c} />
+                    </td>
                   </tr>
                 ))}
                 {result!.data.length === 0 ? (
                   <tr>
-                    <td colSpan={7} className="px-4 py-8 text-center text-neutral-400">
+                    <td colSpan={8} className="px-4 py-8 text-center text-neutral-400">
                       Aucune commande trouvée.
                     </td>
                   </tr>
@@ -174,7 +195,7 @@ export default async function CommandesPage({
             total={result!.total}
             page={result!.page}
             limit={result!.limit}
-            params={{ search, ...(annulees ? { annulees: 'true' } : {}) }}
+            params={{ search, ...(annulees ? { annulees: 'true' } : {}), ...(origine ? { origine } : {}) }}
           />
         </>
       )}

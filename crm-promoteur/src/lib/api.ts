@@ -132,6 +132,8 @@ export type CommandeRow = {
   dateLivraison: string | null;
   raisonSocialeCmd: string | null;
   idRepr: string | null;
+  /** true = saisie mobile (Appli), false = EDI. Optionnel : absent tant que l'API n'est pas à jour. */
+  viaMobile?: boolean;
   client: { id: string; codeAs400: string; enseigne: string } | null;
   nbLignes: number;
   total: number;
@@ -173,6 +175,7 @@ export function listCommandes(params: {
   page?: number;
   annulees?: boolean;
   livraison?: StatutLivraison;
+  origine?: 'edi' | 'appli';
 }) {
   return list<CommandeRow>(
     `/commandes${qs({
@@ -180,6 +183,7 @@ export function listCommandes(params: {
       page: params.page,
       annulees: params.annulees ? 'true' : undefined,
       livraison: params.livraison,
+      origine: params.origine,
       limit: 20,
     })}`,
   ) as Promise<CommandesResult>;

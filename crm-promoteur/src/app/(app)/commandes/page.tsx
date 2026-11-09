@@ -3,6 +3,7 @@ import { listCommandes, type CommandesResult, type StatutLivraison } from '@/lib
 import { LivraisonBadge, LIVRAISON } from '@/components/livraison-badge';
 import { SearchBar } from '@/components/search-bar';
 import { Pagination } from '@/components/pagination';
+import { OrigineBadge, OrigineFilter, parseOrigine, type Origine } from '@/components/origine-commande';
 
 export const metadata = { title: 'Commandes — Promoteurs' };
 
@@ -20,7 +21,7 @@ function StatutBadge({ annulee }: { annulee: boolean }) {
 export default async function CommandesPage({
   searchParams,
 }: {
-  searchParams: Promise<{ search?: string; page?: string; annulees?: string; livraison?: string }>;
+  searchParams: Promise<{ search?: string; page?: string; annulees?: string; livraison?: string; origine?: string }>;
 }) {
   const sp = await searchParams;
   const search = sp.search ?? '';
@@ -29,6 +30,7 @@ export default async function CommandesPage({
   const livraison = (Object.keys(LIVRAISON) as StatutLivraison[]).includes(sp.livraison as StatutLivraison)
     ? (sp.livraison as StatutLivraison)
     : undefined;
+  const origine = parseOrigine(sp.origine);
 
   /** URL de la page avec un autre filtre de livraison (recherche conservée). */
   const avecLivraison = (statut?: StatutLivraison) => {
@@ -36,6 +38,18 @@ export default async function CommandesPage({
     if (search) q.set('search', search);
     if (annulees) q.set('annulees', 'true');
     if (statut) q.set('livraison', statut);
+    if (origine) q.set('origine', origine);
+    const str = q.toString();
+    return str ? `/commandes?${str}` : '/commandes';
+  };
+
+  /** URL de la page avec une autre origine (autres filtres conservés). */
+  const avecOrigine = (o?: Origine) => {
+    const q = new URLSearchParams();
+    if (search) q.set('search', search);
+    if (annulees) q.set('annulees', 'true');
+    if (livraison) q.set('livraison', livraison);
+    if (o) q.set('origine', o);
     const str = q.toString();
     return str ? `/commandes?${str}` : '/commandes';
   };
@@ -43,7 +57,7 @@ export default async function CommandesPage({
   let result: CommandesResult | null = null;
   let error: string | null = null;
   try {
-    result = await listCommandes({ search, page, annulees, livraison });
+    result = await listCommandes({ search, page, annulees, livraison, origine });
   } catch {
     error = "Impossible de charger les commandes. L'API est-elle démarrée ?";
   }
@@ -64,7 +78,14 @@ export default async function CommandesPage({
         <div className="flex items-center gap-2">
           {/* Filtre annulées */}
           <Link
-            href={annulees ? '/commandes' : '/commandes?annulees=true'}
+            href={(() => {
+              const q = new URLSearchParams();
+              if (!annulees) q.set('annulees', 'true');
+              if (livraison) q.set('livraison', livraison);
+              if (origine) q.set('origine', origine);
+              const str = q.toString();
+              return str ? `/commandes?${str}` : '/commandes';
+            })()}
             className={`rounded-lg border px-3 py-1.5 text-xs font-medium transition ${
               annulees
                 ? 'border-red-300 bg-red-50 text-red-700 dark:border-red-900 dark:bg-red-950/40 dark:text-red-400'
@@ -103,6 +124,9 @@ export default async function CommandesPage({
             {LIVRAISON[statut].label}
           </Link>
         ))}
+        <span className="mx-2 hidden h-4 w-px bg-neutral-200 dark:bg-navy-700 sm:inline-block" aria-hidden="true" />
+        {/* Filtre par origine (côté API : GET /commandes?origine=edi|appli). */}
+        <OrigineFilter actuelle={origine} href={avecOrigine} />
       </div>
 
       {error ? (
@@ -126,6 +150,7 @@ export default async function CommandesPage({
                   <span className="flex shrink-0 flex-col items-end gap-1">
                     <StatutBadge annulee={c.annulee} />
                     <LivraisonBadge statut={c.statutLivraison} annulee={c.annulee} />
+                    <OrigineBadge commande={c} />
                   </span>
                 </div>
                 <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-neutral-500">
@@ -158,6 +183,7 @@ export default async function CommandesPage({
                   <th className="px-4 py-2.5 text-right font-medium">Total</th>
                   <th className="px-4 py-2.5 font-medium">Statut</th>
                   <th className="px-4 py-2.5 font-medium">Livraison</th>
+                  <th className="px-4 py-2.5 font-medium">Origine</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-neutral-100 dark:divide-navy-700">
@@ -197,11 +223,14 @@ export default async function CommandesPage({
                     <td className="px-4 py-2.5">
                       <LivraisonBadge statut={c.statutLivraison} annulee={c.annulee} />
                     </td>
+                    <td className="px-4 py-2.5">
+                      <OrigineBadge commande={c} />
+                    </td>
                   </tr>
                 ))}
                 {result!.data.length === 0 ? (
                   <tr>
-                    <td colSpan={8} className="px-4 py-8 text-center text-neutral-400">
+                    <td colSpan={9} className="px-4 py-8 text-center text-neutral-400">
                       Aucune commande trouvée.
                     </td>
                   </tr>
@@ -213,7 +242,7 @@ export default async function CommandesPage({
             total={result!.total}
             page={result!.page}
             limit={result!.limit}
-            params={{ search, ...(annulees ? { annulees: 'true' } : {}), ...(livraison ? { livraison } : {}) }}
+            params={{ search, ...(annulees ? { annulees: 'true' } : {}), ...(livraison ? { livraison } : {}), ...(origine ? { origine } : {}) }}
           />
         </>
       )}

@@ -117,6 +117,8 @@ export type CommandeRow = {
   annulee: boolean;
   raisonSocialeCmd: string | null;
   idRepr: string | null;
+  /** true = saisie mobile (Appli), false = EDI. Optionnel : absent tant que l'API n'est pas à jour. */
+  viaMobile?: boolean;
   client: { id: string; codeAs400: string; enseigne: string } | null;
   /** Suivi de livraison (renvoyé par la liste /commandes). */
   statutLivraison?: 'EN_PREPARATION' | 'EXPEDIEE' | 'LIVREE_PARTIELLE' | 'LIVREE';
@@ -149,12 +151,18 @@ export type CommandesResult = Paginated<CommandeRow> & {
   scope: { type: 'mine' | 'global'; idRepr: string | null };
 };
 
-export function listCommandes(params: { search?: string; page?: number; annulees?: boolean }) {
+export function listCommandes(params: {
+  search?: string;
+  page?: number;
+  annulees?: boolean;
+  origine?: 'edi' | 'appli';
+}) {
   return list<CommandeRow>(
     `/commandes${qs({
       search: params.search,
       page: params.page,
       annulees: params.annulees ? 'true' : undefined,
+      origine: params.origine,
       limit: 20,
     })}`,
   ) as Promise<CommandesResult>;
