@@ -8,10 +8,28 @@ import { geoloc } from '@/lib/geo';
 import type { MagasinGeoPoint, ProspectRow } from '@/lib/api';
 
 /**
- * Carte du secteur / de la région : magasins gérés (bleu, en alerte = rouge) et
- * prospects pas encore travaillés (violet), avec filtres d'affichage par type.
+ * Carte du secteur / de la région : magasins gérés (couleur de marque de l'espace, marqueur plein) et
+ * prospects pas encore travaillés (couleur d'accent de l'espace, marqueur plus grand à contour pointillé), avec
+ * filtres d'affichage par type.
  * Positions approximatives (ville / code postal) tant que les fiches n'ont pas de GPS.
+ *
+ * Couleurs : les marqueurs sont dessinés par Leaflet (canvas), qui ne connaît pas les classes Tailwind. Leur
+ * couleur est lue sur les jetons du thème (`--espace-brand`, `--espace-accent`, posés par `data-espace`) au montage
+ * de la carte : elle suit donc l'espace, comme les puces de filtre. Seules restent EN DUR (documentées ici) :
+ *  - `REPLI_MARQUE` / `REPLI_ACCENT` : valeurs de secours si le jeton est illisible (violet de l'espace direction) ;
+ *  - `#e5e7eb` : fond neutre de la pastille de classe dans les infobulles (HTML injecté, hors du thème) ;
+ *  - les teintes des tuiles OpenStreetMap, qui ne dépendent pas de nous.
+ * Le seul signe qui distingue un prospect d'un client dans l'espace promoteurs (marque et accent identiques) est
+ * donc la forme du marqueur (taille et pointillé), en plus de la légende des puces.
  */
+const REPLI_MARQUE = '#7a56e6';
+const REPLI_ACCENT = '#b396fb';
+
+/** Valeur d'un jeton CSS du thème, lue sur un élément de la carte ; `repli` si elle est absente. */
+function jeton(el: HTMLElement, nom: string, repli: string): string {
+  return getComputedStyle(el).getPropertyValue(nom).trim() || repli;
+}
+
 /** Échappe le HTML des données insérées dans les infobulles Leaflet. */
 function esc(v: string | null | undefined): string {
   return (v ?? '').replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
@@ -45,6 +63,10 @@ export function CarteSecteur({
         attribution: '&copy; OpenStreetMap',
       }).addTo(map);
 
+      // Couleurs du thème de l'espace courant (voir l'en-tête du fichier).
+      const couleurClients = jeton(containerRef.current, '--espace-brand', REPLI_MARQUE);
+      const couleurProspects = jeton(containerRef.current, '--espace-accent', REPLI_ACCENT);
+
       const clients = L.layerGroup().addTo(map);
       const prospectsLg = L.layerGroup().addTo(map);
       const bounds: [number, number][] = [];
@@ -59,8 +81,8 @@ export function CarteSecteur({
         bounds.push([pos.lat, pos.lng]);
         L.circleMarker([pos.lat, pos.lng], {
           radius: 5,
-          color: '#0ea5e9',
-          fillColor: '#0ea5e9',
+          color: couleurClients,
+          fillColor: couleurClients,
           fillOpacity: 0.7,
           weight: 1,
         })
@@ -82,14 +104,14 @@ export function CarteSecteur({
         bounds.push([pos.lat, pos.lng]);
         L.circleMarker([pos.lat, pos.lng], {
           radius: 8,
-          color: '#7a56e6',
-          fillColor: '#7a56e6',
+          color: couleurProspects,
+          fillColor: couleurProspects,
           fillOpacity: 0.7,
           weight: 2,
           dashArray: '3 3',
         })
           .bindPopup(
-            `<b>${esc(p.enseigne)}</b> ${p.niveauClass ? `<span style="background:#ede9fe;border-radius:9999px;padding:0 6px;font-weight:700">${esc(p.niveauClass)}</span>` : ''}<br/>` +
+            `<b>${esc(p.enseigne)}</b> ${p.niveauClass ? `<span style="background:#e5e7eb;border-radius:9999px;padding:0 6px;font-weight:700">${esc(p.niveauClass)}</span>` : ''}<br/>` +
               `${esc([p.codePostal, p.ville].filter(Boolean).join(' '))}<br/>` +
               `Prospect — pas encore client${p.assignedTo ? ` · ${esc(p.assignedTo.displayName)}` : ''}${pos.approx ? '<br/><i>position approximative (département)</i>' : ''}<br/>` +
               `<a href="/prospects/${encodeURIComponent(p.id)}">Ouvrir la fiche prospect</a>`,
@@ -128,9 +150,10 @@ export function CarteSecteur({
     else map.removeLayer(layer);
   }, [showProspects]);
 
+  // `tone` : bordure, fond ET couleur du texte de la puce active (jetons du thème : brand pour les clients, accent pour les prospects).
   const chip = (active: boolean, tone: string) =>
-    `inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-semibold transition ${
-      active ? `${tone} text-white` : 'border-neutral-200 bg-white text-neutral-500 dark:border-navy-700 dark:bg-navy-900 dark:text-neutral-400'
+    `inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-semibold transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand ${
+      active ? tone : 'border-neutral-200 bg-white text-neutral-500 dark:border-navy-700 dark:bg-navy-900 dark:text-neutral-400'
     }`;
 
   return (
@@ -140,7 +163,7 @@ export function CarteSecteur({
         <button
           type="button"
           onClick={() => setShowClients((v) => !v)}
-          className={chip(showClients, 'border-sky-500 bg-sky-500')}
+          className={chip(showClients, 'border-brand bg-brand text-white')}
           aria-pressed={showClients}
         >
           <Store size={13} /> Mes clients ({points.length})
@@ -148,7 +171,7 @@ export function CarteSecteur({
         <button
           type="button"
           onClick={() => setShowProspects((v) => !v)}
-          className={chip(showProspects, 'border-violet-500 bg-violet-500')}
+          className={chip(showProspects, 'border-accent bg-accent text-navy-950')}
           aria-pressed={showProspects}
         >
           <Sprout size={13} /> Prospects ({prospects.length})

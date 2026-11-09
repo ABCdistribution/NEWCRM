@@ -211,7 +211,7 @@ function Formulaire({ news, onClose }: { news: News | null; onClose: () => void 
           <textarea name="contenu" required maxLength={20000} rows={8} defaultValue={news?.contenu ?? ''} className={field} />
         </label>
         <label className="flex flex-col gap-1 text-xs font-medium text-neutral-500">
-          Image (adresse http(s) ou chemin commençant par « / », facultatif)
+          Image (adresse https ou chemin commençant par « / », facultatif)
           <input name="imageUrl" maxLength={500} defaultValue={news?.imageUrl ?? ''} placeholder="https://…" className={field} />
         </label>
         <label className="flex items-center gap-2 text-sm">

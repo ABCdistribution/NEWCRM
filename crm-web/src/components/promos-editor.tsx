@@ -136,7 +136,7 @@ function AddPromoForm() {
         <Plus size={14} />
         {pending ? 'Ajout…' : 'Créer la promo'}
       </button>
-      {state.error ? <p role="alert" className="w-full text-xs text-red-500">{state.error}</p> : null}
+      {state.error ? <p role="alert" className="w-full text-xs text-red-700">{state.error}</p> : null}
     </form>
   );
 }
@@ -162,7 +162,7 @@ function AddPemForm() {
         <Star size={14} />
         {pending ? 'Ajout…' : 'Mettre en avant'}
       </button>
-      {state.error ? <p role="alert" className="w-full text-xs text-red-500">{state.error}</p> : null}
+      {state.error ? <p role="alert" className="w-full text-xs text-red-700">{state.error}</p> : null}
     </form>
   );
 }
@@ -198,7 +198,7 @@ function LigneAction({
         {children}
       </fieldset>
       {state.error ? (
-        <p role="alert" className="text-xs text-red-500">
+        <p role="alert" className="text-xs text-red-700">
           {state.error}
         </p>
       ) : null}
@@ -256,7 +256,7 @@ export function PromosEditor({ promos, pem }: { promos: PromoRow[]; pem: PemRow[
                       ) : null}
                     </p>
                   </div>
-                  <div className="flex shrink-0 items-center gap-1 opacity-0 transition focus-within:opacity-100 group-hover:opacity-100">
+                  <div className="flex shrink-0 items-center gap-1 opacity-0 transition focus-within:opacity-100 group-hover:opacity-100 [@media(hover:none)]:opacity-100">
                     <LigneAction action={togglePromo} id={p.id} extra={{ actif: p.actif ? 'false' : 'true' }}>
                       <button
                         type="submit"
@@ -314,7 +314,7 @@ export function PromosEditor({ promos, pem }: { promos: PromoRow[]; pem: PemRow[
                     action={deletePem}
                     id={m.id}
                     confirmation={`Retirer « ${m.article.libelle} » des mises en avant ?`}
-                    className="shrink-0 opacity-0 transition focus-within:opacity-100 group-hover:opacity-100"
+                    className="shrink-0 opacity-0 transition focus-within:opacity-100 group-hover:opacity-100 [@media(hover:none)]:opacity-100"
                   >
                     <button
                       type="submit"

@@ -2,12 +2,13 @@ import Link from 'next/link';
 import {
   listProspects,
   getProspectPipeline,
-  listSecteurs,
   type ProspectsResult,
   type ProspectRow,
   type ProspectStatut,
 } from '@/lib/api';
 import { ENCADREMENT, requireRole } from '@/lib/roles';
+import { peutEcrireProspects } from '@/lib/prospect-roles';
+import { listSecteursProposables } from '@/lib/prospect-secteurs';
 import { SearchBar } from '@/components/search-bar';
 import { Pagination } from '@/components/pagination';
 import { KpiTile } from '@/components/kpi-tile';
@@ -35,8 +36,14 @@ export default async function ProspectsPage({
   const search = sp.search ?? '';
   const page = Number(sp.page ?? '1') || 1;
 
-  const [pipeline, secteursBruts] = await Promise.all([getProspectPipeline(), listSecteurs()]);
-  const secteurs = (secteursBruts ?? []).map((s) => ({ id: s.id, code: s.code, nom: s.nom }));
+  // Écriture (création, Kanban) : ADMIN, DR et CS seulement, comme l'API ; DIRECTION consulte en lecture seule.
+  const peutEcrire = peutEcrireProspects(acces.me.role);
+  // Secteurs proposables pour un nouveau prospect : GET /prospects/secteurs (périmètre du rôle), pas /secteurs
+  // (réservé ADMIN, 403 pour CS et DR). Inutile, et refusé par l'API, pour un rôle qui ne crée pas.
+  const [pipeline, secteursProposables] = await Promise.all([
+    getProspectPipeline(),
+    peutEcrire ? listSecteursProposables() : Promise.resolve([]),
+  ]);
 
   let liste: ProspectsResult | null = null;
   let error: string | null = null;
@@ -73,7 +80,9 @@ export default async function ProspectsPage({
         </div>
         <div className="flex items-center gap-2">
           <SearchBar placeholder="Enseigne, raison sociale…" />
-          <ProspectCreate secteurs={secteurs} />
+          {peutEcrire ? (
+            <ProspectCreate secteurs={secteursProposables ?? []} secteursIndisponibles={secteursProposables === null} />
+          ) : null}
         </div>
       </div>
 
@@ -118,8 +127,8 @@ export default async function ProspectsPage({
           )}
       </section>
 
-      {/* Kanban drag & drop */}
-      {colonnes.length > 0 ? <ProspectPipeline colonnes={colonnes} /> : null}
+      {/* Kanban drag & drop (lecture seule pour DIRECTION) */}
+      {colonnes.length > 0 ? <ProspectPipeline colonnes={colonnes} lectureSeule={!peutEcrire} /> : null}
 
       {error ? (
         <p className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">{error}</p>

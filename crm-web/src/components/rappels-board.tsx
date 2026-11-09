@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from 'react';
 import { ArrowDown, ArrowUp, ArrowUpDown, Download, Filter, RotateCcw, Search } from 'lucide-react';
+import { BandeauExemple } from './bandeau-exemple';
 import { RappelDetail } from './rappel-detail';
 
 /** Bordereau de retour de produits rappelés, saisi en magasin par le promoteur. */
@@ -12,25 +13,28 @@ export type Bordereau = {
   promoteur: string;
   codeMagasin: string;
   magasin: string;
+  /** Photo du bordereau (URL servie par l'API) : le bloc photo n'est affiché que si elle est fournie. */
+  photoUrl?: string;
 };
 
-// Jeu de données représentatif (prototype — à brancher sur le flux de rappels Minos).
+// Jeu de données de prototype (à brancher sur le flux de rappels Minos, filtré par rôle et périmètre côté API).
+// Les noms de promoteurs sont volontairement fictifs : ce tableau est compilé dans le code servi au navigateur.
 const BORDEREAUX: Bordereau[] = [
-  { numero: 'RAPPEL_71_01179', lignes: 110, dateRetour: '2026-09-14T15:51:50', promoteur: 'Patricia GIN', codeMagasin: '007642', magasin: 'AUCHAN SM 76 CANTELEU' },
-  { numero: 'RAPPEL_21_01178', lignes: 110, dateRetour: '2026-09-14T13:48:37', promoteur: 'Sophie ROBERT', codeMagasin: '003025', magasin: 'LECLERC 10 ST PARRES AUX TERT.' },
-  { numero: 'RAPPEL_27_01177', lignes: 110, dateRetour: '2026-09-11T13:18:10', promoteur: 'Sophie HERBIN', codeMagasin: '003477', magasin: 'LECLERC 25 HOUTAUD' },
-  { numero: 'RAPPEL_135_01176', lignes: 108, dateRetour: '2026-09-10T18:43:18', promoteur: 'Grégory DOZINEL', codeMagasin: '098121', magasin: 'SHOPPING CENTER MASSEN' },
-  { numero: 'RAPPEL_23_01175', lignes: 110, dateRetour: '2026-09-09T15:45:40', promoteur: 'Julien HOLIN', codeMagasin: '003096', magasin: 'LECLERC 51 PIERRY' },
-  { numero: 'RAPPEL_135_01174', lignes: 108, dateRetour: '2026-09-04T08:57:36', promoteur: 'Grégory DOZINEL', codeMagasin: '091350', magasin: 'ITM GOSSELIES' },
-  { numero: 'RAPPEL_198_01173', lignes: 107, dateRetour: '2026-09-03T18:14:34', promoteur: 'Mélanie TISSERANDOT', codeMagasin: '004084', magasin: 'SUPER U 39 TAVAUX' },
-  { numero: 'RAPPEL_98_01172', lignes: 108, dateRetour: '2026-08-26T07:31:21', promoteur: 'Fabrice QUEVAL', codeMagasin: '003656', magasin: 'LECLERC 59 DOUAI' },
-  { numero: 'RAPPEL_140_01171', lignes: 107, dateRetour: '2026-08-24T19:09:14', promoteur: 'Laurent BRILLON', codeMagasin: '003393', magasin: 'LECLERC 62 LUMBRES' },
-  { numero: 'RAPPEL_23_01170', lignes: 107, dateRetour: '2026-08-21T14:49:33', promoteur: 'Julien HOLIN', codeMagasin: '003024', magasin: 'LECLERC 51 VITRY EN PERTHOIS' },
-  { numero: 'RAPPEL_203_01169', lignes: 110, dateRetour: '2026-08-18T17:45:37', promoteur: 'Marie LEOCADIE', codeMagasin: '004240', magasin: 'SUPER U 13 ST MARTIN DE CRAU' },
-  { numero: 'RAPPEL_71_01168', lignes: 106, dateRetour: '2026-08-17T09:22:05', promoteur: 'Patricia GIN', codeMagasin: '007731', magasin: 'CARREFOUR MARKET 76 YVETOT' },
-  { numero: 'RAPPEL_98_01167', lignes: 105, dateRetour: '2026-08-12T16:03:48', promoteur: 'Fabrice QUEVAL', codeMagasin: '003702', magasin: 'AUCHAN 59 ENGLOS' },
-  { numero: 'RAPPEL_140_01166', lignes: 107, dateRetour: '2026-08-07T11:37:29', promoteur: 'Laurent BRILLON', codeMagasin: '003410', magasin: 'INTERMARCHE 62 BETHUNE' },
-  { numero: 'RAPPEL_198_01165', lignes: 104, dateRetour: '2026-08-03T10:12:11', promoteur: 'Mélanie TISSERANDOT', codeMagasin: '004120', magasin: 'LECLERC 39 LONS LE SAUNIER' },
+  { numero: 'RAPPEL_71_01179', lignes: 110, dateRetour: '2026-09-14T15:51:50', promoteur: '[DÉMO] Promoteur 1', codeMagasin: '007642', magasin: 'AUCHAN SM 76 CANTELEU' },
+  { numero: 'RAPPEL_21_01178', lignes: 110, dateRetour: '2026-09-14T13:48:37', promoteur: '[DÉMO] Promoteur 2', codeMagasin: '003025', magasin: 'LECLERC 10 ST PARRES AUX TERT.' },
+  { numero: 'RAPPEL_27_01177', lignes: 110, dateRetour: '2026-09-11T13:18:10', promoteur: '[DÉMO] Promoteur 3', codeMagasin: '003477', magasin: 'LECLERC 25 HOUTAUD' },
+  { numero: 'RAPPEL_135_01176', lignes: 108, dateRetour: '2026-09-10T18:43:18', promoteur: '[DÉMO] Promoteur 4', codeMagasin: '098121', magasin: 'SHOPPING CENTER MASSEN' },
+  { numero: 'RAPPEL_23_01175', lignes: 110, dateRetour: '2026-09-09T15:45:40', promoteur: '[DÉMO] Promoteur 5', codeMagasin: '003096', magasin: 'LECLERC 51 PIERRY' },
+  { numero: 'RAPPEL_135_01174', lignes: 108, dateRetour: '2026-09-04T08:57:36', promoteur: '[DÉMO] Promoteur 4', codeMagasin: '091350', magasin: 'ITM GOSSELIES' },
+  { numero: 'RAPPEL_198_01173', lignes: 107, dateRetour: '2026-09-03T18:14:34', promoteur: '[DÉMO] Promoteur 6', codeMagasin: '004084', magasin: 'SUPER U 39 TAVAUX' },
+  { numero: 'RAPPEL_98_01172', lignes: 108, dateRetour: '2026-08-26T07:31:21', promoteur: '[DÉMO] Promoteur 7', codeMagasin: '003656', magasin: 'LECLERC 59 DOUAI' },
+  { numero: 'RAPPEL_140_01171', lignes: 107, dateRetour: '2026-08-24T19:09:14', promoteur: '[DÉMO] Promoteur 8', codeMagasin: '003393', magasin: 'LECLERC 62 LUMBRES' },
+  { numero: 'RAPPEL_23_01170', lignes: 107, dateRetour: '2026-08-21T14:49:33', promoteur: '[DÉMO] Promoteur 5', codeMagasin: '003024', magasin: 'LECLERC 51 VITRY EN PERTHOIS' },
+  { numero: 'RAPPEL_203_01169', lignes: 110, dateRetour: '2026-08-18T17:45:37', promoteur: '[DÉMO] Promoteur 9', codeMagasin: '004240', magasin: 'SUPER U 13 ST MARTIN DE CRAU' },
+  { numero: 'RAPPEL_71_01168', lignes: 106, dateRetour: '2026-08-17T09:22:05', promoteur: '[DÉMO] Promoteur 1', codeMagasin: '007731', magasin: 'CARREFOUR MARKET 76 YVETOT' },
+  { numero: 'RAPPEL_98_01167', lignes: 105, dateRetour: '2026-08-12T16:03:48', promoteur: '[DÉMO] Promoteur 7', codeMagasin: '003702', magasin: 'AUCHAN 59 ENGLOS' },
+  { numero: 'RAPPEL_140_01166', lignes: 107, dateRetour: '2026-08-07T11:37:29', promoteur: '[DÉMO] Promoteur 8', codeMagasin: '003410', magasin: 'INTERMARCHE 62 BETHUNE' },
+  { numero: 'RAPPEL_198_01165', lignes: 104, dateRetour: '2026-08-03T10:12:11', promoteur: '[DÉMO] Promoteur 6', codeMagasin: '004120', magasin: 'LECLERC 39 LONS LE SAUNIER' },
 ];
 
 const DATE_FMT = new Intl.DateTimeFormat('fr-FR', {
@@ -98,12 +102,27 @@ export function RappelsBoard() {
   const selectCls =
     'rounded-lg border border-neutral-200 bg-white px-2.5 py-1.5 text-xs outline-none transition focus:border-brand dark:border-navy-700 dark:bg-navy-950 dark:focus:border-accent';
 
+  // Les bordereaux (et leurs lignes, générées) sont fictifs : le dire, sans quoi ils passent pour des rappels réels.
+  const bandeau = (
+    <BandeauExemple>
+      Les bordereaux de retour et leurs lignes sont fictifs : le flux de rappels n'est pas encore branché sur l'API. Ne vous
+      en servez pas pour agir ni pour décider.
+    </BandeauExemple>
+  );
+
   if (detail) {
-    return <RappelDetail bordereau={detail} onRetour={() => setDetail(null)} />;
+    return (
+      <div className="flex min-w-0 flex-col gap-3">
+        {bandeau}
+        <RappelDetail bordereau={detail} onRetour={() => setDetail(null)} />
+      </div>
+    );
   }
 
   return (
     <div className="flex min-w-0 flex-col gap-3">
+      {bandeau}
+
       {/* Filtres */}
       <div className="flex flex-wrap items-end gap-2 rounded-2xl bg-white p-3 shadow-card">
         <label className="flex flex-col gap-1 text-[11px] font-semibold uppercase tracking-wider text-neutral-400">
@@ -134,19 +153,20 @@ export function RappelsBoard() {
           </button>
         ) : null}
         <div className="ml-auto flex items-center gap-2">
-          <div className="flex items-center gap-1.5 rounded-lg border border-neutral-200 px-2.5 py-1.5 dark:border-navy-700">
-            <Search size={13} className="shrink-0 text-neutral-400" />
+          <div className="flex items-center gap-1.5 rounded-lg border border-neutral-200 px-2.5 py-1.5 transition focus-within:border-brand focus-within:ring-2 focus-within:ring-brand/30 dark:border-navy-700">
+            <Search size={13} className="shrink-0 text-neutral-400" aria-hidden />
             <input
               value={q}
               onChange={(e) => setQ(e.target.value)}
               placeholder="Bordereau, client, promoteur…"
+              aria-label="Filtrer les bordereaux (numéro, client ou promoteur)"
               className="w-44 bg-transparent text-xs outline-none placeholder:text-neutral-400"
             />
           </div>
           <button
             type="button"
             onClick={exportCsv}
-            className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-emerald-700"
+            className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-700 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-emerald-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-700"
           >
             <Download size={13} /> Export CSV
           </button>
@@ -163,7 +183,7 @@ export function RappelsBoard() {
                   <button
                     type="button"
                     onClick={() => trier(c.key)}
-                    className="inline-flex items-center gap-1 uppercase tracking-wider transition hover:text-brand dark:hover:text-accent"
+                    className="inline-flex items-center gap-1 rounded-sm uppercase tracking-wider transition hover:text-brand focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand dark:hover:text-accent"
                   >
                     {c.label}
                     {sort.key === c.key ? (
@@ -184,7 +204,16 @@ export function RappelsBoard() {
                 className="cursor-pointer hover:bg-neutral-50 dark:hover:bg-navy-800/50"
                 title={`Ouvrir le bordereau ${b.numero}`}
               >
-                <td className="px-4 py-3 font-mono text-xs font-medium text-brand dark:text-accent">{b.numero}</td>
+                <td className="px-4 py-3 font-mono text-xs font-medium text-brand dark:text-accent">
+                  {/* Accès au clavier : le clic sur la ligne n'est pas atteignable à la tabulation, ce bouton l'est. */}
+                  <button
+                    type="button"
+                    onClick={() => setDetail(b)}
+                    className="rounded-sm hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
+                  >
+                    {b.numero}
+                  </button>
+                </td>
                 <td className="px-4 py-3 text-right tabular-nums">{b.lignes}</td>
                 <td className="px-4 py-3 text-neutral-600 dark:text-neutral-300">{DATE_FMT.format(new Date(b.dateRetour))}</td>
                 <td className="px-4 py-3">{b.promoteur}</td>

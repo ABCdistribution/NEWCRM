@@ -13,13 +13,22 @@ type Coords = {
 };
 
 const champ =
-  'w-full rounded-lg border border-neutral-200 px-2.5 py-1.5 text-sm outline-none focus:border-brand dark:border-navy-700 dark:bg-navy-950';
+  'w-full rounded-lg border border-neutral-200 px-2.5 py-1.5 text-sm outline-none focus:border-brand focus:ring-2 focus:ring-brand/30 dark:border-navy-700 dark:bg-navy-950';
 
 /**
  * Coordonnées de la fiche prospect, éditables après création : le crayon passe
  * la carte en mode formulaire (adresse, CP, ville, téléphone, email).
+ * `lectureSeule` (rôle sans droit d'écriture sur les prospects, ex. DIRECTION) : pas de bouton de modification.
  */
-export function ProspectCoordonnees({ prospectId, coords }: { prospectId: string; coords: Coords }) {
+export function ProspectCoordonnees({
+  prospectId,
+  coords,
+  lectureSeule = false,
+}: {
+  prospectId: string;
+  coords: Coords;
+  lectureSeule?: boolean;
+}) {
   const [edition, setEdition] = useState(false);
   const [form, setForm] = useState({
     adresse1: coords.adresse1 ?? '',
@@ -36,42 +45,48 @@ export function ProspectCoordonnees({ prospectId, coords }: { prospectId: string
 
   const enregistrer = () => {
     startTransition(async () => {
-      const { error } = await updateCoordonneesFiche(prospectId, form);
-      if (error) setErreur(error);
-      else {
-        setErreur(null);
-        setEdition(false);
+      try {
+        const { error } = await updateCoordonneesFiche(prospectId, form);
+        if (error) setErreur(error);
+        else {
+          setErreur(null);
+          setEdition(false);
+        }
+      } catch {
+        setErreur("Enregistrement impossible (session expirée ou API injoignable).");
       }
     });
   };
 
-  if (!edition) {
+  if (!edition || lectureSeule) {
     return (
       <div className="flex flex-col gap-4">
         <Ligne icon={MapPin} label="Adresse" valeur={[coords.adresse1, [coords.codePostal, coords.ville].filter(Boolean).join(' ')].filter(Boolean).join(', ') || '—'} />
         <Ligne icon={Phone} label="Téléphone" valeur={coords.telephone ?? '—'} />
         <Ligne icon={Mail} label="Email" valeur={coords.email ?? '—'} />
-        <button
-          type="button"
-          onClick={() => setEdition(true)}
-          className="inline-flex w-fit items-center gap-1.5 rounded-lg border border-neutral-200 px-2.5 py-1.5 text-xs font-medium text-neutral-500 transition hover:border-brand hover:text-brand dark:border-navy-700 dark:hover:border-accent dark:hover:text-accent"
-        >
-          <Pencil size={12} /> Modifier les coordonnées
-        </button>
+        {lectureSeule ? null : (
+          <button
+            type="button"
+            onClick={() => setEdition(true)}
+            className="inline-flex w-fit items-center gap-1.5 rounded-lg border border-neutral-200 px-2.5 py-1.5 text-xs font-medium text-neutral-500 transition hover:border-brand hover:text-brand focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand dark:border-navy-700 dark:hover:border-accent dark:hover:text-accent"
+          >
+            <Pencil size={12} /> Modifier les coordonnées
+          </button>
+        )}
       </div>
     );
   }
 
   return (
     <div className="flex flex-col gap-2.5">
-      <input placeholder="Adresse" value={form.adresse1} onChange={set('adresse1')} className={champ} />
+      <input aria-label="Adresse" placeholder="Adresse" maxLength={200} value={form.adresse1} onChange={set('adresse1')} className={champ} />
       <div className="flex gap-2">
-        <input placeholder="Code postal" value={form.codePostal} onChange={set('codePostal')} className={`${champ} w-28`} />
-        <input placeholder="Ville" value={form.ville} onChange={set('ville')} className={champ} />
+        <input aria-label="Code postal" placeholder="Code postal" maxLength={10} value={form.codePostal} onChange={set('codePostal')} className={`${champ} w-28`} />
+        <input aria-label="Ville" placeholder="Ville" maxLength={100} value={form.ville} onChange={set('ville')} className={champ} />
       </div>
-      <input placeholder="Téléphone" type="tel" value={form.telephone} onChange={set('telephone')} className={champ} />
-      <input placeholder="Email" type="email" value={form.email} onChange={set('email')} className={champ} />
-      {erreur ? <p className="text-xs text-red-500">{erreur}</p> : null}
+      <input aria-label="Téléphone" placeholder="Téléphone" type="tel" maxLength={20} value={form.telephone} onChange={set('telephone')} className={champ} />
+      <input aria-label="Email" placeholder="Email" type="email" maxLength={200} value={form.email} onChange={set('email')} className={champ} />
+      {erreur ? <p role="alert" className="text-xs text-red-700">{erreur}</p> : null}
       <div className="flex items-center gap-2">
         <button
           type="button"
@@ -96,7 +111,7 @@ export function ProspectCoordonnees({ prospectId, coords }: { prospectId: string
 function Ligne({ icon: Icon, label, valeur }: { icon: typeof MapPin; label: string; valeur: string }) {
   return (
     <div className="flex items-start gap-2.5">
-      <Icon size={15} className="mt-0.5 shrink-0 text-[#7D8CCE]" />
+      <Icon size={15} className="mt-0.5 shrink-0 text-brand/70" aria-hidden />
       <div className="min-w-0">
         <p className="text-xs text-neutral-400">{label}</p>
         <p className="text-sm font-medium">{valeur}</p>

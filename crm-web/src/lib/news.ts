@@ -1,4 +1,4 @@
-import { serverFetch, qs } from './api';
+import { serverFetch, qs, type Role } from './api';
 
 /** Une news telle que renvoyée par l'API (`/news`). Le contenu est du TEXTE BRUT. */
 export type News = {
@@ -16,8 +16,11 @@ export type News = {
 
 export type NewsPage = { items: News[]; total: number; page: number; pageSize: number };
 
-/** Rôles autorisés à administrer les news (affichage des boutons ; le droit réel est appliqué par l'API). */
-export const NEWS_ADMIN_ROLES = ['ADMIN', 'MARKETING'];
+/**
+ * Rôles autorisés à administrer les news : affichage des boutons ET garde des Server Actions (news-actions.ts,
+ * exigerRole) ; l'API (@Roles(ADMIN, MARKETING)) reste juge.
+ */
+export const NEWS_ADMIN_ROLES: readonly Role[] = ['ADMIN', 'MARKETING'];
 
 /** Liste paginée des news (les brouillons ne sont renvoyés qu'à ADMIN / MARKETING). */
 export async function listNews(page: number, pageSize = 10): Promise<NewsPage | null> {

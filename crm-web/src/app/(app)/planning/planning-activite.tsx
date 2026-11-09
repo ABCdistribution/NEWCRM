@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import { ChevronLeft, ChevronRight, Route, Sprout, Store } from 'lucide-react';
 import { getMaPrevue, getSemaineEtat, listMaTournee, listMagasinsGeo, listProspects, type ProspectRow } from '@/lib/api';
-import { dateSemaine, mondayOf, iso, JOURS, DAY_FMT, WEEK_FMT } from '@/lib/planning-dates';
+import { aujourdhuiParis, dateSemaine, mondayOf, iso, JOURS, DAY_FMT, WEEK_FMT } from '@/lib/planning-dates';
 import { MaTourneeBoard } from '@/components/ma-tournee-board';
 import { PlanningValidation } from '@/components/planning-validation';
 import { TourneePrevue } from '@/components/tournee-prevue';
@@ -15,7 +15,7 @@ export async function PlanningActivite({ semaine }: { semaine?: string }) {
   const prevMonday = new Date(monday);
   prevMonday.setDate(prevMonday.getDate() - 7);
   const semaineIso = iso(monday);
-  const estSemaineCourante = iso(mondayOf(new Date())) === semaineIso;
+  const estSemaineCourante = iso(mondayOf(aujourdhuiParis())) === semaineIso;
 
   const days = JOURS.map((nom, idx) => {
     const d = new Date(monday);

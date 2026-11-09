@@ -35,7 +35,7 @@ export function AdminBientotOnglet({ onglet }: { onglet: 'mobile' | 'configurati
   return (
     <section className="rounded-2xl border border-dashed border-neutral-300 bg-white p-8">
       <h2 className="flex items-center gap-2 text-base font-semibold">
-        <Construction size={18} className="text-violet-600" aria-hidden />
+        <Construction size={18} className="text-brand" aria-hidden />
         {titre} — à venir
       </h2>
       <ul className="mt-3 list-disc space-y-1 pl-5 text-sm text-neutral-600">

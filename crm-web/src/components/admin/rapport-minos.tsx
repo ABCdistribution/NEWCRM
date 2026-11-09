@@ -4,6 +4,7 @@ import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Download } from 'lucide-react';
 import { formatDuree, formatTaille } from '@/lib/minos';
+import { FUSEAU } from '@/lib/planning-dates';
 
 export type LigneRapport = {
   id: string;
@@ -20,7 +21,8 @@ export type LigneRapport = {
   dansDernierLot: boolean;
 };
 
-const dateFr = new Intl.DateTimeFormat('fr-FR', { dateStyle: 'short', timeStyle: 'short' });
+// Heure affichée À PARIS (fuseau de la plateforme), quel que soit le fuseau du serveur ou du navigateur.
+const dateFr = new Intl.DateTimeFormat('fr-FR', { timeZone: FUSEAU, dateStyle: 'short', timeStyle: 'short' });
 
 const STATUT = {
   SUCCESS: { label: 'Réussi', classes: 'bg-emerald-50 text-emerald-700' },
@@ -94,7 +96,7 @@ export function RapportMinos({ lignes }: { lignes: LigneRapport[] }) {
           </thead>
           <tbody className="divide-y divide-neutral-100">
             {lignes.map((l) => (
-              <tr key={l.id} className={`align-top hover:bg-neutral-50 ${l.dansDernierLot ? 'bg-violet-50/30' : ''}`}>
+              <tr key={l.id} className={`align-top hover:bg-neutral-50 ${l.dansDernierLot ? 'bg-brand/5' : ''}`}>
                 <td className="whitespace-nowrap px-5 py-2.5 text-neutral-600">{dateFr.format(new Date(l.date))}</td>
                 <td className="px-3 py-2.5">
                   <p className="font-mono text-xs">{l.nom}</p>

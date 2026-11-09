@@ -6,6 +6,9 @@ import { uploadPieceJointe, deletePieceJointe, type PieceJointe } from '@/lib/pr
 
 const DT = new Intl.DateTimeFormat('fr-FR', { day: '2-digit', month: 'short', year: 'numeric' });
 
+/** Même plafond que la Server Action uploadPieceJointe (10 Mo). */
+const TAILLE_MAX = 10 * 1024 * 1024;
+
 function tailleLisible(octets: number): string {
   if (octets >= 1024 * 1024) return `${(octets / 1024 / 1024).toFixed(1)} Mo`;
   if (octets >= 1024) return `${Math.round(octets / 1024)} Ko`;
@@ -22,11 +25,22 @@ export function ProspectPiecesJointes({ prospectId, pieces }: { prospectId: stri
   const [pending, startTransition] = useTransition();
 
   const deposer = (fichier: File) => {
+    // Refus local : évite d'envoyer un fichier que la Server Action et l'API refuseront de toute façon.
+    if (fichier.size > TAILLE_MAX) {
+      setErreur('Fichier trop volumineux (10 Mo maximum).');
+      if (inputRef.current) inputRef.current.value = '';
+      return;
+    }
     const fd = new FormData();
     fd.set('fichier', fichier);
     startTransition(async () => {
-      const { error } = await uploadPieceJointe(prospectId, fd);
-      setErreur(error);
+      try {
+        const { error } = await uploadPieceJointe(prospectId, fd);
+        setErreur(error);
+      } catch {
+        // Requête rejetée avant l'action (corps au-dessus de la limite des Server Actions de Next, coupure, session).
+        setErreur('Envoi impossible : fichier trop volumineux pour le serveur, connexion interrompue ou session expirée.');
+      }
       if (inputRef.current) inputRef.current.value = '';
     });
   };
@@ -39,7 +53,7 @@ export function ProspectPiecesJointes({ prospectId, pieces }: { prospectId: stri
         <ul className="flex flex-col gap-1.5">
           {pieces.map((pj) => (
             <li key={pj.id} className="group flex items-center gap-2.5 rounded-lg border border-neutral-100 px-3 py-2 dark:border-navy-700">
-              <FileText size={15} className="shrink-0 text-[#7D8CCE]" />
+              <FileText size={15} className="shrink-0 text-brand/70" aria-hidden />
               <div className="min-w-0 flex-1">
                 <a
                   href={`/pj/${prospectId}/${pj.id}`}
@@ -60,11 +74,15 @@ export function ProspectPiecesJointes({ prospectId, pieces }: { prospectId: stri
                 type="button"
                 onClick={() =>
                   startTransition(async () => {
-                    const r = await deletePieceJointe(prospectId, pj.id);
-                    setErreur(r.error);
+                    try {
+                      const r = await deletePieceJointe(prospectId, pj.id);
+                      setErreur(r.error);
+                    } catch {
+                      setErreur('Suppression impossible (session expirée ou API injoignable).');
+                    }
                   })
                 }
-                className="rounded p-1 text-neutral-400 opacity-0 transition hover:text-red-500 focus-visible:opacity-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand group-hover:opacity-100"
+                className="rounded p-1 text-neutral-400 opacity-0 transition hover:text-red-700 focus-visible:opacity-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand group-hover:opacity-100 [@media(hover:none)]:opacity-100"
                 aria-label={`Supprimer ${pj.nom}`}
               >
                 <Trash2 size={14} />
@@ -91,7 +109,7 @@ export function ProspectPiecesJointes({ prospectId, pieces }: { prospectId: stri
       >
         <Paperclip size={13} /> {pending ? 'Envoi…' : 'Ajouter une pièce jointe'}
       </button>
-      {erreur ? <p className="text-xs text-red-500">{erreur}</p> : null}
+      {erreur ? <p role="alert" className="text-xs text-red-700">{erreur}</p> : null}
       <p className="text-[11px] text-neutral-400">PDF, images, documents — 10 Mo maximum.</p>
     </div>
   );

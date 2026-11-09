@@ -14,6 +14,7 @@ import {
   type CibleTournee,
 } from '@/lib/tournee-actions';
 import type { TourneeEtapeRow, MagasinGeoPoint, ProspectRow } from '@/lib/api';
+import { aujourdhuiParis } from '@/lib/planning-dates';
 
 type Day = { date: string; nom: string; label: string };
 
@@ -22,9 +23,9 @@ function estLibre(e: TourneeEtapeRow | null): boolean {
   return !!e && !e.adm && !e.client && !e.prospect;
 }
 
-/** yyyy-mm-dd local du jour courant. */
+/** yyyy-mm-dd du jour courant à Paris (identique au rendu serveur et au navigateur, quel que soit leur fuseau). */
 function todayIso(): string {
-  const d = new Date();
+  const d = aujourdhuiParis();
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
@@ -67,13 +68,14 @@ function AddEtape({ date, onPick }: { date: string; onPick: (c: CibleTournee, da
 
   return (
     <div ref={boxRef} className="relative mt-1">
-      <div className="flex items-center gap-1 rounded-md border border-dashed border-neutral-300 px-1.5 dark:border-navy-600">
+      <div className="flex items-center gap-1 rounded-md border border-dashed border-neutral-300 px-1.5 transition focus-within:border-brand focus-within:ring-2 focus-within:ring-brand/30 dark:border-navy-600">
         <Search size={11} className="shrink-0 text-neutral-400" />
         <input
           type="text"
           value={query}
           disabled={pending}
           placeholder="+ prospect ou client…"
+          aria-label="Ajouter un prospect ou un client à ce jour"
           onChange={(e) => {
             setQuery(e.target.value);
             setOpen(true);
@@ -151,12 +153,13 @@ function PanelCibles({
         {titre}
         <span className="ml-auto text-xs font-normal text-neutral-400">{items.length}</span>
       </h2>
-      <div className="flex items-center gap-1.5 border-b border-neutral-100 px-3 py-1.5 dark:border-navy-700">
+      <div className="flex items-center gap-1.5 border-b border-neutral-100 px-3 py-1.5 transition focus-within:ring-2 focus-within:ring-inset focus-within:ring-brand/30 dark:border-navy-700">
         <Search size={12} className="shrink-0 text-neutral-400" />
         <input
           value={q}
           onChange={(e) => setQ(e.target.value)}
           placeholder="Filtrer…"
+          aria-label={`Filtrer la liste : ${titre}`}
           className="w-full bg-transparent py-1 text-xs outline-none placeholder:text-neutral-400"
         />
       </div>
@@ -438,7 +441,7 @@ export function MaTourneeBoard({
                       type="button"
                       onClick={() => executer(() => toggleEtapeFaite(e.id, !e.fait))}
                       disabled={verrouillee}
-                      className="ml-auto rounded p-0.5 text-neutral-400 transition hover:text-emerald-500 disabled:pointer-events-none"
+                      className="ml-auto rounded p-0.5 text-neutral-400 transition hover:text-emerald-500 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-brand disabled:pointer-events-none"
                       title={e.fait ? 'Marquer non faite' : 'Marquer faite'}
                       aria-label={e.fait ? 'Marquer non faite' : 'Marquer faite'}
                     >
@@ -448,7 +451,7 @@ export function MaTourneeBoard({
                     <button
                       type="button"
                       onClick={() => setEdition(e)}
-                      className="rounded p-0.5 text-neutral-400 opacity-0 transition hover:text-brand group-hover:opacity-100 dark:hover:text-accent"
+                      className="rounded p-0.5 text-neutral-400 opacity-0 transition hover:text-brand focus-visible:opacity-100 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-brand group-hover:opacity-100 group-focus-within:opacity-100 [@media(hover:none)]:opacity-100 dark:hover:text-accent"
                       title="Requalifier l'étape"
                       aria-label="Requalifier l'étape"
                     >
@@ -459,7 +462,7 @@ export function MaTourneeBoard({
                     <button
                       type="button"
                       onClick={() => executer(() => removeEtape(e.id))}
-                      className="rounded p-0.5 text-neutral-400 opacity-0 transition hover:text-red-500 group-hover:opacity-100"
+                      className="rounded p-0.5 text-neutral-400 opacity-0 transition hover:text-red-500 focus-visible:opacity-100 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-brand group-hover:opacity-100 group-focus-within:opacity-100 [@media(hover:none)]:opacity-100"
                       title="Retirer de mon planning"
                       aria-label="Retirer de mon planning"
                     >

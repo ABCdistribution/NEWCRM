@@ -177,6 +177,7 @@ export function EtapeOptionsDialog({
                 value={form.soireeLieu}
                 onChange={(e) => setForm((f) => ({ ...f, soireeLieu: e.target.value }))}
                 placeholder="Lieu de l'étape (ville, hôtel…)"
+                aria-label="Lieu de l'étape (ville, hôtel…)"
                 className={champ}
               />
               <input
@@ -184,6 +185,7 @@ export function EtapeOptionsDialog({
                 value={form.soireeAdresse}
                 onChange={(e) => setForm((f) => ({ ...f, soireeAdresse: e.target.value }))}
                 placeholder="Adresse de l'étape"
+                aria-label="Adresse de l'étape"
                 className={champ}
               />
               <p className="px-0.5 text-[10px] text-neutral-400">Lieu et adresse sont obligatoires pour enregistrer la prévision et valider le rapport.</p>
@@ -196,6 +198,7 @@ export function EtapeOptionsDialog({
             onChange={(e) => setForm((f) => ({ ...f, note: e.target.value }))}
             rows={2}
             placeholder="Observations"
+            aria-label="Observations"
             className="w-full rounded-xl border border-neutral-200 px-3 py-2 text-sm outline-none focus:border-brand dark:border-navy-700 dark:bg-navy-950"
           />
         </div>

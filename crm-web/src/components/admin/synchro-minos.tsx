@@ -5,9 +5,11 @@ import { CheckCircle2, FileText, Play, TriangleAlert, XCircle } from 'lucide-rea
 import { lancerSynchroMinos, type SynchroMinosState } from '@/lib/admin-actions';
 import { TYPES_MINOS, formatTaille, typeMinos } from '@/lib/minos';
 import type { FichierDepot } from '@/lib/api';
+import { FUSEAU } from '@/lib/planning-dates';
 
 const INITIAL: SynchroMinosState = { lance: false, error: null, fichiers: [] };
-const dateFr = new Intl.DateTimeFormat('fr-FR', { dateStyle: 'short', timeStyle: 'short' });
+// Heure affichée À PARIS (fuseau de la plateforme), quel que soit le fuseau du serveur ou du navigateur.
+const dateFr = new Intl.DateTimeFormat('fr-FR', { timeZone: FUSEAU, dateStyle: 'short', timeStyle: 'short' });
 
 /**
  * Synchro Minos manuelle : liste les fichiers d'interface déposés dans la zone d'échange et lance leur intégration.

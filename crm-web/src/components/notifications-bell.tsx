@@ -5,9 +5,11 @@ import Link from 'next/link';
 import { Bell, BellRing, CheckCheck } from 'lucide-react';
 import { marquerLu, marquerToutLu } from '@/lib/notification-actions';
 import { cheminCompatible } from '@/lib/chemin';
+import { FUSEAU } from '@/lib/planning-dates';
 import type { NotificationItem } from '@/lib/api';
 
-const TIME_FMT = new Intl.DateTimeFormat('fr-FR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+// Fuseau explicite : même heure au rendu serveur et dans le navigateur (hydratation).
+const TIME_FMT = new Intl.DateTimeFormat('fr-FR', { timeZone: FUSEAU, day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
 
 /** Cloche de notifications (menu) : badge non lues + panneau déroulant. */
 export function NotificationsBell({

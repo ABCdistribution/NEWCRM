@@ -6,7 +6,8 @@
 import { revalidatePath } from 'next/cache';
 import { serverFetch } from './api';
 import { estUuid } from './equipe-utils';
-import { ENCADREMENT, exigerRole } from './roles';
+import { messageErreurApi } from './erreurs-api';
+import { ENCADREMENT, exigerRole, messageRefus } from './roles';
 
 export type ResultatPlanning = { error: string | null };
 
@@ -15,11 +16,8 @@ const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 
 /** Message utilisateur (français) d'une réponse API en échec. */
 async function messageErreur(res: Response): Promise<string> {
-  if (res.status === 401) return 'Session expirée : reconnectez-vous.';
   if (res.status === 403 || res.status === 404) return "Ce promoteur n'est pas dans votre équipe (ou l'élément n'existe plus).";
-  const body = (await res.json().catch(() => null)) as { message?: string | string[] } | null;
-  const msg = Array.isArray(body?.message) ? body.message[0] : body?.message;
-  return msg ?? `Erreur serveur (${res.status}).`;
+  return messageErreurApi(res, 'planning-equipe');
 }
 
 async function envoyer(
@@ -30,8 +28,8 @@ async function envoyer(
 ): Promise<ResultatPlanning> {
   try {
     await exigerRole(ENCADREMENT);
-  } catch {
-    return { error: 'Accès refusé : action réservée à l’encadrement.' };
+  } catch (e) {
+    return { error: messageRefus(e, 'Accès refusé : action réservée à l’encadrement.') };
   }
   let res: Response;
   try {

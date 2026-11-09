@@ -5,10 +5,11 @@ import { ClassBadge } from './class-badge';
 import { CARTE, FOCUS, Pastille } from './equipe-ui';
 import type { CommandeRow, PlanningItem, RapportDetail, TourneeEtapeRow, VisiteActivite } from '@/lib/api';
 import { ajouterJours, heureDe, iso, resumeEcarts, calculerEcarts, LIBELLE_STATUT_RAPPORT } from '@/lib/equipe-utils';
+import { FUSEAU } from '@/lib/planning-dates';
 
 const JOURS = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi'];
 const JOUR_FMT = new Intl.DateTimeFormat('fr-FR', { day: 'numeric', month: 'short' });
-const DATE_HEURE = new Intl.DateTimeFormat('fr-FR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+const DATE_HEURE = new Intl.DateTimeFormat('fr-FR', { timeZone: FUSEAU, day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
 const DATE_FMT = new Intl.DateTimeFormat('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' });
 const EUR2 = new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' });
 

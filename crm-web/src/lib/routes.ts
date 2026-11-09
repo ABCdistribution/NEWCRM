@@ -54,7 +54,8 @@ export const ROUTES: readonly Route[] = [
   { href: '/planning', label: 'Mon planning', icon: CalendarDays, roles: [...ENCADREMENT, 'COMMERCIAL'], espace: 'commun', menu: true },
   // Fusion de /planification (ABC Sales) et /planning-equipe (ABC Pilot) : encadrement
   { href: '/planning-equipe', label: "Planning de l'équipe", icon: CalendarCog, roles: ENCADREMENT, espace: 'commun', menu: true },
-  { href: '/parametres', label: 'Paramètres', icon: Settings, roles: TOUS_ROLES, espace: 'commun' },
+  // Redirige vers /admin?onglet=configuration : ADMIN seulement (la page applique requireRole(['ADMIN']))
+  { href: '/parametres', label: 'Paramètres', icon: Settings, roles: ['ADMIN'], espace: 'commun' },
 
   // Espace Direction commerciale uniquement
   { href: '/prospects', label: 'Prospection', icon: Sprout, roles: ENCADREMENT, espace: 'direction', menu: true },

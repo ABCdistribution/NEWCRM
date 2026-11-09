@@ -20,7 +20,7 @@ export function AdSyncTrigger() {
         <RefreshCw size={14} className={pending ? 'animate-spin' : ''} />
         {pending ? 'Synchronisation…' : "Synchroniser depuis l'AD"}
       </button>
-      {state.error ? <p className="text-xs text-red-500">{state.error}</p> : null}
+      {state.error ? <p role="alert" className="text-xs text-red-700">{state.error}</p> : null}
       {state.ok && state.stats ? (
         <p className="max-w-md text-right text-xs text-emerald-600">
           ✅ {state.stats.lus} comptes lus · {state.stats.crees} créés · {state.stats.maj} mis à

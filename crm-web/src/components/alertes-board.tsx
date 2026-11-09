@@ -63,7 +63,8 @@ type Alerte = {
   action: string;
 };
 
-// Jeu de données représentatif (prototype — à brancher sur le moteur de détection).
+// Jeu de données FICTIF (maquette) : l'API n'a pas encore de moteur d'alertes. L'écran le dit à l'utilisateur
+// (bandeau « Données d'exemple ») ; à supprimer avec lui quand les alertes viendront de l'API (filtrées par rôle ET périmètre).
 const ALERTES: Alerte[] = [
   { id: 'a1', magasin: 'Système U Lyon Vaise', criticite: 'INFO', type: 'frequence', motif: 'Prochaine visite mensuelle dans 4j', detail: 'Anticiper la commande EDI', signal: '4j', signalSub: 'Prévu 22/05', cs: 'CM', detecteLe: '18 mai', age: 0, action: 'Préparer' },
   { id: 'a2', magasin: 'Système U Lyon Vaise', criticite: 'CRITIQUE', type: 'rupture', motif: 'Rupture EDI · risque déréférencement', detail: '3 références non livrées sur dernière commande', signal: '3 SKU', signalSub: '3 SKU', cs: 'CM', detecteLe: '17 mai', age: 1, action: 'Contacter' },
@@ -233,7 +234,7 @@ function ReglesModal({ onClose }: { onClose: () => void }) {
           <div className="min-w-0 flex-1">
             <h2 className="text-base font-semibold">Règles de détection</h2>
             <p className="text-xs text-neutral-400">
-              Seuils qui déclenchent les alertes du moteur — appliqués à la prochaine synchronisation Minos.
+              Maquette : ces seuils sont mémorisés uniquement dans ce navigateur et n&apos;ont aucun effet sur les alertes.
             </p>
           </div>
           <button
@@ -430,7 +431,7 @@ export function AlertesBoard({ canManageRules }: { canManageRules: boolean }) {
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = 'alertes.csv';
+    link.download = 'alertes-exemple.csv';
     link.click();
     URL.revokeObjectURL(url);
   };
@@ -464,21 +465,31 @@ export function AlertesBoard({ canManageRules }: { canManageRules: boolean }) {
         </div>
       </div>
 
-      {/* KPIs criticité */}
-      <section className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+      {/* Les alertes ci-dessous sont fictives : le dire clairement, sans quoi elles passent pour des alertes réelles. */}
+      <div role="note" className="flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+        <Info size={18} className="mt-0.5 shrink-0 text-amber-600" aria-hidden="true" />
+        <p>
+          <strong className="font-semibold">Données d&apos;exemple.</strong> Cette page est une maquette : le moteur d&apos;alertes
+          n&apos;est pas encore branché sur l&apos;API. Les magasins, chiffres et chefs de secteur affichés sont fictifs ; ne vous
+          en servez pas pour agir ni pour décider.
+        </p>
+      </div>
+
+      {/* KPIs criticité (calculés sur les données d'exemple ; aucun indicateur de traitement : il n'existe pas) */}
+      <section className="grid grid-cols-1 gap-4 sm:grid-cols-3">
         <KpiCard tone="red" icon={AlertCircle} label="Critiques" value={counts.CRITIQUE} sub={`${counts.CRITIQUE} clients concernés`} />
         <KpiCard tone="amber" icon={AlertTriangle} label="Attention" value={counts.ATTENTION} sub="À traiter sous 7j" />
         <KpiCard tone="sky" icon={Info} label="Info" value={counts.INFO} sub="Opportunités détectées" />
-        <KpiCard tone="emerald" icon={CheckCircle2} label="Traitées 30j" value={47} sub="Délai moy. 3,2j" subPill />
       </section>
 
       {/* Recherche */}
-      <div className="flex items-center gap-2 rounded-xl border border-neutral-200 bg-white px-3 py-2 shadow-card dark:border-navy-700">
-        <Search size={15} className="shrink-0 text-neutral-400" />
+      <div className="flex items-center gap-2 rounded-xl border border-neutral-200 bg-white px-3 py-2 shadow-card transition focus-within:border-brand focus-within:ring-2 focus-within:ring-brand/30 dark:border-navy-700">
+        <Search size={15} className="shrink-0 text-neutral-400" aria-hidden="true" />
         <input
           value={q}
           onChange={(e) => setQ(e.target.value)}
           placeholder="Filtrer par client ou motif…"
+          aria-label="Filtrer par client ou motif"
           className="w-full bg-transparent text-sm outline-none placeholder:text-neutral-400"
         />
       </div>
@@ -555,9 +566,12 @@ export function AlertesBoard({ canManageRules }: { canManageRules: boolean }) {
                     </span>
                   </td>
                   <td className="px-4 py-3 text-right">
+                    {/* Aucune action n'est branchée (données d'exemple) : le bouton est désactivé plutôt que muet. */}
                     <button
                       type="button"
-                      className="inline-flex items-center gap-1.5 rounded-lg border border-neutral-200 px-2.5 py-1.5 text-xs font-medium text-neutral-600 transition hover:border-brand hover:text-brand dark:border-navy-700 dark:text-neutral-300 dark:hover:border-accent dark:hover:text-accent"
+                      disabled
+                      title="Action indisponible : données d'exemple"
+                      className="inline-flex cursor-not-allowed items-center gap-1.5 rounded-lg border border-neutral-200 px-2.5 py-1.5 text-xs font-medium text-neutral-600 opacity-50 dark:border-navy-700 dark:text-neutral-300"
                     >
                       <ActionIcon size={13} /> {a.action}
                     </button>
@@ -583,40 +597,33 @@ function KpiCard({
   label,
   value,
   sub,
-  subPill,
 }: {
-  tone: 'red' | 'amber' | 'sky' | 'emerald';
+  tone: 'red' | 'amber' | 'sky';
   icon: typeof Info;
   label: string;
   value: number;
   sub: string;
-  subPill?: boolean;
 }) {
+  // Liseré en aplat (pas de dégradé sur le web).
   const bar = {
-    red: 'from-red-400 to-red-500',
-    amber: 'from-amber-300 to-amber-400',
-    sky: 'from-sky-400 to-sky-500',
-    emerald: 'from-emerald-400 to-emerald-500',
+    red: 'bg-red-500',
+    amber: 'bg-amber-400',
+    sky: 'bg-sky-500',
   }[tone];
   const ic = {
     red: 'text-red-500',
     amber: 'text-amber-500',
     sky: 'text-sky-500',
-    emerald: 'text-emerald-500',
   }[tone];
   return (
     <div className="relative overflow-hidden rounded-2xl bg-white p-5 shadow-card">
-      <span className={`absolute inset-x-0 top-0 h-0.5 bg-gradient-to-r ${bar}`} />
+      <span className={`absolute inset-x-0 top-0 h-0.5 ${bar}`} />
       <div className="flex items-start justify-between">
         <span className="text-[11px] font-semibold uppercase tracking-wide text-neutral-500">{label}</span>
         <Icon size={16} className={ic} />
       </div>
       <p className="mt-2 text-3xl font-bold tabular-nums">{value}</p>
-      {subPill ? (
-        <span className="mt-1.5 inline-flex rounded-full bg-emerald-500/12 px-1.5 py-0.5 text-[11px] font-semibold text-emerald-600 dark:text-emerald-400">{sub}</span>
-      ) : (
-        <p className="mt-1.5 text-xs text-neutral-400">{sub}</p>
-      )}
+      <p className="mt-1.5 text-xs text-neutral-400">{sub}</p>
     </div>
   );
 }

@@ -1,7 +1,9 @@
 'use server';
 
 import { getClientHistorique, listPlanningsMagasin, serverFetch, type PlanningMagasin } from './api';
-import { ENCADREMENT, exigerRole } from './roles';
+import { adresseMail } from './contact-liens';
+import { messageErreurApi } from './erreurs-api';
+import { ENCADREMENT, exigerRole, messageRefus } from './roles';
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -41,12 +43,9 @@ export async function getSuiviMagasin(clientId: string): Promise<SuiviMagasin> {
 
 /** Message d'erreur français d'une réponse d'API en échec. */
 async function messageErreur(res: Response): Promise<string> {
-  if (res.status === 401) return 'Session expirée, reconnectez-vous.';
   if (res.status === 403) return "Vous n'avez pas le droit d'effectuer cette action.";
   if (res.status === 404) return 'Client introuvable.';
-  const body = (await res.json().catch(() => null)) as { message?: string | string[] } | null;
-  const msg = Array.isArray(body?.message) ? body.message[0] : body?.message;
-  return msg ?? `Erreur serveur (${res.status}).`;
+  return messageErreurApi(res, 'magasins');
 }
 
 /** POST d'une mutation sur un client : vérifie rôle, UUID et statut HTTP. */
@@ -57,8 +56,8 @@ async function posterSurClient(
 ): Promise<{ error: string | null }> {
   try {
     await exigerRole(ENCADREMENT);
-  } catch {
-    return { error: 'Accès refusé.' };
+  } catch (e) {
+    return { error: messageRefus(e, 'Accès refusé.') };
   }
   if (!UUID.test(clientId)) return { error: 'Client invalide.' };
 
@@ -80,8 +79,27 @@ export async function logAppelMagasin(clientId: string): Promise<{ error: string
   return posterSurClient(clientId, 'appels', {});
 }
 
-/** Journalise un email envoyé au magasin. */
-export async function logEmailMagasin(clientId: string, destinataire: string): Promise<{ error: string | null }> {
+/**
+ * Journalise un email envoyé au magasin. L'adresse journalisée est celle de la fiche client, lue ici côté
+ * serveur : on n'accepte pas d'adresse venant du navigateur (le journal de contacts ne doit pas être falsifiable).
+ */
+export async function logEmailMagasin(clientId: string): Promise<{ error: string | null }> {
+  try {
+    await exigerRole(ENCADREMENT);
+  } catch (e) {
+    return { error: messageRefus(e, 'Accès refusé.') };
+  }
+  if (!UUID.test(clientId)) return { error: 'Client invalide.' };
+
+  let destinataire: string | null;
+  try {
+    const res = await serverFetch(`/clients/${encodeURIComponent(clientId)}`);
+    if (!res.ok) return { error: await messageErreur(res) };
+    destinataire = adresseMail(((await res.json()) as { email?: string | null }).email);
+  } catch {
+    return { error: "Impossible de joindre l'API." };
+  }
+  if (!destinataire) return { error: "Ce client n'a pas d'adresse email valide." };
   return posterSurClient(clientId, 'emails', { destinataire });
 }
 

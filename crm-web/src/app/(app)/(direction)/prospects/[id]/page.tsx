@@ -15,6 +15,8 @@ import {
   CheckCircle2,
 } from 'lucide-react';
 import { ENCADREMENT, requireRole } from '@/lib/roles';
+import { peutEcrireProspects } from '@/lib/prospect-roles';
+import { FUSEAU } from '@/lib/planning-dates';
 import {
   idSur,
   getProspect,
@@ -39,7 +41,7 @@ import { listPiecesJointes } from '@/lib/prospect-actions';
 export const metadata = { title: 'Fiche prospect — Direction commerciale' };
 
 const EUR = new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 });
-const DT = new Intl.DateTimeFormat('fr-FR', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+const DT = new Intl.DateTimeFormat('fr-FR', { timeZone: FUSEAU, day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
 const fmt = (d: string | null | undefined) => (d ? DT.format(new Date(d)) : '—');
 
 const APPEL_LABELS: Record<ResultatAppel, string> = {
@@ -49,10 +51,10 @@ const APPEL_LABELS: Record<ResultatAppel, string> = {
   RAPPEL_PREVU: 'Rappel prévu',
 };
 const APPEL_BADGE: Record<ResultatAppel, string> = {
-  REPONDU: 'bg-emerald-500/12 text-emerald-600 dark:text-emerald-400',
-  SANS_REPONSE: 'bg-red-500/12 text-red-500',
-  MESSAGERIE: 'bg-amber-500/15 text-amber-600 dark:text-amber-400',
-  RAPPEL_PREVU: 'bg-sky-500/12 text-sky-600 dark:text-sky-400',
+  REPONDU: 'bg-emerald-500/12 text-emerald-800',
+  SANS_REPONSE: 'bg-red-500/12 text-red-800',
+  MESSAGERIE: 'bg-amber-500/15 text-amber-800',
+  RAPPEL_PREVU: 'bg-sky-500/12 text-sky-800',
 };
 /** « 4 min 30 » à partir d'une durée en secondes. */
 function duree(sec: number): string {
@@ -68,10 +70,10 @@ const OPP_TYPE_LABELS: Record<string, string> = {
   REFERENCEMENT: 'Référencement', OP: 'OP', MISE_EN_AVANT: 'Mise en avant',
 };
 const OPP_STATUT_STYLES: Record<string, string> = {
-  OUVERTE: 'bg-sky-500/15 text-sky-500',
-  GAGNEE: 'bg-emerald-500/15 text-emerald-500',
-  PERDUE: 'bg-red-500/15 text-red-400',
-  ANNULEE: 'bg-neutral-400/15 text-neutral-500',
+  OUVERTE: 'bg-sky-500/15 text-sky-800',
+  GAGNEE: 'bg-emerald-500/15 text-emerald-800',
+  PERDUE: 'bg-red-500/15 text-red-800',
+  ANNULEE: 'bg-neutral-400/15 text-neutral-700',
 };
 
 const card = 'rounded-2xl bg-white shadow-card';
@@ -92,7 +94,7 @@ function Info({ icon: Icon, label, value }: { icon: typeof MapPin; label: string
 function OpportuniteLine({ o }: { o: OpportuniteRow }) {
   return (
     <li className="flex items-center gap-3 px-5 py-2.5">
-      <Sparkles size={14} className="shrink-0 text-[#A78BDA]" />
+      <Sparkles size={14} className="shrink-0 text-brand/70" aria-hidden />
       <div className="min-w-0 flex-1">
         <p className="truncate text-sm font-medium">{o.libelle ?? OPP_TYPE_LABELS[o.type] ?? o.type}</p>
         <p className="text-xs text-neutral-400">
@@ -104,7 +106,7 @@ function OpportuniteLine({ o }: { o: OpportuniteRow }) {
       {o.valeurEstimee != null ? (
         <span className="shrink-0 text-sm font-semibold dark:text-accent">{EUR.format(o.valeurEstimee)}</span>
       ) : null}
-      <span className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-medium ${OPP_STATUT_STYLES[o.statut] ?? 'bg-neutral-400/15 text-neutral-500'}`}>
+      <span className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-medium ${OPP_STATUT_STYLES[o.statut] ?? 'bg-neutral-400/15 text-neutral-700'}`}>
         {o.statut.charAt(0) + o.statut.slice(1).toLowerCase()}
       </span>
     </li>
@@ -127,8 +129,15 @@ export default async function ProspectDetailPage({
   const [p, timeline, pieces] = await Promise.all([getProspect(id), getProspectTimeline(id), listPiecesJointes(id)]);
   if (!p) notFound();
 
-  const opportunites = p.opportunites ?? [];
-  // Timeline unifiée : appels (mobile) + visites de prospection — les opportunités ont leur carte.
+  // Écriture (étape, coordonnées, conversion) : ADMIN, DR et CS seulement, comme l'API ; DIRECTION consulte.
+  // Notes, appels, emails et pièces jointes restent ouverts à tout l'encadrement.
+  const peutEcrire = peutEcrireProspects(acces.me.role);
+
+  // GET /prospects/:id n'inclut pas les opportunités : on les lit dans la timeline (/historique), qui les
+  // renvoie en événements OPPORTUNITE. Repli sur p.opportunites si l'API les ajoute un jour à la fiche.
+  const opportunitesTimeline = (timeline ?? []).flatMap((e) => (e.type === 'OPPORTUNITE' ? [e.opportunite] : []));
+  const opportunites = opportunitesTimeline.length > 0 ? opportunitesTimeline : (p.opportunites ?? []);
+  // Timeline unifiée : appels, emails, étapes, notes, visites — les opportunités ont leur carte.
   const evenements = (timeline ?? []).filter((e) => e.type !== 'OPPORTUNITE');
 
   return (
@@ -141,6 +150,11 @@ export default async function ProspectDetailPage({
         <p role="alert" className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
           La conversion en client a échoué. Vérifiez que le prospect est à l&apos;étape « Gagné » et réessayez.
         </p>
+      ) : erreur === 'role' ? (
+        <p role="alert" className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+          Votre rôle ne permet pas de convertir ce prospect en client (réservé aux chefs de secteur, directeurs
+          régionaux et administrateurs).
+        </p>
       ) : null}
 
       {/* En-tête */}
@@ -152,7 +166,7 @@ export default async function ProspectDetailPage({
             <StatutBadge value={p.statut} />
             <ProspectContactActions prospectId={p.id} telephone={p.telephone} email={p.email} />
             {p.clientId ? (
-              <Link href={`/clients/${p.clientId}`} className="inline-flex items-center gap-1 rounded-full bg-emerald-500/15 px-2 py-0.5 text-xs font-medium text-emerald-500">
+              <Link href={`/clients/${p.clientId}`} className="inline-flex items-center gap-1 rounded-full bg-emerald-500/15 px-2 py-0.5 text-xs font-medium text-emerald-800">
                 <CheckCircle2 size={12} /> Converti en client
               </Link>
             ) : null}
@@ -166,10 +180,10 @@ export default async function ProspectDetailPage({
         {/* Actions : planification + conversion */}
         <div className="flex items-center gap-2">
           <ProspectPlanifierButton prospectId={p.id} />
-          {p.statut === 'GAGNE' && !p.clientId ? (
+          {peutEcrire && p.statut === 'GAGNE' && !p.clientId ? (
             <form action={convertProspect}>
               <input type="hidden" name="id" value={p.id} />
-              <button type="submit" className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-600 px-3 py-1.5 text-sm font-medium text-white transition hover:bg-emerald-700">
+              <button type="submit" className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-700 px-3 py-1.5 text-sm font-medium text-white transition hover:bg-emerald-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-700">
                 <CheckCircle2 size={15} /> Convertir en client
               </button>
             </form>
@@ -178,14 +192,14 @@ export default async function ProspectDetailPage({
       </div>
 
       {/* Pipeline : étapes cliquables, changement journalisé dans la timeline */}
-      <ProspectEtapesStepper prospectId={p.id} statut={p.statut} />
+      <ProspectEtapesStepper prospectId={p.id} statut={p.statut} lectureSeule={!peutEcrire} />
 
       {/* KPIs */}
       <section className="grid grid-cols-2 gap-4">
         <div className={`${card} p-5`}>
           <div className="flex items-center justify-between">
             <span className="text-sm text-neutral-500">Potentiel CA/an</span>
-            <TrendingUp size={17} className="text-[#7D8CCE]" />
+            <TrendingUp size={17} className="text-brand/70" aria-hidden />
           </div>
           <p className="mt-2 text-2xl font-bold text-brand dark:text-accent">
             {p.potentielCaAnnuel != null ? EUR.format(p.potentielCaAnnuel) : '—'}
@@ -194,7 +208,7 @@ export default async function ProspectDetailPage({
         <div className={`${card} p-5`}>
           <div className="flex items-center justify-between">
             <span className="text-sm text-neutral-500">Probabilité</span>
-            <Target size={17} className="text-[#7D8CCE]" />
+            <Target size={17} className="text-brand/70" aria-hidden />
           </div>
           <p className="mt-2 text-2xl font-bold text-brand dark:text-accent">
             {p.probabilite != null ? `${p.probabilite}%` : '—'}
@@ -210,6 +224,7 @@ export default async function ProspectDetailPage({
             <ProspectCoordonnees
               prospectId={p.id}
               coords={{ adresse1: p.adresse1, codePostal: p.codePostal, ville: p.ville, telephone: p.telephone, email: p.email }}
+              lectureSeule={!peutEcrire}
             />
             <Info icon={User} label="Responsable" value={p.assignedTo?.displayName ?? '—'} />
             <Info icon={MapPin} label="Secteur" value={p.secteur ? `${p.secteur.nom} (${p.secteur.code})` : '—'} />
@@ -287,8 +302,8 @@ export default async function ProspectDetailPage({
                     </li>
                   ) : e.type === 'EMAIL' ? (
                     <li key={`m-${e.email.id}`} className="flex gap-3 px-5 py-3">
-                      <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-violet-500/12">
-                        <Mail size={14} className="text-violet-500" />
+                      <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-brand/10">
+                        <Mail size={14} className="text-brand" />
                       </span>
                       <div className="min-w-0 flex-1">
                         <div className="flex flex-wrap items-center gap-2">

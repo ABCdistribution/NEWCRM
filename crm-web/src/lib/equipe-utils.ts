@@ -1,5 +1,6 @@
 // Utilitaires purs de la page « Mon équipe » (aucun appel réseau : importables côté client comme serveur).
 import type { LigneRapport, StatutRapport, UserRow } from './api';
+import { aujourdhuiParis } from './planning-dates';
 
 export const EUR = new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 });
 
@@ -26,8 +27,9 @@ export function ajouterJours(d: Date, n: number): Date {
 
 /** Lundi demandé par `?semaine=yyyy-mm-dd` (valeur invalide ou absente : semaine courante). */
 export function lundiDemande(param: string | undefined): Date {
-  const base = param && /^\d{4}-\d{2}-\d{2}$/.test(param) ? new Date(`${param}T12:00:00`) : new Date();
-  return lundiDe(Number.isNaN(base.getTime()) ? new Date() : base);
+  // « Aujourd'hui » est calculé à Paris (fuseau de l'API), pas dans celui du processus Next.
+  const base = param && /^\d{4}-\d{2}-\d{2}$/.test(param) ? new Date(`${param}T12:00:00`) : aujourdhuiParis();
+  return lundiDe(Number.isNaN(base.getTime()) ? aujourdhuiParis() : base);
 }
 
 /** Heure « HH:mm » portée par une date ISO, ou null si minuit (= pas d'heure précise). */
@@ -121,6 +123,8 @@ export type PromoLigne = {
   visitesFaites: number | null;
   jourPrevues: number | null; // visites planifiées aujourd'hui
   jourFaites: number | null;
+  /** Vrai quand une requête à l'API a échoué : les « — » de la ligne ne sont alors pas de vraies valeurs vides. */
+  incomplet: boolean;
 };
 
 /** Carte d'un chef de secteur dans la vue du directeur régional. */
@@ -138,4 +142,6 @@ export type CsCarte = {
   ecarts: Ecarts | null;
   ca: number | null;
   objectif: number | null;
+  /** Vrai quand une requête à l'API a échoué : des chiffres de la carte manquent par défaut de réponse. */
+  incomplet: boolean;
 };

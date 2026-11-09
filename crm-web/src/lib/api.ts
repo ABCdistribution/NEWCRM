@@ -1,7 +1,23 @@
-import { notFound } from 'next/navigation';
+import { cache } from 'react';
+import { notFound, redirect } from 'next/navigation';
 import { apiBase, getToken } from './session';
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/**
+ * L'API ne répond pas (réseau coupé, délai dépassé) ou répond en erreur serveur (5xx).
+ * À distinguer d'une session absente (401) ou d'une ressource introuvable (404) : l'utilisateur n'est pas
+ * déconnecté et la page n'est pas « introuvable », le service est simplement momentanément indisponible.
+ * Le message sert aux journaux du serveur et aux tests, PAS à l'affichage : en production, Next remplace le message
+ * d'une erreur levée côté serveur par un simple identifiant (`digest`). Les écrans d'erreur (`error.tsx`)
+ * affichent donc un texte générique, avec cette référence.
+ */
+export class ApiIndisponibleError extends Error {
+  constructor(options?: { cause?: unknown }) {
+    super('Service momentanément indisponible, réessayez dans un instant.', options);
+    this.name = 'ApiIndisponibleError';
+  }
+}
 
 /**
  * Valide un identifiant avant de l'insérer dans un chemin d'API (anti path traversal) :
@@ -188,16 +204,13 @@ export function listCommandes(params: {
   ) as Promise<CommandesResult>;
 }
 
-/** Détail d'une commande (lignes incluses), ou null si introuvable. */
+/**
+ * Détail d'une commande (lignes incluses), ou null si introuvable (404) ou hors accès (403).
+ * Session expirée (401) : redirection vers /login ; API en panne (5xx, réseau, délai) : lève
+ * `ApiIndisponibleError` au lieu d'afficher une fausse page « introuvable ».
+ */
 export async function getCommande(id: string): Promise<CommandeDetail | null> {
-  const sid = idSur(id);
-  try {
-    const res = await serverFetch(`/commandes/${sid}`);
-    if (!res.ok) return null;
-    return (await res.json()) as CommandeDetail;
-  } catch {
-    return null;
-  }
+  return lireDetail<CommandeDetail>(`/commandes/${idSur(id)}`);
 }
 
 export type Performances =
@@ -273,16 +286,12 @@ export async function getClientHistorique(id: string): Promise<ClientHistorique 
   }
 }
 
-/** Fiche magasin complète, ou null si introuvable. */
+/**
+ * Fiche magasin complète, ou null si introuvable (404) ou hors accès (403).
+ * Même contrat d'erreur que `getCommande` : 401 → /login, API en panne → `ApiIndisponibleError`.
+ */
 export async function getClient(id: string): Promise<ClientDetail | null> {
-  const sid = idSur(id);
-  try {
-    const res = await serverFetch(`/clients/${sid}`);
-    if (!res.ok) return null;
-    return (await res.json()) as ClientDetail;
-  } catch {
-    return null;
-  }
+  return lireDetail<ClientDetail>(`/clients/${idSur(id)}`);
 }
 
 export type ArticleRow = {
@@ -300,29 +309,123 @@ export type ArticleRow = {
   famille: { nom: string } | null;
 };
 
-/** Appel serveur→serveur vers l'API NestJS, avec le JWT de session en Bearer. */
-export async function serverFetch(path: string, init: RequestInit = {}): Promise<Response> {
-  const token = await getToken();
-  return fetch(`${apiBase()}${path}`, {
-    ...init,
-    headers: {
-      ...(init.headers ?? {}),
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-    },
-    cache: 'no-store',
-  });
+/** Délai d'attente par défaut d'un appel à l'API (ms) : au-delà, elle est considérée indisponible. */
+const DELAI_API_MS = 20_000;
+
+/**
+ * Appels dont le traitement est synchrone côté API et peut dépasser le délai par défaut
+ * (synchro AD : lecture de l'annuaire et des photos). Sans cela, l'action serait annoncée en échec
+ * alors que l'API la mène à terme. Clé = chemin exact (sans query string).
+ */
+const DELAIS_LONGS_MS: Record<string, number> = { '/sync/ad': 180_000 };
+
+/** Échec de transport (et non réponse HTTP) : délai dépassé, annulation, connexion refusée ou coupée. */
+function estPanneReseau(e: unknown): boolean {
+  const nom = (e as { name?: unknown } | null)?.name;
+  if (nom === 'TimeoutError' || nom === 'AbortError') return true;
+  // undici lève « TypeError: fetch failed » (cause : ECONNREFUSED, ENOTFOUND, ECONNRESET…).
+  return e instanceof TypeError && e.message === 'fetch failed';
 }
 
-/** Utilisateur courant, ou null si la session est absente / expirée. */
-export async function getMe(): Promise<Me | null> {
+/**
+ * Appel serveur→serveur vers l'API NestJS, avec le JWT de session en Bearer.
+ *
+ * Délai d'attente : 20 s par défaut (`timeoutMs` pour le modifier, ou un `signal` fourni par l'appelant).
+ * Une panne de transport (délai dépassé, connexion refusée) lève `ApiIndisponibleError` ; une réponse HTTP,
+ * même en erreur, est toujours renvoyée telle quelle : c'est à l'appelant de vérifier `res.ok`.
+ *
+ * ATTENTION : Next ne mémoïse pas les `fetch` qui portent un `signal` (dedupe-fetch). Les appels répétés d'un
+ * même rendu ne sont donc plus dédupliqués automatiquement ; `getMe` l'est par `cache()` de React.
+ */
+export async function serverFetch(
+  path: string,
+  init: RequestInit & { timeoutMs?: number } = {},
+): Promise<Response> {
+  const { timeoutMs, signal, ...reste } = init;
+  const token = await getToken();
+  const delai = timeoutMs ?? DELAIS_LONGS_MS[path.split('?')[0]] ?? DELAI_API_MS;
   try {
-    const res = await serverFetch('/auth/me');
-    if (!res.ok) return null;
-    return (await res.json()) as Me;
-  } catch {
-    return null;
+    return await fetch(`${apiBase()}${path}`, {
+      ...reste,
+      headers: {
+        ...(init.headers ?? {}),
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+      signal: signal ?? AbortSignal.timeout(delai),
+      cache: 'no-store',
+    });
+  } catch (e) {
+    if (estPanneReseau(e)) throw new ApiIndisponibleError({ cause: e });
+    throw e;
   }
 }
+
+/**
+ * Lit le détail d'une ressource (page `[id]`) : l'objet, ou null si l'API répond « introuvable » (404) ou
+ * « interdit » (403) — la page affiche alors un 404, sans révéler l'existence de la ressource.
+ * 401 : session expirée → redirection vers /login. 5xx, 408, 429, réseau, délai : `ApiIndisponibleError`
+ * (et non un faux 404). À appeler HORS d'un try/catch : `redirect` lève.
+ */
+async function lireDetail<T>(path: string): Promise<T | null> {
+  const res = await serverFetch(path);
+  if (res.ok) {
+    try {
+      return (await res.json()) as T;
+    } catch (e) {
+      throw new ApiIndisponibleError({ cause: e });
+    }
+  }
+  if (res.status === 401) redirect('/login');
+  if (res.status >= 500 || res.status === 408 || res.status === 429) throw new ApiIndisponibleError();
+  return null;
+}
+
+/**
+ * Ne garde de l'utilisateur renvoyé par `/auth/me` que les champs du type `Me`. L'API renvoie la ligne
+ * Prisma complète (photo en octets, `isActive`, `secteurId`, `regionId`, `directeurId`, dates…) : sans cette
+ * projection, tout ce contenu serait sérialisé dans le HTML et la charge RSC des composants clients.
+ * Renvoie null si la réponse n'a ni identifiant ni rôle (session inexploitable).
+ */
+export function projeterMe(brut: unknown): Me | null {
+  if (!brut || typeof brut !== 'object') return null;
+  const u = brut as Record<string, unknown>;
+  if (typeof u.id !== 'string' || typeof u.role !== 'string') return null;
+  const texte = (v: unknown): string | null => (typeof v === 'string' ? v : null);
+  return {
+    id: u.id,
+    username: texte(u.username) ?? '',
+    displayName: texte(u.displayName) ?? '',
+    email: texte(u.email),
+    // Rôle gardé tel quel, même inconnu : requireRole le refuse (accès refusé) plutôt que de déconnecter.
+    role: u.role as Role,
+    idRepr: texte(u.idRepr),
+    poste: texte(u.poste),
+  };
+}
+
+/**
+ * Utilisateur courant, ou null si la session est absente / expirée (pas de cookie, 401, 403).
+ * API en panne (5xx, réseau, délai dépassé) : lève `ApiIndisponibleError`, pour ne pas faire passer une
+ * indisponibilité pour une déconnexion (le cookie reste valable). Mémoïsé par requête (React `cache`) :
+ * layout, gardes de rôle et page partagent un seul appel à `/auth/me`.
+ *
+ * @deprecated N'est plus appelée par l'application : `lireSession()` (roles.ts) est la seule voie de lecture de la
+ * session (même projection par `projeterMe`, avec la distinction absente / indisponible sans exception).
+ */
+export const getMe = cache(async (): Promise<Me | null> => {
+  // Pas de cookie : inutile de solliciter l'API (et pas d'erreur « indisponible » avant la connexion).
+  if (!(await getToken())) return null;
+  const res = await serverFetch('/auth/me');
+  if (res.status === 401 || res.status === 403) return null;
+  if (!res.ok) throw new ApiIndisponibleError();
+  let json: unknown;
+  try {
+    json = await res.json();
+  } catch (e) {
+    throw new ApiIndisponibleError({ cause: e });
+  }
+  return projeterMe(json);
+});
 
 /** Construit une query string en ignorant les valeurs vides. */
 export function qs(params: Record<string, string | number | undefined>): string {
@@ -538,37 +641,6 @@ export async function getAdminOrganisation(): Promise<AdminOrganisation | null> 
   }
 }
 
-export type ObjectifsGrille = {
-  annee: number;
-  page: number;
-  limit: number;
-  total: number;
-  totaux: { magasins: number; avecObjectif: number; cibleCa: number };
-  lignes: {
-    clientId: string;
-    codeAs400: string;
-    nom: string;
-    ville: string | null;
-    niveauClass: string | null;
-    cibleCa: number | null;
-    caRealise: number;
-  }[];
-};
-
-/** Grille annuelle des objectifs par magasin (tous les magasins actifs, recherche + pagination). */
-export async function getObjectifsGrille(
-  annee: number,
-  filtres: { search?: string; page?: number } = {},
-): Promise<ObjectifsGrille | null> {
-  try {
-    const res = await serverFetch(`/objectifs${qs({ annee, search: filtres.search, page: filtres.page })}`);
-    if (!res.ok) return null;
-    return (await res.json()) as ObjectifsGrille;
-  } catch {
-    return null;
-  }
-}
-
 export type PlanningItem = {
   id: string;
   datePassage: string;
@@ -610,18 +682,6 @@ export async function listPlannings(
     return (await res.json()) as PlanningItem[];
   } catch {
     return null;
-  }
-}
-
-/** Portefeuille de magasins d'un code représentant (pour le sélecteur de planification). */
-export async function listClientsOfRepr(repr: string): Promise<ClientRow[]> {
-  try {
-    const res = await serverFetch(`/clients${qs({ repr, limit: 100 })}`);
-    if (!res.ok) return [];
-    const data = (await res.json()) as Paginated<ClientRow>;
-    return data.data;
-  } catch {
-    return [];
   }
 }
 
@@ -718,29 +778,6 @@ export async function getDashboardDirection(
     const res = await serverFetch(`/dashboard/direction${qs({ annee, mois })}`);
     if (!res.ok) return null;
     return (await res.json()) as DashboardDirection;
-  } catch {
-    return null;
-  }
-}
-
-export type TypeQuestion = 'CASE_A_COCHER' | 'TEXTE' | 'NOMBRE' | 'NOTE_1_5';
-
-export type QuestionVisite = {
-  id: string;
-  libelle: string;
-  type: TypeQuestion;
-  ordre: number;
-  obligatoire: boolean;
-  actif: boolean;
-  _count: { reponses: number };
-};
-
-/** Questionnaire de fin de visite (édition : inclut les questions inactives). */
-export async function listQuestionnaire(): Promise<QuestionVisite[] | null> {
-  try {
-    const res = await serverFetch('/questionnaire?tous=1');
-    if (!res.ok) return null;
-    return (await res.json()) as QuestionVisite[];
   } catch {
     return null;
   }
@@ -862,60 +899,13 @@ export function listProspects(params: {
   ) as Promise<ProspectsResult>;
 }
 
-/** Nombre de prospects assignés à un utilisateur (option : par étape) — pour l'activité équipe. */
-export async function countProspectsAssignes(
-  assignedTo: string,
-  statut?: string,
-): Promise<number | null> {
-  try {
-    const res = await serverFetch(`/prospects${qs({ assignedTo, statut, page: 1, limit: 1 })}`);
-    if (!res.ok) return null;
-    const d = (await res.json()) as { total?: number };
-    return d.total ?? 0;
-  } catch {
-    return null;
-  }
-}
-
+/** Visite d'un promoteur chez un client (ligne de la liste `/visites`). */
 export type VisiteActivite = {
   id: string;
   createdAt: string;
   promoteur: { id: string; displayName: string } | null;
   client: { id: string; enseigne: string; ville: string | null } | null;
 };
-
-/** Visites récentes (toutes équipes, pages 1..n) — pour le suivi d'activité des CS. */
-export async function listVisitesRecentes(maxPages = 5): Promise<VisiteActivite[] | null> {
-  const rows: VisiteActivite[] = [];
-  try {
-    for (let p = 1; p <= maxPages; p++) {
-      const res = await serverFetch(`/visites${qs({ page: p })}`);
-      if (!res.ok) return p === 1 ? null : rows;
-      const d = (await res.json()) as Paginated<VisiteActivite>;
-      rows.push(...d.data);
-      if (rows.length >= d.total || d.data.length === 0) break;
-    }
-    return rows;
-  } catch {
-    return rows.length ? rows : null;
-  }
-}
-
-/** Compte les prospects correspondant aux filtres (lit `total`, page allégée). */
-export async function countProspects(
-  params: { statut?: string; secteur?: string } = {},
-): Promise<number | null> {
-  try {
-    const res = await serverFetch(
-      `/prospects${qs({ statut: params.statut, secteur: params.secteur, page: 1, limit: 1 })}`,
-    );
-    if (!res.ok) return null;
-    const d = (await res.json()) as { total?: number };
-    return d.total ?? 0;
-  } catch {
-    return null;
-  }
-}
 
 export type PipelineColonne = {
   statut: ProspectStatut;
@@ -924,37 +914,55 @@ export type PipelineColonne = {
   prospects: ProspectRow[];
 };
 
+const estStatutProspect = (v: unknown): v is ProspectStatut =>
+  typeof v === 'string' && (PROSPECT_STATUTS as string[]).includes(v);
+
+/** Colonne normalisée : les champs absents ou mal typés prennent leur valeur neutre. */
+function colonnePipeline(statut: ProspectStatut, c: Partial<PipelineColonne> | null | undefined): PipelineColonne {
+  const prospects = Array.isArray(c?.prospects) ? c.prospects : [];
+  return {
+    statut,
+    total: typeof c?.total === 'number' ? c.total : prospects.length,
+    valeurPonderee: typeof c?.valeurPonderee === 'number' ? c.valeurPonderee : 0,
+    prospects,
+  };
+}
+
 /**
- * Pipeline groupé par étape (Kanban). Tolérant à la forme exacte du retour :
- * accepte un tableau de colonnes, un objet { colonnes: [...] } ou une map
- * { STATUT: {...} }, et normalise toujours vers l'ordre des étapes.
+ * Normalise la réponse de GET /prospects/pipeline vers les 7 colonnes du Kanban, dans l'ordre des étapes.
+ *
+ * Forme réelle de l'API : `{ etapes: [{ statut, total, valeurPonderee, prospects }], scope: { type } }`.
+ * Tolère aussi un tableau de colonnes, `{ colonnes: [...] }` et une map `{ STATUT: {...} }`. Seules les
+ * clés qui sont des étapes connues comptent : `scope` (ou toute autre clé) n'est jamais prise pour une colonne.
+ * Une étape absente donne une colonne vide.
  */
+export function normaliserPipeline(json: unknown): PipelineColonne[] {
+  let brut: unknown = json;
+  if (json && typeof json === 'object' && !Array.isArray(json)) {
+    const { etapes, colonnes } = json as { etapes?: unknown; colonnes?: unknown };
+    brut = etapes ?? colonnes ?? json;
+  }
+
+  const parStatut = new Map<ProspectStatut, PipelineColonne>();
+  if (Array.isArray(brut)) {
+    for (const c of brut as (Partial<PipelineColonne> | null)[]) {
+      if (estStatutProspect(c?.statut)) parStatut.set(c.statut, colonnePipeline(c.statut, c));
+    }
+  } else if (brut && typeof brut === 'object') {
+    const map = brut as Record<string, Partial<PipelineColonne> | null | undefined>;
+    for (const statut of PROSPECT_STATUTS) {
+      if (map[statut]) parStatut.set(statut, colonnePipeline(statut, map[statut]));
+    }
+  }
+  return PROSPECT_STATUTS.map((statut) => parStatut.get(statut) ?? colonnePipeline(statut, null));
+}
+
+/** Pipeline groupé par étape (Kanban), ou null en cas d'erreur. Voir `normaliserPipeline` pour la forme. */
 export async function getProspectPipeline(): Promise<PipelineColonne[] | null> {
   try {
     const res = await serverFetch('/prospects/pipeline');
     if (!res.ok) return null;
-    const json = (await res.json()) as unknown;
-    const raw: unknown = Array.isArray(json)
-      ? json
-      : (json as { colonnes?: unknown }).colonnes ?? json;
-
-    const byStatut = new Map<string, PipelineColonne>();
-    if (Array.isArray(raw)) {
-      for (const c of raw as PipelineColonne[]) if (c?.statut) byStatut.set(c.statut, c);
-    } else if (raw && typeof raw === 'object') {
-      for (const [statut, c] of Object.entries(raw as Record<string, Partial<PipelineColonne>>)) {
-        byStatut.set(statut, {
-          statut: statut as ProspectStatut,
-          total: c.total ?? c.prospects?.length ?? 0,
-          valeurPonderee: c.valeurPonderee ?? 0,
-          prospects: c.prospects ?? [],
-        });
-      }
-    }
-    return PROSPECT_STATUTS.map(
-      (statut) =>
-        byStatut.get(statut) ?? { statut, total: 0, valeurPonderee: 0, prospects: [] },
-    );
+    return normaliserPipeline(await res.json());
   } catch {
     return null;
   }
@@ -1001,16 +1009,12 @@ export type ProspectDetail = {
   opportunites?: OpportuniteRow[];
 };
 
-/** Fiche prospect complète, ou null si introuvable. */
+/**
+ * Fiche prospect complète, ou null si introuvable (404 : l'API renvoie aussi 404 hors périmètre) ou hors accès (403).
+ * Même contrat d'erreur que `getCommande` : 401 → /login, API en panne → `ApiIndisponibleError`.
+ */
 export async function getProspect(id: string): Promise<ProspectDetail | null> {
-  const sid = idSur(id);
-  try {
-    const res = await serverFetch(`/prospects/${sid}`);
-    if (!res.ok) return null;
-    return (await res.json()) as ProspectDetail;
-  } catch {
-    return null;
-  }
+  return lireDetail<ProspectDetail>(`/prospects/${idSur(id)}`);
 }
 
 // --- Zone de dépôt AS400 ----------------------------------------------------

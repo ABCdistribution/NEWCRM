@@ -11,6 +11,9 @@ import { NotificationsBell } from './notifications-bell';
 import type { Me, NotificationItem } from '@/lib/api';
 import type { MenuSection } from '@/lib/menu';
 
+/** Champs de l'utilisateur utilisés par le menu : seuls ceux-là sont sérialisés vers le navigateur. */
+export type MenuUser = Pick<Me, 'id' | 'displayName' | 'poste' | 'role'>;
+
 /** Police du mot-symbole « ABC » en tête de menu (aspect logo). */
 const policeLogo = Montserrat({ subsets: ['latin'], weight: '800' });
 
@@ -47,7 +50,7 @@ function Brand({ espace, compact = false }: { espace: Espace; compact?: boolean 
 }
 
 /** Contenu du menu (navigation + pied utilisateur), partagé sidebar / tiroir mobile. */
-function MenuPanel({ me, sections, notifications }: { me: Me; sections: MenuSection[]; notifications: Notifs }) {
+function MenuPanel({ me, sections, notifications }: { me: MenuUser; sections: MenuSection[]; notifications: Notifs }) {
   const pathname = usePathname();
 
   return (
@@ -113,7 +116,7 @@ function MenuPanel({ me, sections, notifications }: { me: Me; sections: MenuSect
 
 /**
  * Menu latéral unique. Sections et entrées viennent de `construireMenu` (table ROUTES) ;
- * `notifications` n'est fourni que pour COMMERCIAL (la cloche est alors affichée).
+ * `notifications` : boîte de réception de l'utilisateur (tous les rôles) ; la cloche n'est omise que si `null`.
  */
 export function SideMenu({
   me,
@@ -121,7 +124,7 @@ export function SideMenu({
   sections,
   notifications,
 }: {
-  me: Me;
+  me: MenuUser;
   espace: Espace;
   sections: MenuSection[];
   notifications: Notifs;

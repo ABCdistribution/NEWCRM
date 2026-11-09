@@ -1,4 +1,5 @@
 import { serverFetch } from '@/lib/api';
+import { ENCADREMENT, ErreurServiceIndisponible, exigerRole } from '@/lib/roles';
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -21,11 +22,20 @@ const reponseVide = (status: number) =>
 
 /**
  * Relais authentifié de téléchargement d'une pièce jointe prospect (le JWT est en cookie httpOnly).
- * L'API contrôle le périmètre ; ici : ids UUID, types sûrs, nosniff, téléchargement forcé (attachment).
+ * Ici : rôle de l'encadrement exigé (comme la fiche prospect, seule à porter ce lien, et les Server Actions
+ * des prospects), ids UUID, types sûrs, nosniff, téléchargement forcé (attachment).
+ * Le filtrage de périmètre reste décidé par l'API : le contrôle de rôle ci-dessous est une défense en
+ * profondeur, il ne le remplace pas. Un rôle refusé ou une session absente reçoivent le même 404.
  */
 export async function GET(_req: Request, { params }: { params: Promise<{ id: string; pjId: string }> }) {
   const { id, pjId } = await params;
   if (!UUID.test(id) || !UUID.test(pjId)) return reponseVide(404);
+
+  try {
+    await exigerRole(ENCADREMENT);
+  } catch (e) {
+    return reponseVide(e instanceof ErreurServiceIndisponible ? 503 : 404);
+  }
 
   let res: Response;
   try {

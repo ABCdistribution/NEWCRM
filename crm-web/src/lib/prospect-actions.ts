@@ -2,36 +2,47 @@
 
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
-import { serverFetch, type ProspectStatut } from './api';
-import { ENCADREMENT, exigerRole } from './roles';
+import { PROSPECT_STATUTS, serverFetch, type ProspectStatut } from './api';
+import { ENCADREMENT, exigerRole, messageRefus, type Role } from './roles';
+import { PROSPECTS_ECRITURE } from './prospect-roles';
+import { estMotifPerte } from './prospect-motifs';
 import { estUuid } from './equipe-utils';
+import { adresseMail } from './contact-liens';
+import { messageErreurApi } from './erreurs-api';
 
 // Toutes les actions de la Direction commerciale rappellent leur contrôle de rôle (un layout ne protège pas
 // les Server Actions). Le périmètre (secteur / région) reste décidé par l'API.
+//
+// Deux niveaux, alignés sur l'API :
+//  - verifierAcces()   : tout l'encadrement (DIRECTION compris) — lecture, notes, appels, emails, pièces jointes ;
+//  - verifierEcriture(): ADMIN, DIRECTEUR_REGIONAL, CHEF_SECTEUR — création, étape, coordonnées, conversion
+//    (DIRECTION est en lecture seule sur ces routes, voir prospect-roles.ts).
 
 export type ProspectFormState = { error: string | null };
 type Resultat = { error: string | null };
 
-const ERR_ACCES = 'Accès refusé.';
+const ERR_ACCES = 'Accès refusé (rôle insuffisant ou session expirée).';
 const ERR_ID = 'Identifiant de prospect invalide.';
 const ERR_API = "Impossible de joindre l'API.";
 
-/** Rôle encadrement exigé ; renvoie un message d'erreur sinon. */
-async function verifierAcces(): Promise<string | null> {
+/** Rôle exigé parmi `roles` ; renvoie un message d'erreur sinon (exigerRole lève aussi sans session). */
+async function verifier(roles: readonly Role[]): Promise<string | null> {
   try {
-    await exigerRole(ENCADREMENT);
+    await exigerRole(roles);
     return null;
-  } catch {
-    return ERR_ACCES;
+  } catch (e) {
+    return messageRefus(e, ERR_ACCES);
   }
 }
 
-/** Message d'erreur de l'API (premier message de validation) ou texte par défaut. */
-async function messageErreur(res: Response): Promise<string> {
-  const body = (await res.json().catch(() => null)) as { message?: string | string[] } | null;
-  const msg = Array.isArray(body?.message) ? body.message[0] : body?.message;
-  return msg ?? `Erreur serveur (${res.status}).`;
-}
+/** Rôle encadrement exigé ; renvoie un message d'erreur sinon. */
+const verifierAcces = () => verifier(ENCADREMENT);
+
+/** Rôle autorisé à écrire sur les prospects (hors DIRECTION) ; renvoie un message d'erreur sinon. */
+const verifierEcriture = () => verifier(PROSPECTS_ECRITURE);
+
+/** Message d'erreur affichable pour une réponse d'API en échec (401, 5xx, validation traduite : erreurs-api.ts). */
+const messageErreur = (res: Response): Promise<string> => messageErreurApi(res, 'prospects');
 
 const JSON_HEADERS = { 'Content-Type': 'application/json' };
 
@@ -53,7 +64,7 @@ export async function createProspect(
   _prev: ProspectFormState,
   formData: FormData,
 ): Promise<ProspectFormState> {
-  const refus = await verifierAcces();
+  const refus = await verifierEcriture();
   if (refus) return { error: refus };
 
   const raisonSociale = String(formData.get('raisonSociale') ?? '').trim();
@@ -61,6 +72,10 @@ export async function createProspect(
   if (!raisonSociale || !enseigne) {
     return { error: 'La raison sociale et l’enseigne sont obligatoires.' };
   }
+  // Le secteur vient d'une liste fournie par l'API ; un identifiant mal formé n'a aucune raison d'arriver ici.
+  // (L'appartenance du secteur au périmètre de l'appelant est à vérifier côté API.)
+  const secteurId = optStr(formData.get('secteurId'));
+  if (secteurId && !estUuid(secteurId)) return { error: 'Secteur invalide.' };
 
   const payload = {
     raisonSociale,
@@ -70,7 +85,7 @@ export async function createProspect(
     ville: optStr(formData.get('ville')),
     telephone: optStr(formData.get('telephone')),
     email: optStr(formData.get('email')),
-    secteurId: optStr(formData.get('secteurId')),
+    secteurId,
     statut: optStr(formData.get('statut')) ?? 'NOUVEAU',
     source: optStr(formData.get('source')),
     niveauClass: optStr(formData.get('niveauClass')),
@@ -91,74 +106,29 @@ export async function createProspect(
   redirect(created?.id && estUuid(created.id) ? `/prospects/${created.id}` : '/prospects');
 }
 
-/** Change l'étape d'un prospect (PATCH /prospects/:id) — utilisé par le Kanban. */
-export async function setProspectStatut(id: string, statut: ProspectStatut): Promise<Resultat> {
-  const refus = await verifierAcces();
-  if (refus) return { error: refus };
-  if (!estUuid(id)) return { error: ERR_ID };
-  if (!statut) return { error: 'Paramètres manquants.' };
-  try {
-    const res = await serverFetch(`/prospects/${encodeURIComponent(id)}`, {
-      method: 'PATCH',
-      headers: JSON_HEADERS,
-      body: JSON.stringify({ statut }),
-    });
-    if (!res.ok) return { error: await messageErreur(res) };
-  } catch {
-    return { error: ERR_API };
-  }
-  revalidatePath('/prospects');
-  return { error: null };
-}
-
-/** Met à jour un ou plusieurs champs d'un prospect (fiche). Renvoie un message d'erreur en cas d'échec. */
-export async function updateProspect(formData: FormData): Promise<Resultat> {
-  const refus = await verifierAcces();
-  if (refus) return { error: refus };
-  const id = String(formData.get('id') ?? '');
-  if (!estUuid(id)) return { error: ERR_ID };
-  const payload: Record<string, unknown> = {};
-  for (const k of ['statut', 'source', 'motifPerte', 'assignedToId', 'secteurId'] as const) {
-    if (formData.has(k)) payload[k] = optStr(formData.get(k)) ?? null;
-  }
-  for (const k of ['probabilite', 'potentielCaAnnuel'] as const) {
-    if (formData.has(k)) payload[k] = optNum(formData.get(k)) ?? null;
-  }
-  try {
-    const res = await serverFetch(`/prospects/${encodeURIComponent(id)}`, {
-      method: 'PATCH',
-      headers: JSON_HEADERS,
-      body: JSON.stringify(payload),
-    });
-    if (!res.ok) return { error: await messageErreur(res) };
-  } catch {
-    return { error: ERR_API };
-  }
-  revalidatePath(`/prospects/${id}`);
-  revalidatePath('/prospects');
-  return { error: null };
-}
-
 /**
  * Convertit un prospect gagné en client (POST /prospects/:id/convert).
- * Action de formulaire : en cas d'échec, on revient sur la fiche avec ?erreur=conversion (affichée par la page).
+ * Action de formulaire : en cas d'échec, on revient sur la fiche avec ?erreur=… (affichée par la page) :
+ * `role` (rôle sans droit d'écriture : refus local ou 403 de l'API) ou `conversion` (autre échec).
  */
 export async function convertProspect(formData: FormData): Promise<void> {
-  const refus = await verifierAcces();
-  if (refus) redirect('/prospects');
   const id = String(formData.get('id') ?? '');
   if (!estUuid(id)) redirect('/prospects');
+  const refus = await verifierEcriture();
+  if (refus) redirect(`/prospects/${id}?erreur=role`);
   let clientId: string | undefined;
   let ok = false;
+  let interdit = false;
   try {
     const res = await serverFetch(`/prospects/${encodeURIComponent(id)}/convert`, { method: 'POST' });
     ok = res.ok;
+    interdit = res.status === 403;
     if (ok) clientId = ((await res.json().catch(() => null)) as { clientId?: string } | null)?.clientId;
   } catch {
     ok = false;
   }
   revalidatePath('/prospects');
-  if (!ok) redirect(`/prospects/${id}?erreur=conversion`);
+  if (!ok) redirect(`/prospects/${id}?erreur=${interdit ? 'role' : 'conversion'}`);
   if (clientId && estUuid(clientId)) redirect(`/clients/${clientId}`);
   redirect(`/prospects/${id}`);
 }
@@ -182,12 +152,21 @@ export async function logAppelFiche(prospectId: string): Promise<Resultat> {
   return { error: null };
 }
 
-/** Journalise un email lancé depuis la fiche (bouton « Envoyer un mail »). */
-export async function logEmailFiche(prospectId: string, destinataire: string): Promise<Resultat> {
+/**
+ * Journalise un email lancé depuis la fiche (bouton « Envoyer un mail »). L'adresse journalisée est celle de la
+ * fiche prospect, lue ici côté serveur : on n'accepte pas d'adresse venant du navigateur (le journal de contacts
+ * ne doit pas être falsifiable).
+ */
+export async function logEmailFiche(prospectId: string): Promise<Resultat> {
   const refus = await verifierAcces();
   if (refus) return { error: refus };
   if (!estUuid(prospectId)) return { error: ERR_ID };
   try {
+    const lecture = await serverFetch(`/prospects/${encodeURIComponent(prospectId)}`);
+    if (!lecture.ok) return { error: await messageErreur(lecture) };
+    const prospect = (await lecture.json().catch(() => null)) as { email?: string | null } | null;
+    const destinataire = adresseMail(prospect?.email);
+    if (!destinataire) return { error: "Ce prospect n'a pas d'adresse email valide." };
     const res = await serverFetch(`/prospects/${encodeURIComponent(prospectId)}/emails`, {
       method: 'POST',
       headers: JSON_HEADERS,
@@ -201,11 +180,17 @@ export async function logEmailFiche(prospectId: string, destinataire: string): P
   return { error: null };
 }
 
-/** Change l'étape depuis le stepper de la fiche — journalisé dans la timeline. */
+/**
+ * Change l'étape d'un prospect (PATCH /prospects/:id) — journalisé dans la timeline.
+ * Action unique pour le stepper de la fiche ET le Kanban. Le passage en PERDU exige un motif (l'API le refuse
+ * sinon, sauf si la fiche en porte déjà un) : les deux écrans le demandent avant d'appeler cette action.
+ */
 export async function changerEtapeFiche(id: string, statut: ProspectStatut, motifPerte?: string): Promise<Resultat> {
-  const refus = await verifierAcces();
+  const refus = await verifierEcriture();
   if (refus) return { error: refus };
   if (!estUuid(id)) return { error: ERR_ID };
+  if (!PROSPECT_STATUTS.includes(statut)) return { error: 'Étape invalide.' };
+  if (motifPerte !== undefined && !estMotifPerte(motifPerte)) return { error: 'Motif de perte invalide.' };
   let res: Response;
   try {
     res = await serverFetch(`/prospects/${encodeURIComponent(id)}`, {
@@ -243,20 +228,41 @@ export async function addNoteFiche(id: string, remarque: string): Promise<Result
   return { error: null };
 }
 
+/** Coordonnées modifiables depuis la fiche, avec la longueur maximale acceptée par l'API (UpdateProspectDto). */
+const COORDONNEES: readonly { cle: 'adresse1' | 'codePostal' | 'ville' | 'telephone' | 'email'; libelle: string; max: number }[] = [
+  { cle: 'adresse1', libelle: 'Adresse', max: 200 },
+  { cle: 'codePostal', libelle: 'Code postal', max: 10 },
+  { cle: 'ville', libelle: 'Ville', max: 100 },
+  { cle: 'telephone', libelle: 'Téléphone', max: 20 },
+  { cle: 'email', libelle: 'Email', max: 200 },
+];
+
 /** Met à jour les coordonnées de la fiche (adresse, téléphone, email). */
 export async function updateCoordonneesFiche(
   id: string,
   coords: { adresse1?: string; codePostal?: string; ville?: string; telephone?: string; email?: string },
 ): Promise<Resultat> {
-  const refus = await verifierAcces();
+  const refus = await verifierEcriture();
   if (refus) return { error: refus };
   if (!estUuid(id)) return { error: ERR_ID };
+  // Liste blanche : le typage TypeScript disparaît à l'exécution, un appel forgé ne doit pas pouvoir glisser
+  // d'autres champs (secteurId, assignedToId, statut…) dans le PATCH. Le payload est construit champ par champ.
+  if (!coords || typeof coords !== 'object') return { error: 'Coordonnées invalides.' };
+  const payload: Record<string, string> = {};
+  for (const { cle, libelle, max } of COORDONNEES) {
+    const v = coords[cle];
+    if (v === undefined) continue;
+    if (typeof v !== 'string') return { error: `Champ « ${libelle} » invalide.` };
+    const valeur = v.trim();
+    if (valeur.length > max) return { error: `Champ « ${libelle} » trop long (${max} caractères maximum).` };
+    payload[cle] = valeur;
+  }
   let res: Response;
   try {
     res = await serverFetch(`/prospects/${encodeURIComponent(id)}`, {
       method: 'PATCH',
       headers: JSON_HEADERS,
-      body: JSON.stringify(coords),
+      body: JSON.stringify(payload),
     });
   } catch {
     return { error: ERR_API };

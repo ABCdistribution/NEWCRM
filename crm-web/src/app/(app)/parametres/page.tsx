@@ -1,13 +1,16 @@
 import { redirect } from 'next/navigation';
 import { AccesRefuse } from '@/components/acces-refuse';
-import { requireRole, TOUS_ROLES } from '@/lib/roles';
+import { requireRole } from '@/lib/roles';
 
 export const metadata = { title: 'Paramètres' };
 
-/** Les paramètres sont l'onglet Configuration de l'administration (ADMIN) ; les autres rôles n'y ont pas accès. */
+/**
+ * Les paramètres sont l'onglet Configuration de l'administration : la page est réservée à ADMIN
+ * (même règle que sa ligne dans la table des routes, lib/routes.ts) et y redirige. Les autres rôles
+ * voient « Accès refusé ».
+ */
 export default async function ParametresPage() {
-  const acces = await requireRole(TOUS_ROLES);
-  if (acces.refuse) return acces.refuse;
-  if (acces.me.role === 'ADMIN') redirect('/admin?onglet=configuration');
-  return <AccesRefuse message="Cette page est réservée aux administrateurs." />;
+  const acces = await requireRole(['ADMIN']);
+  if (acces.refuse) return <AccesRefuse message="Cette page est réservée aux administrateurs." />;
+  redirect('/admin?onglet=configuration');
 }

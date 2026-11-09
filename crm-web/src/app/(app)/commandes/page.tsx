@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { getDashboardDirection, listCommandes, type CommandesResult, type StatutLivraison } from '@/lib/api';
 import { ENCADREMENT, TOUS_ROLES, requireRole } from '@/lib/roles';
+import { aujourdhuiParis } from '@/lib/planning-dates';
 import { KpiTile } from '@/components/kpi-tile';
 import { LivraisonBadge, LIVRAISON } from '@/components/livraison-badge';
 import { SearchBar } from '@/components/search-bar';
@@ -68,7 +69,7 @@ export default async function CommandesPage({
 
   // Bandeau KPI du mois : encadrement uniquement (l'API réserve ce tableau de bord à ces rôles).
   const avecKpi = ENCADREMENT.includes(acces.me.role);
-  const now = new Date();
+  const now = aujourdhuiParis(); // mois courant à Paris (fuseau de l'API), pas celui du serveur Next
   const k = avecKpi ? (await getDashboardDirection(now.getFullYear(), now.getMonth() + 1))?.kpis : undefined;
 
   return (

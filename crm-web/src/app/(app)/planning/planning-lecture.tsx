@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import { AlertCircle, CheckCircle2, ChevronLeft, ChevronRight, Repeat, Route } from 'lucide-react';
 import { listMesPlannings, type PlanningItem } from '@/lib/api';
-import { dateSemaine, mondayOf, iso, JOURS, DAY_FMT, WEEK_FMT } from '@/lib/planning-dates';
+import { aujourdhuiParis, dateSemaine, mondayOf, iso, JOURS, JOURS_SEMAINE, DAY_FMT, WEEK_FMT } from '@/lib/planning-dates';
 import { ClassBadge } from '@/components/class-badge';
 
 /** Planning d'un promoteur (COMMERCIAL / ADV) : lecture seule, les visites sont planifiées par l'encadrement. */
@@ -24,10 +24,10 @@ export async function PlanningLecture({ userId, semaine }: { userId: string; sem
   const prevMonday = new Date(monday);
   prevMonday.setDate(prevMonday.getDate() - 7);
   const semaineIso = iso(monday);
-  const aujourdhui = iso(new Date());
-  const estSemaineCourante = iso(mondayOf(new Date())) === semaineIso;
+  const aujourdhui = iso(aujourdhuiParis());
+  const estSemaineCourante = iso(mondayOf(aujourdhuiParis())) === semaineIso;
 
-  const days = JOURS.map((nom, idx) => {
+  const semaineComplete = JOURS_SEMAINE.map((nom, idx) => {
     const d = new Date(monday);
     d.setDate(d.getDate() + idx);
     return { date: iso(d), nom, label: DAY_FMT.format(d) };
@@ -37,12 +37,16 @@ export async function PlanningLecture({ userId, semaine }: { userId: string; sem
 
   // Visites par jour (clé = yyyy-mm-dd local).
   const parJour = new Map<string, PlanningItem[]>();
-  for (const d of days) parJour.set(d.date, []);
+  for (const d of semaineComplete) parJour.set(d.date, []);
   for (const p of plannings ?? []) {
     parJour.get(iso(new Date(p.datePassage)))?.push(p);
   }
 
-  const faites = (plannings ?? []).filter((p) => p.fait).length;
+  // Lundi → vendredi toujours ; samedi et dimanche seulement s'ils portent une visite (l'encadrement peut
+  // planifier un samedi dans /planning-equipe). Les compteurs ne portent que sur les visites affichées.
+  const days = semaineComplete.filter((d, idx) => idx < JOURS.length || (parJour.get(d.date)?.length ?? 0) > 0);
+  const affichees = days.flatMap((d) => parJour.get(d.date) ?? []);
+  const faites = affichees.filter((p) => p.fait).length;
 
   const navBtn =
     'inline-flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-xs font-medium text-neutral-600 transition hover:bg-neutral-100';
@@ -70,7 +74,7 @@ export async function PlanningLecture({ userId, semaine }: { userId: string; sem
           {!estSemaineCourante ? (
             <Link
               href="/planning"
-              className="ml-1 rounded-xl bg-accent px-2.5 py-1.5 text-xs font-semibold text-brand transition hover:bg-accent/80"
+              className="ml-1 rounded-xl bg-brand px-2.5 py-1.5 text-xs font-semibold text-white transition hover:bg-brand/90"
             >
               Aujourd&apos;hui
             </Link>
@@ -103,11 +107,11 @@ export async function PlanningLecture({ userId, semaine }: { userId: string; sem
               Visite récurrente
             </span>
             <span className="ml-auto font-medium text-neutral-600">
-              {faites}/{plannings.length} visite{plannings.length > 1 ? 's' : ''} effectuée{faites > 1 ? 's' : ''}
+              {faites}/{affichees.length} visite{affichees.length > 1 ? 's' : ''} effectuée{faites > 1 ? 's' : ''}
             </span>
           </div>
 
-          {plannings.length === 0 ? (
+          {affichees.length === 0 ? (
             <div className="rounded-2xl bg-white p-10 text-center shadow-card">
               <Route size={32} className="mx-auto text-accent" />
               <p className="mt-3 font-medium">Aucune visite planifiée cette semaine.</p>
@@ -116,16 +120,20 @@ export async function PlanningLecture({ userId, semaine }: { userId: string; sem
               </p>
             </div>
           ) : (
-            <div className="overflow-x-auto pb-2">
-              <div className="grid min-w-[720px] grid-cols-5 items-start gap-2.5">
+            <div className="overflow-x-auto px-1 pb-2 pt-1">
+              <div
+                className="grid items-start gap-2.5"
+                style={{ gridTemplateColumns: `repeat(${days.length}, minmax(0, 1fr))`, minWidth: `${days.length * 144}px` }}
+              >
               {days.map((day) => {
                 const visites = parJour.get(day.date) ?? [];
+                // Jour courant : `ring` et non `border` (`.shadow-card`, hors couche Tailwind, impose sa propre bordure).
                 const estAujourdhui = day.date === aujourdhui;
                 return (
                   <section
                     key={day.date}
-                    className={`flex min-h-40 flex-col rounded-2xl border bg-white shadow-card ${
-                      estAujourdhui ? 'border-brand' : 'border-transparent'
+                    className={`flex min-h-40 flex-col rounded-2xl bg-white shadow-card ${
+                      estAujourdhui ? 'ring-2 ring-brand' : ''
                     }`}
                   >
                     <header className="flex items-baseline justify-between px-3 pb-1 pt-2.5">

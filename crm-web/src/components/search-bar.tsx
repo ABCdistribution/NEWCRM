@@ -33,6 +33,7 @@ export function SearchBar({
         type="search"
         defaultValue={searchParams.get('search') ?? ''}
         placeholder={placeholder}
+        aria-label={placeholder}
         className="w-full max-w-xs rounded-lg border border-neutral-300 bg-white px-3 py-2 text-sm outline-none transition focus:border-brand focus:ring-2 focus:ring-brand/30 dark:border-navy-700 dark:bg-navy-950"
       />
       <button

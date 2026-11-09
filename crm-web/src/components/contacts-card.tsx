@@ -55,11 +55,11 @@ function ContactForm({
       {contact ? <input type="hidden" name="contactId" value={contact.id} /> : null}
 
       <div className="grid grid-cols-2 gap-2.5">
-        <input name="prenom" placeholder="Prénom" defaultValue={contact?.prenom ?? ''} className={input} />
-        <input name="nom" placeholder="Nom *" required defaultValue={contact?.nom ?? ''} className={input} />
+        <input name="prenom" placeholder="Prénom" aria-label="Prénom" maxLength={60} defaultValue={contact?.prenom ?? ''} className={input} />
+        <input name="nom" placeholder="Nom *" aria-label="Nom" required maxLength={60} defaultValue={contact?.nom ?? ''} className={input} />
       </div>
       <div className="grid grid-cols-2 gap-2.5">
-        <select name="typePoste" defaultValue={contact?.typePoste ?? ''} className={input}>
+        <select name="typePoste" aria-label="Type de poste" defaultValue={contact?.typePoste ?? ''} className={input}>
           <option value="">Type de poste…</option>
           {TYPE_POSTES.map((t) => (
             <option key={t} value={t}>
@@ -67,15 +67,15 @@ function ContactForm({
             </option>
           ))}
         </select>
-        <input name="poste" placeholder="Précision poste" defaultValue={contact?.poste ?? ''} className={input} />
+        <input name="poste" placeholder="Précision poste" aria-label="Précision sur le poste" maxLength={80} defaultValue={contact?.poste ?? ''} className={input} />
       </div>
       <div className="grid grid-cols-2 gap-2.5">
-        <input name="portable" placeholder="Portable" defaultValue={contact?.portable ?? ''} className={input} />
-        <input name="fixe" placeholder="Fixe" defaultValue={contact?.fixe ?? ''} className={input} />
+        <input name="portable" placeholder="Portable" aria-label="Portable" maxLength={20} defaultValue={contact?.portable ?? ''} className={input} />
+        <input name="fixe" placeholder="Fixe" aria-label="Téléphone fixe" maxLength={20} defaultValue={contact?.fixe ?? ''} className={input} />
       </div>
-      <input name="mail" type="email" placeholder="Email" defaultValue={contact?.mail ?? ''} className={input} />
+      <input name="mail" type="email" placeholder="Email" aria-label="Adresse e-mail" defaultValue={contact?.mail ?? ''} className={input} />
 
-      {state.error ? <p className="text-xs text-red-600">{state.error}</p> : null}
+      {state.error ? <p role="alert" className="text-xs text-red-700">{state.error}</p> : null}
 
       <div className="flex justify-end gap-2 pt-1">
         <button
@@ -97,7 +97,19 @@ function ContactForm({
   );
 }
 
-export function ContactsCard({ clientId, contacts }: { clientId: string; contacts: ContactItem[] }) {
+/**
+ * Contacts du magasin. `peutEditer` (rôles de EDITEURS_CLIENT, calculé par la page) masque les boutons
+ * d'ajout, de modification et de suppression ; l'API et les Server Actions restent juges.
+ */
+export function ContactsCard({
+  clientId,
+  contacts,
+  peutEditer,
+}: {
+  clientId: string;
+  contacts: ContactItem[];
+  peutEditer: boolean;
+}) {
   // null = fermé · 'new' = création · id = édition de ce contact
   const [editing, setEditing] = useState<string | null>(null);
 
@@ -109,26 +121,28 @@ export function ContactsCard({ clientId, contacts }: { clientId: string; contact
         <span className="rounded-full bg-brand/10 dark:bg-accent/10 px-2 py-0.5 text-xs font-semibold text-brand dark:text-accent">
           {contacts.length}
         </span>
-        <button
-          type="button"
-          onClick={() => setEditing(editing === 'new' ? null : 'new')}
-          className="ml-auto inline-flex items-center gap-1 rounded-lg border border-neutral-200 px-2.5 py-1 text-xs font-medium text-neutral-600 transition hover:border-brand hover:text-brand dark:border-navy-700 dark:text-neutral-300"
-        >
-          {editing === 'new' ? <X size={13} /> : <Plus size={13} />}
-          {editing === 'new' ? 'Fermer' : 'Ajouter'}
-        </button>
+        {peutEditer ? (
+          <button
+            type="button"
+            onClick={() => setEditing(editing === 'new' ? null : 'new')}
+            className="ml-auto inline-flex items-center gap-1 rounded-lg border border-neutral-200 px-2.5 py-1 text-xs font-medium text-neutral-600 transition hover:border-brand hover:text-brand focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-brand dark:border-navy-700 dark:text-neutral-300 dark:focus-visible:outline-accent"
+          >
+            {editing === 'new' ? <X size={13} /> : <Plus size={13} />}
+            {editing === 'new' ? 'Fermer' : 'Ajouter'}
+          </button>
+        ) : null}
       </h2>
 
-      {editing === 'new' ? (
+      {peutEditer && editing === 'new' ? (
         <ContactForm clientId={clientId} contact={null} onClose={() => setEditing(null)} />
       ) : null}
 
-      {contacts.length === 0 && editing !== 'new' ? (
+      {contacts.length === 0 && !(peutEditer && editing === 'new') ? (
         <p className="px-5 py-4 text-sm text-neutral-400">Aucun contact enregistré.</p>
       ) : (
         <ul className="divide-y divide-neutral-100 dark:divide-navy-700">
           {contacts.map((c) =>
-            editing === c.id ? (
+            peutEditer && editing === c.id ? (
               <li key={c.id}>
                 <ContactForm clientId={clientId} contact={c} onClose={() => setEditing(null)} />
               </li>
@@ -162,23 +176,25 @@ export function ContactsCard({ clientId, contacts }: { clientId: string; contact
                   </p>
                 </div>
 
-                {/* Actions (visibles au survol) */}
-                <div className="flex shrink-0 gap-1 opacity-0 transition group-hover:opacity-100 focus-within:opacity-100">
-                  <button
-                    type="button"
-                    onClick={() => setEditing(c.id)}
-                    className="rounded-lg p-1.5 text-neutral-400 transition hover:bg-neutral-100 hover:text-brand focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-brand dark:hover:bg-navy-800 dark:focus-visible:outline-accent"
-                    aria-label={`Modifier ${c.nom}`}
-                  >
-                    <Pencil size={14} />
-                  </button>
-                  <SuppressionForm
-                    action={deleteContact}
-                    champs={{ clientId, contactId: c.id }}
-                    confirmation={`Supprimer le contact ${[c.prenom, c.nom].filter(Boolean).join(' ')} ?`}
-                    libelle={`Supprimer ${c.nom}`}
-                  />
-                </div>
+                {/* Actions (révélées au survol ou au focus, toujours visibles sur écran tactile) : réservées aux rôles éditeurs */}
+                {peutEditer ? (
+                  <div className="flex shrink-0 gap-1 opacity-0 transition group-hover:opacity-100 focus-within:opacity-100 [@media(hover:none)]:opacity-100">
+                    <button
+                      type="button"
+                      onClick={() => setEditing(c.id)}
+                      className="rounded-lg p-1.5 text-neutral-400 transition hover:bg-neutral-100 hover:text-brand focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-brand dark:hover:bg-navy-800 dark:focus-visible:outline-accent"
+                      aria-label={`Modifier ${c.nom}`}
+                    >
+                      <Pencil size={14} />
+                    </button>
+                    <SuppressionForm
+                      action={deleteContact}
+                      champs={{ clientId, contactId: c.id }}
+                      confirmation={`Supprimer le contact ${[c.prenom, c.nom].filter(Boolean).join(' ')} ?`}
+                      libelle={`Supprimer ${c.nom}`}
+                    />
+                  </div>
+                ) : null}
               </li>
             ),
           )}

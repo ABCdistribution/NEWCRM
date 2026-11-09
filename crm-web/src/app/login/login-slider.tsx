@@ -2,28 +2,17 @@
 
 import { useEffect, useState } from 'react';
 
-/** Les univers de la gamme, présentés en boucle à côté du formulaire de connexion. */
+/**
+ * Univers présentés à côté du formulaire de connexion. AscendoPilot et GoBack ont été retirés à la demande de
+ * l'utilisateur : ne plus les annoncer ici. Le carrousel défile (et affiche ses indicateurs) dès qu'il y a
+ * plusieurs diapositives ; avec une seule, c'est une simple présentation fixe.
+ */
 const SLIDES = [
   {
     src: '/logo-thelios.png',
     nom: 'Thelios',
-    glow: '251,191,36',
     titre: 'Thelios',
     texte: '',
-  },
-  {
-    src: '/logo-ascendo.png',
-    nom: 'Ascendo',
-    glow: '16,185,129',
-    titre: 'AscendoPilot, votre outil statistique',
-    texte: "Suivez et analysez l'activité de vos clients grâce à des statistiques claires et à jour.",
-  },
-  {
-    src: '/logo-goback.png',
-    nom: 'GoBack',
-    glow: '234,138,92',
-    titre: 'GoBack, la gestion des retours',
-    texte: 'Déclarez et suivez les retours produits simplement, de la demande jusqu’à leur traitement.',
   },
 ] as const;
 
@@ -32,43 +21,31 @@ const DELAI_MS = 4500;
 export function LoginSlider() {
   const [actif, setActif] = useState(0);
   const [pause, setPause] = useState(false);
+  const plusieurs = SLIDES.length > 1;
 
   // Défilement automatique ; suspendu au survol et quand l'onglet est masqué.
   useEffect(() => {
-    if (pause) return;
+    if (pause || !plusieurs) return;
     const id = setInterval(() => {
       if (!document.hidden) setActif((i) => (i + 1) % SLIDES.length);
     }, DELAI_MS);
     return () => clearInterval(id);
-  }, [pause]);
+  }, [pause, plusieurs]);
 
   return (
     <div
-      className="relative flex h-full w-full flex-col items-center justify-center overflow-hidden"
-      style={{ background: 'radial-gradient(90% 90% at 50% 40%, #16204a 0%, #0a1130 60%, #060a1f 100%)' }}
+      // Fond en aplat (jeton navy du thème posé sur <main>) : pas de dégradé de couleur sur le web.
+      className="relative flex h-full w-full flex-col items-center justify-center overflow-hidden bg-navy-950"
       onMouseEnter={() => setPause(true)}
       onMouseLeave={() => setPause(false)}
       role="group"
-      aria-roledescription="carrousel"
+      aria-roledescription={plusieurs ? 'carrousel' : undefined}
       aria-label="Les univers de la gamme"
     >
       <style>{`
         @keyframes login-float { 0%, 100% { transform: translateY(0) } 50% { transform: translateY(-12px) } }
         @media (prefers-reduced-motion: reduce) { .login-float { animation: none !important } }
       `}</style>
-
-      {/* Halo de couleur propre à chaque univers, en fondu enchaîné. */}
-      {SLIDES.map((s, i) => (
-        <div
-          key={s.nom}
-          aria-hidden
-          className="pointer-events-none absolute inset-0 transition-opacity duration-1000 ease-in-out"
-          style={{
-            opacity: i === actif ? 1 : 0,
-            background: `radial-gradient(55% 45% at 50% 42%, rgba(${s.glow},.32) 0%, transparent 70%)`,
-          }}
-        />
-      ))}
 
       {/* Diapositives : fondu + léger glissement latéral, en boucle continue. */}
       <div className="relative h-[min(40vh,22rem)] w-full max-w-[22rem]">
@@ -92,10 +69,7 @@ export function LoginSlider() {
                 alt={s.nom}
                 draggable={false}
                 className="login-float aspect-square h-full max-h-full w-auto rounded-[2rem] object-cover shadow-2xl ring-1 ring-white/10"
-                style={{
-                  boxShadow: `0 30px 80px -20px rgba(${s.glow},.45)`,
-                  animation: 'login-float 7s ease-in-out infinite',
-                }}
+                style={{ animation: 'login-float 7s ease-in-out infinite' }}
               />
             </div>
           );
@@ -118,21 +92,23 @@ export function LoginSlider() {
         ))}
       </div>
 
-      {/* Indicateurs. */}
-      <div className="relative mt-2 flex items-center gap-2.5">
-        {SLIDES.map((s, i) => (
-          <button
-            key={s.nom}
-            type="button"
-            onClick={() => setActif(i)}
-            aria-label={`Afficher ${s.nom}`}
-            aria-current={i === actif}
-            className={`h-2 rounded-full transition-all duration-500 ${
-              i === actif ? 'w-8 bg-white' : 'w-2 bg-white/35 hover:bg-white/60'
-            }`}
-          />
-        ))}
-      </div>
+      {/* Indicateurs (seulement s'il y a plusieurs diapositives). */}
+      {plusieurs ? (
+        <div className="relative mt-2 flex items-center gap-2.5">
+          {SLIDES.map((s, i) => (
+            <button
+              key={s.nom}
+              type="button"
+              onClick={() => setActif(i)}
+              aria-label={`Afficher ${s.nom}`}
+              aria-current={i === actif}
+              className={`h-2 rounded-full transition-all duration-500 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white ${
+                i === actif ? 'w-8 bg-white' : 'w-2 bg-white/35 hover:bg-white/60'
+              }`}
+            />
+          ))}
+        </div>
+      ) : null}
     </div>
   );
 }

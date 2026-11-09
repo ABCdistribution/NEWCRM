@@ -111,6 +111,7 @@ export function VisiteCommercialeForm({ clientId, enseigne }: { clientId: string
                   <input
                     type="text"
                     placeholder="Remarque…"
+                    aria-label={`Remarque — ${q}`}
                     value={r.remarque}
                     onChange={(e) => setReponses((cur) => ({ ...cur, [q]: { ...cur[q], remarque: e.target.value } }))}
                     className="w-48 rounded-lg border border-neutral-200 px-2.5 py-1.5 text-xs outline-none focus:border-brand dark:border-navy-700 dark:bg-navy-950"
@@ -129,6 +130,7 @@ export function VisiteCommercialeForm({ clientId, enseigne }: { clientId: string
         <div className="mt-3 flex flex-wrap items-center gap-3 border-t border-neutral-100 pt-4 dark:border-navy-700">
           <p className="text-sm font-medium">Point Gestion Linéaire — remplissage</p>
           <select
+            aria-label="Remplissage Point Gestion Linéaire"
             value={remplissage}
             onChange={(e) => setRemplissage(e.target.value)}
             className="rounded-lg border border-neutral-200 px-2.5 py-1.5 text-sm outline-none focus:border-brand dark:border-navy-700 dark:bg-navy-950"
@@ -148,6 +150,7 @@ export function VisiteCommercialeForm({ clientId, enseigne }: { clientId: string
           onChange={(e) => setCompteRendu(e.target.value)}
           rows={4}
           placeholder={`Synthèse de la visite chez ${enseigne}…`}
+          aria-label="Compte rendu de la visite"
           className="w-full rounded-xl border border-neutral-200 px-3 py-2.5 text-sm outline-none focus:border-brand dark:border-navy-700 dark:bg-navy-950"
         />
         <div className="mt-3 flex items-center gap-2">
@@ -163,7 +166,7 @@ export function VisiteCommercialeForm({ clientId, enseigne }: { clientId: string
         </div>
       </section>
 
-      {erreur ? <p className="text-sm text-red-500">{erreur}</p> : null}
+      {erreur ? <p role="alert" className="text-sm text-red-700">{erreur}</p> : null}
       <div className="flex justify-end">
         <button
           type="button"

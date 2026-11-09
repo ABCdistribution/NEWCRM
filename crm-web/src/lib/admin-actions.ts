@@ -2,7 +2,8 @@
 
 import { revalidatePath } from 'next/cache';
 import { serverFetch, listFichiersDepot } from './api';
-import { exigerRole } from './roles';
+import { exigerRole, messageRefus } from './roles';
+import { messageErreurApi } from './erreurs-api';
 import { TYPES_MINOS, typeMinos } from './minos';
 
 /** Console d'administration : réservée au rôle ADMIN (chaque action rappelle la garde). */
@@ -19,16 +20,16 @@ async function refus(): Promise<string | null> {
   try {
     await exigerRole(ADMIN);
     return null;
-  } catch {
-    return REFUSE;
+  } catch (e) {
+    return messageRefus(e, REFUSE);
   }
 }
 
-async function messageErreur(res: Response): Promise<string> {
-  const body = (await res.json().catch(() => null)) as { message?: string | string[] } | null;
-  const msg = Array.isArray(body?.message) ? body.message[0] : body?.message;
-  return msg ?? `Erreur serveur (${res.status}).`;
-}
+/**
+ * Message d'erreur affichable pour une réponse d'API en échec (401, 5xx : texte fixe sans relayer le message de
+ * l'API, validation traduite : erreurs-api.ts). `contexte` n'alimente que le journal du serveur.
+ */
+const messageErreur = (res: Response, contexte: string): Promise<string> => messageErreurApi(res, `admin : ${contexte}`);
 
 /** PATCH /users/:id ; renvoie un message d'erreur (français) ou null si succès. */
 async function patchUser(userId: string, payload: Record<string, unknown>): Promise<string | null> {
@@ -45,7 +46,7 @@ async function patchUser(userId: string, payload: Record<string, unknown>): Prom
   } catch {
     return INJOIGNABLE;
   }
-  if (!res.ok) return messageErreur(res);
+  if (!res.ok) return messageErreur(res, 'modification d’un utilisateur');
   revalidatePath('/admin');
   return null;
 }
@@ -68,33 +69,6 @@ export async function setUserSecteur(formData: FormData): Promise<string | null>
   const secteurId = String(formData.get('secteurId') ?? '');
   if (secteurId && !UUID.test(secteurId)) return 'Secteur invalide.';
   return patchUser(String(formData.get('userId') ?? ''), { secteurId: secteurId || null });
-}
-
-export type ImportState = { error: string | null; ok: boolean };
-
-/** Déclenche un import Minos (clients, articles ou centrales selon le champ `type`). */
-export async function triggerImportClients(_prev: ImportState, formData: FormData): Promise<ImportState> {
-  const interdit = await refus();
-  if (interdit) return { error: interdit, ok: false };
-  const filePath = String(formData.get('filePath') ?? '').trim();
-  const brut = String(formData.get('type') ?? 'clients');
-  const type = brut === 'articles' || brut === 'centrales' ? brut : 'clients';
-  if (!filePath) return { error: 'Chemin du fichier requis.', ok: false };
-
-  let res: Response;
-  try {
-    res = await serverFetch(`/import/minos/${type}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ filePath }),
-    });
-  } catch {
-    return { error: INJOIGNABLE, ok: false };
-  }
-  if (!res.ok) return { error: await messageErreur(res), ok: false };
-
-  revalidatePath('/admin');
-  return { error: null, ok: true };
 }
 
 export type SynchroMinosState = {
@@ -131,7 +105,7 @@ export async function lancerSynchroMinos(_prev: SynchroMinosState, formData: For
         body: JSON.stringify({ filePath: f.chemin }),
       });
       if (res.ok) fichiers.push({ nom: f.nom, type, ok: true, message: null });
-      else fichiers.push({ nom: f.nom, type, ok: false, message: await messageErreur(res) });
+      else fichiers.push({ nom: f.nom, type, ok: false, message: await messageErreur(res, `synchro Minos ${type}`) });
     } catch {
       fichiers.push({ nom: f.nom, type, ok: false, message: INJOIGNABLE });
     }
@@ -165,8 +139,13 @@ export async function syncAd(_prev: AdSyncState, _formData: FormData): Promise<A
   } catch {
     return { error: INJOIGNABLE, ok: false };
   }
-  if (!res.ok) return { error: await messageErreur(res), ok: false };
-  const stats = (await res.json()) as NonNullable<AdSyncState['stats']>;
+  if (!res.ok) return { error: await messageErreur(res, 'synchronisation AD'), ok: false };
+  // Corps illisible malgré un statut 2xx (proxy, coupure en cours de réponse) : la synchro a pu avoir lieu,
+  // on le dit au lieu de laisser l'exception remonter à l'écran d'erreur.
+  const stats = (await res.json().catch(() => null)) as AdSyncState['stats'] | null;
   revalidatePath('/admin');
+  if (!stats) {
+    return { error: "La synchronisation a répondu, mais le compte rendu est illisible. Vérifiez la liste des utilisateurs.", ok: false };
+  }
   return { error: null, ok: true, stats };
 }

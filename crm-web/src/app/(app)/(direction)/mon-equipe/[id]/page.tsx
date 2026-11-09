@@ -3,7 +3,7 @@ import { requireRole, type Role } from '@/lib/roles';
 import { getRapportDetail, listPlanningMembre } from '@/lib/api';
 import { commandesDe, lignesPromoteurs, listerUtilisateurs, visitesDe } from '@/lib/equipe';
 import { ajouterJours, chefDe, estUuid, iso, lundiDemande, zoneDe } from '@/lib/equipe-utils';
-import { NavSemaine, Onglets, ListePromoteurs } from '@/components/equipe-ui';
+import { AvertissementIncomplet, NavSemaine, Onglets, ListePromoteurs } from '@/components/equipe-ui';
 import { CarteRapport, ListeCommandes, ListeVisites, PlanningCs } from '@/components/equipe-fiche';
 import { FicheEntete } from '@/components/fiche-entete';
 
@@ -87,6 +87,7 @@ export default async function FicheChefSecteurPage({
     contenu = (
       <div className="flex flex-col gap-3">
         <p className="text-sm text-neutral-500">{promos.length} promoteur{promos.length > 1 ? 's' : ''} · {zoneDe(cs)}</p>
+        <AvertissementIncomplet actif={promos.some((p) => p.incomplet)} />
         <ListePromoteurs promos={promos} vide="Aucun promoteur rattaché à ce chef de secteur." />
       </div>
     );

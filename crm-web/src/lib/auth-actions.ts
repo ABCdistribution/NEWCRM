@@ -28,6 +28,8 @@ export async function login(_prev: LoginState, formData: FormData): Promise<Logi
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ username, password }),
       cache: 'no-store',
+      // Délai d'attente : l'API interroge l'AD, ce qui peut prendre quelques secondes ; au-delà, on ne bloque pas le formulaire.
+      signal: AbortSignal.timeout(30_000),
     });
   } catch {
     return { error: 'Impossible de joindre le serveur. Réessaie dans un instant.' };

@@ -46,12 +46,13 @@ function initiales(nom: string): string {
     .toUpperCase();
 }
 
-// Teintes d'avatar CS, dans la palette ABC Sales (marine, lavande, periwinkle, teal).
+// Teintes d'avatar CS, calculées sur les jetons de l'espace (bleu ou violet). Jamais `accent` comme fond :
+// il est égal à `brand` dans l'espace Promoteurs (texte invisible). Texte clair sur fond foncé, marine sur fond clair.
 const CS_TINTS = [
-  'bg-brand text-accent',
-  'bg-[#7D8CCE] text-white',
-  'bg-[#A2B5F4] text-brand',
-  'bg-[#0E8F91] text-white',
+  'bg-brand text-white',
+  'bg-navy text-white',
+  'bg-brand-light text-navy',
+  'bg-brand/15 text-navy',
 ];
 function tint(nom: string): string {
   let h = 0;

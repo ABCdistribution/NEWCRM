@@ -2,13 +2,12 @@
 
 import { revalidatePath } from 'next/cache';
 import { serverFetch } from './api';
-import { ENCADREMENT, TERRAIN, exigerRole } from './roles';
+import { EDITEURS_CLIENT } from './client-roles';
+import { messageErreurApi } from './erreurs-api';
+import { exigerRole, messageRefus } from './roles';
 
-/**
- * Édition de la fiche client (contacts, notes, périodicité) : terrain et encadrement
- * (l'encadrement garde l'accès aux écrans terrain). Le périmètre reste filtré par l'API.
- */
-const EDITEURS = [...TERRAIN, ...ENCADREMENT];
+// Édition de la fiche client (contacts, notes, périodicité) : rôles de EDITEURS_CLIENT (client-roles.ts,
+// partagé avec la page qui masque les boutons). Le périmètre reste filtré par l'API.
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const estUuid = (v: string) => UUID.test(v);
@@ -17,14 +16,11 @@ export type ContactFormState = { error: string | null; ok: boolean };
 export type NoteFormState = { error: string | null; ok: boolean };
 export type ActionState = { error: string | null };
 
-/** Message d'erreur français tiré de la réponse de l'API (message de validation sinon code HTTP). */
+/** Message d'erreur français tiré de la réponse de l'API (message de validation traduit sinon code HTTP). */
 async function messageErreur(res: Response): Promise<string> {
-  if (res.status === 401) return 'Session expirée, reconnectez-vous.';
   if (res.status === 403) return "Vous n'avez pas le droit d'effectuer cette action.";
   if (res.status === 404) return 'Élément introuvable.';
-  const body = (await res.json().catch(() => null)) as { message?: string | string[] } | null;
-  const msg = Array.isArray(body?.message) ? body.message[0] : body?.message;
-  return msg ?? `Erreur serveur (${res.status}).`;
+  return messageErreurApi(res, 'clients');
 }
 
 /** Appel d'API d'une mutation : renvoie null si succès, sinon un message d'erreur français. */
@@ -46,19 +42,24 @@ async function muter(path: string, method: 'POST' | 'PATCH' | 'DELETE', payload?
 /** Rôle autorisé ? Renvoie un message d'erreur sinon (une action ne doit pas lever vers l'utilisateur). */
 async function controleRole(): Promise<string | null> {
   try {
-    await exigerRole(EDITEURS);
+    await exigerRole(EDITEURS_CLIENT);
     return null;
-  } catch {
-    return 'Accès refusé.';
+  } catch (e) {
+    return messageRefus(e, 'Accès refusé.');
   }
 }
 
-/** Extrait les champs contact du formulaire, en omettant les valeurs vides. */
-function contactPayload(formData: FormData): Record<string, string> {
-  const payload: Record<string, string> = {};
+/**
+ * Extrait les champs contact du formulaire. À la création, les valeurs vides sont omises ; à la
+ * modification (`effacer`), un champ vidé est envoyé à `null` : l'API ignore un champ absent (PATCH) et
+ * garderait l'ancienne valeur alors que le formulaire est prérempli (le champ `null` passe `@IsOptional`).
+ */
+function contactPayload(formData: FormData, effacer: boolean): Record<string, string | null> {
+  const payload: Record<string, string | null> = {};
   for (const key of ['prenom', 'nom', 'poste', 'typePoste', 'fixe', 'portable', 'mail']) {
     const v = String(formData.get(key) ?? '').trim();
     if (v) payload[key] = v;
+    else if (effacer && key !== 'nom') payload[key] = null;
   }
   return payload;
 }
@@ -73,7 +74,7 @@ export async function saveContact(
 
   const clientId = String(formData.get('clientId') ?? '');
   const contactId = String(formData.get('contactId') ?? '');
-  const payload = contactPayload(formData);
+  const payload = contactPayload(formData, contactId !== '');
 
   if (!estUuid(clientId)) return { error: 'Client invalide.', ok: false };
   if (contactId && !estUuid(contactId)) return { error: 'Contact invalide.', ok: false };

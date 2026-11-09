@@ -21,8 +21,9 @@ function niceCeil(max: number): number {
 
 /**
  * CA mensuel N vs N-1 — barres groupées, SVG rendu serveur.
- * Palette de marque : N = marine (#08184D), N-1 = cyan (#65FBFD, liseré marine pour la lisibilité sur blanc).
- * En mode sombre : N = cyan, N-1 = marine éclairci. Tooltips natifs <title>.
+ * Jetons du thème (bleu en Promoteurs, violet en Direction) : N = `brand` plein, N-1 = `brand` à 30 % avec
+ * liseré `brand`. `accent` n'est pas utilisé : il est égal à `brand` dans l'espace Promoteurs, les deux séries
+ * seraient indiscernables. Tooltips natifs <title>.
  */
 export function CaChart({
   anneeN,
@@ -63,11 +64,11 @@ export function CaChart({
       {/* Légende (2 séries) */}
       <div className="mb-1 flex items-center justify-end gap-4 pr-2 text-xs text-neutral-500">
         <span className="inline-flex items-center gap-1.5">
-          <span className="h-2.5 w-2.5 rounded-sm border border-brand/40 bg-accent dark:border-transparent dark:bg-brand-light" />
+          <span className="h-2.5 w-2.5 rounded-sm border border-brand bg-brand/30" aria-hidden />
           {anneeN - 1}
         </span>
         <span className="inline-flex items-center gap-1.5">
-          <span className="h-2.5 w-2.5 rounded-sm bg-brand dark:bg-accent" />
+          <span className="h-2.5 w-2.5 rounded-sm bg-brand" aria-hidden />
           {anneeN}
         </span>
       </div>
@@ -81,7 +82,7 @@ export function CaChart({
               x2={W - padR}
               y1={g.y}
               y2={g.y}
-              className="stroke-neutral-200 dark:stroke-navy-700"
+              className="stroke-neutral-200"
               strokeWidth={1}
             />
             <text
@@ -100,7 +101,7 @@ export function CaChart({
           x2={W - padR}
           y1={padT + plotH}
           y2={padT + plotH}
-          className="stroke-neutral-300 dark:stroke-navy-600"
+          className="stroke-neutral-300"
           strokeWidth={1}
         />
 
@@ -111,7 +112,7 @@ export function CaChart({
           const baseY = padT + plotH;
           return (
             <g key={mois}>
-              {/* N-1 (cyan) puis N (marine), séparées de 2px */}
+              {/* N-1 (teinte claire, liseré) puis N (plein), séparées de 2px */}
               {vN1 > 0 ? (
                 <rect
                   x={cx - barW - 1}
@@ -120,7 +121,7 @@ export function CaChart({
                   height={baseY - y(vN1)}
                   rx={3}
                   strokeWidth={1}
-                  className="fill-accent stroke-brand/40 dark:fill-brand-light dark:stroke-transparent"
+                  className="fill-brand/30 stroke-brand"
                 >
                   <title>{`${mois} ${anneeN - 1} : ${EUR.format(vN1)}`}</title>
                 </rect>
@@ -132,7 +133,7 @@ export function CaChart({
                   width={barW}
                   height={baseY - y(vN)}
                   rx={3}
-                  className="fill-brand dark:fill-accent"
+                  className="fill-brand"
                 >
                   <title>{`${mois} ${anneeN} : ${EUR.format(vN)}`}</title>
                 </rect>

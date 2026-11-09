@@ -65,14 +65,20 @@ function lignesDuBordereau(b: Bordereau): LigneRappel[] {
 }
 
 const ACTION_BADGE: Record<LigneRappel['action'], string> = {
-  absent: 'bg-amber-400/20 text-amber-700 dark:text-amber-400',
-  repris: 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-400',
-  détruit: 'bg-red-500/12 text-red-600 dark:text-red-400',
+  absent: 'bg-amber-400/20 text-amber-800',
+  repris: 'bg-emerald-500/15 text-emerald-800',
+  détruit: 'bg-red-500/12 text-red-800',
 };
 
 const DATE_FMT = new Intl.DateTimeFormat('fr-FR', {
   year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit',
 });
+
+/** Échappe une valeur avant de l'insérer dans du HTML construit à la main. */
+const ECHAPPEMENTS: Record<string, string> = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' };
+function esc(valeur: string | number): string {
+  return String(valeur).replace(/[&<>"']/g, (c) => ECHAPPEMENTS[c]);
+}
 
 /** Visionneuse plein écran : zoom (molette / boutons), rotation 90°, déplacement à la souris. */
 function PhotoViewer({ src, alt, onClose }: { src: string; alt: string; onClose: () => void }) {
@@ -165,19 +171,21 @@ export function RappelDetail({ bordereau, onRetour }: { bordereau: Bordereau; on
   };
 
   // « Conversion PDF » : fenêtre imprimable (le navigateur propose Enregistrer en PDF).
+  // Toute valeur insérée dans le HTML est échappée : la fenêtre ouverte partage l'origine du CRM.
   const convertirPdf = () => {
     const w = window.open('', '_blank', 'width=900,height=1100');
     if (!w) return;
+    w.opener = null;
     const rows = lignes
-      .map((l) => `<tr><td>${l.libelle}</td><td>${l.lot}</td><td>${l.ean}</td><td>${l.codeMinos}</td><td>${l.refArticle}</td><td style="text-align:right">${l.qte}</td><td>${l.action}</td></tr>`)
+      .map((l) => `<tr><td>${esc(l.libelle)}</td><td>${esc(l.lot)}</td><td>${esc(l.ean)}</td><td>${esc(l.codeMinos)}</td><td>${esc(l.refArticle)}</td><td style="text-align:right">${esc(l.qte)}</td><td>${esc(l.action)}</td></tr>`)
       .join('');
-    w.document.write(`<!doctype html><html lang="fr"><head><meta charset="utf-8"><title>${bordereau.numero}</title>
+    w.document.write(`<!doctype html><html lang="fr"><head><meta charset="utf-8"><title>${esc(bordereau.numero)}</title>
       <style>body{font-family:system-ui,sans-serif;margin:32px;color:#222}h1{font-size:20px}dl{display:grid;grid-template-columns:140px 1fr;gap:4px 12px;font-size:13px}dt{font-weight:600}
       table{width:100%;border-collapse:collapse;margin-top:16px;font-size:12px}th,td{border:1px solid #ccc;padding:5px 8px;text-align:left}th{background:#f2f2f2}</style></head><body>
-      <h1>Bordereau ${bordereau.numero} — ${bordereau.lignes} ligne(s)</h1>
-      <dl><dt>Date retour</dt><dd>${DATE_FMT.format(new Date(bordereau.dateRetour))}</dd>
-      <dt>Promoteur</dt><dd>${bordereau.promoteur}</dd>
-      <dt>Client</dt><dd>${bordereau.codeMagasin} — ${bordereau.magasin}</dd></dl>
+      <h1>Bordereau ${esc(bordereau.numero)} — ${esc(bordereau.lignes)} ligne(s)</h1>
+      <dl><dt>Date retour</dt><dd>${esc(DATE_FMT.format(new Date(bordereau.dateRetour)))}</dd>
+      <dt>Promoteur</dt><dd>${esc(bordereau.promoteur)}</dd>
+      <dt>Client</dt><dd>${esc(bordereau.codeMagasin)} — ${esc(bordereau.magasin)}</dd></dl>
       <table><thead><tr><th>Libellé produit</th><th>N° lot</th><th>Code EAN</th><th>Code produit Minos</th><th>Ref article</th><th>Qté</th><th>Action</th></tr></thead>
       <tbody>${rows}</tbody></table></body></html>`);
     w.document.close();
@@ -200,14 +208,14 @@ export function RappelDetail({ bordereau, onRetour }: { bordereau: Bordereau; on
           <button
             type="button"
             onClick={exportCsv}
-            className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-emerald-700"
+            className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-700 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-emerald-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-700"
           >
             <Download size={13} /> Export CSV
           </button>
           <button
             type="button"
             onClick={convertirPdf}
-            className="inline-flex items-center gap-1.5 rounded-lg bg-red-600 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-red-700"
+            className="inline-flex items-center gap-1.5 rounded-lg bg-red-700 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-red-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-700"
           >
             <FileText size={13} /> Convertir en PDF
           </button>
@@ -234,25 +242,30 @@ export function RappelDetail({ bordereau, onRetour }: { bordereau: Bordereau; on
           <dd>{bordereau.codeMagasin} — {bordereau.magasin}</dd>
         </dl>
 
-        <p className="mt-5 text-sm text-neutral-400">Photo du bordereau</p>
-        <button
-          type="button"
-          onClick={() => setViewer(true)}
-          className="group mt-2 overflow-hidden rounded-xl border border-neutral-200 transition hover:border-brand focus:outline-none focus:ring-2 focus:ring-brand/50 dark:border-navy-700 dark:hover:border-accent"
-          title="Agrandir la photo (zoom, rotation…)"
-        >
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src="/demo-bordereau.svg"
-            alt={`Photo du bordereau ${bordereau.numero}`}
-            className="h-64 w-auto transition group-hover:scale-[1.03]"
-          />
-        </button>
+        {/* Photo : affichée seulement si le bordereau en fournit une (aucun visuel de démonstration livré). */}
+        {bordereau.photoUrl ? (
+          <>
+            <p className="mt-5 text-sm text-neutral-500">Photo du bordereau</p>
+            <button
+              type="button"
+              onClick={() => setViewer(true)}
+              className="group mt-2 overflow-hidden rounded-xl border border-neutral-200 transition hover:border-brand focus:outline-none focus:ring-2 focus:ring-brand/50 dark:border-navy-700 dark:hover:border-accent"
+              title="Agrandir la photo (zoom, rotation…)"
+            >
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={bordereau.photoUrl}
+                alt={`Photo du bordereau ${bordereau.numero}`}
+                className="h-64 w-auto transition group-hover:scale-[1.03]"
+              />
+            </button>
+          </>
+        ) : null}
       </div>
 
       {/* Lignes produits */}
       <div>
-        <p className="mb-2 text-sm text-neutral-400">Produits</p>
+        <p className="mb-2 text-sm text-neutral-500">Produits (exemple)</p>
         <div className="overflow-x-auto rounded-2xl bg-white shadow-card">
           <table className="w-full min-w-[820px] text-sm">
             <thead className="border-b border-neutral-100 text-left text-[11px] uppercase tracking-wider text-neutral-400 dark:border-navy-700">
@@ -285,9 +298,9 @@ export function RappelDetail({ bordereau, onRetour }: { bordereau: Bordereau; on
         </div>
       </div>
 
-      {viewer ? (
+      {viewer && bordereau.photoUrl ? (
         <PhotoViewer
-          src="/demo-bordereau.svg"
+          src={bordereau.photoUrl}
           alt={`Bordereau ${bordereau.numero}`}
           onClose={() => setViewer(false)}
         />

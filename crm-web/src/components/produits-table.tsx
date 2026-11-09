@@ -1,19 +1,12 @@
 'use client';
 
 import { useState } from 'react';
-import { X, Package, Boxes, TrendingUp, AlertTriangle, Tag, Layers, Barcode, Factory } from 'lucide-react';
+import { X, Package, Boxes, AlertTriangle, Tag, Layers, Barcode, Factory } from 'lucide-react';
 import type { ArticleRow } from '@/lib/api';
 import { ActiveBadge } from './badges';
 
 const EUR = new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 });
 const NB = new Intl.NumberFormat('fr-FR');
-
-/** Ventes 30j « d'illustration » stables par article (l'API ne fournit pas de ventes par produit). */
-function pseudoVentes(id: string): number {
-  let h = 0;
-  for (const c of id) h = (h * 31 + c.charCodeAt(0)) >>> 0;
-  return 40 + (h % 460);
-}
 
 function etatStock(stock: number, pcb: number | null): { label: string; tone: string } {
   if (stock <= 0) return { label: 'Rupture', tone: 'text-red-500' };
@@ -95,7 +88,6 @@ function Info({ icon: Icon, label, value }: { icon: typeof Package; label: strin
 }
 
 function ProductModal({ article: a, onClose }: { article: ArticleRow; onClose: () => void }) {
-  const ventes = pseudoVentes(a.id);
   const etat = etatStock(a.stock, a.pcb);
 
   return (
@@ -127,10 +119,9 @@ function ProductModal({ article: a, onClose }: { article: ArticleRow; onClose: (
 
         <div className="flex flex-col gap-4 px-5 py-4">
           {/* KPIs */}
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
             <MiniStat icon={Boxes} label="Stock" value={NB.format(a.stock)} tone={a.stock <= 0 ? 'text-red-500' : ''} />
             <MiniStat icon={Package} label="PCB" value={a.pcb != null ? String(a.pcb) : '—'} />
-            <MiniStat icon={TrendingUp} label="Ventes 30j" value={NB.format(ventes)} />
             <MiniStat icon={AlertTriangle} label="État stock" value={etat.label} tone={etat.tone} />
           </div>
 

@@ -6,14 +6,20 @@ import { setPeriodicite } from '@/lib/client-actions';
 
 export type PeriodiciteRef = { id: string; code: number | null; libelle: string };
 
+/**
+ * Périodicité de visite du magasin. `peutEditer` (rôles de EDITEURS_CLIENT, calculé par la page) masque le
+ * bouton de modification ; l'API et la Server Action restent juges.
+ */
 export function PeriodiciteCard({
   clientId,
   actuelle,
   referentiel,
+  peutEditer,
 }: {
   clientId: string;
   actuelle: PeriodiciteRef | null;
   referentiel: PeriodiciteRef[];
+  peutEditer: boolean;
 }) {
   const [editing, setEditing] = useState(false);
   const [pending, startTransition] = useTransition();
@@ -33,18 +39,20 @@ export function PeriodiciteCard({
       <h2 className="flex items-center gap-2 border-b border-neutral-100 px-5 py-3 font-semibold dark:border-navy-700">
         <CalendarClock size={17} className="text-brand" />
         Périodicité de visite
-        <button
-          type="button"
-          onClick={() => setEditing((v) => !v)}
-          className="ml-auto inline-flex items-center gap-1 rounded-lg border border-neutral-200 px-2.5 py-1 text-xs font-medium text-neutral-600 transition hover:border-brand hover:text-brand focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-brand dark:border-navy-700 dark:text-neutral-300"
-        >
-          {editing ? <X size={13} /> : <Pencil size={13} />}
-          {editing ? 'Fermer' : 'Modifier'}
-        </button>
+        {peutEditer ? (
+          <button
+            type="button"
+            onClick={() => setEditing((v) => !v)}
+            className="ml-auto inline-flex items-center gap-1 rounded-lg border border-neutral-200 px-2.5 py-1 text-xs font-medium text-neutral-600 transition hover:border-brand hover:text-brand focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-brand dark:border-navy-700 dark:text-neutral-300 dark:focus-visible:outline-accent"
+          >
+            {editing ? <X size={13} /> : <Pencil size={13} />}
+            {editing ? 'Fermer' : 'Modifier'}
+          </button>
+        ) : null}
       </h2>
 
       <div className="px-5 py-4">
-        {editing ? (
+        {peutEditer && editing ? (
           <form ref={formRef} action={submit} className="flex flex-wrap items-center gap-2">
             <input type="hidden" name="clientId" value={clientId} />
             <select

@@ -4,8 +4,10 @@ import { useState, useTransition } from 'react';
 import { BadgeCheck, Hourglass, Lock, Save } from 'lucide-react';
 import { enregistrerSemaine } from '@/lib/tournee-actions';
 import type { SemaineEtat } from '@/lib/api';
+import { FUSEAU } from '@/lib/planning-dates';
 
-const FMT = new Intl.DateTimeFormat('fr-FR', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
+// Fuseau explicite : l'heure affichée est la même au rendu serveur et dans le navigateur.
+const FMT = new Intl.DateTimeFormat('fr-FR', { timeZone: FUSEAU, day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
 const dateHeure = (iso: string) => FMT.format(new Date(iso));
 
 const pastille = 'inline-flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-semibold';
@@ -90,7 +92,7 @@ export function PlanningValidation({ semaine, nbEtapes, etat }: { semaine: strin
           La prévision est encore modifiable (jusqu&apos;au lundi soir) : le rapport se valide à partir du mardi.
         </span>
       ) : null}
-      {erreur ? <span className="text-xs font-medium text-red-600">{erreur}</span> : null}
+      {erreur ? <span role="alert" className="text-xs font-medium text-red-700">{erreur}</span> : null}
     </div>
   );
 }

@@ -16,9 +16,9 @@ export function AdminContenusOnglet() {
         <Link
           key={href}
           href={href}
-          className="flex items-start gap-3 rounded-2xl bg-white p-5 shadow-card transition hover:ring-1 hover:ring-violet-200"
+          className="flex items-start gap-3 rounded-2xl bg-white p-5 shadow-card transition hover:ring-1 hover:ring-brand/30"
         >
-          <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-violet-50 text-violet-600">
+          <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-brand/10 text-brand">
             <Icone size={20} aria-hidden />
           </span>
           <span>

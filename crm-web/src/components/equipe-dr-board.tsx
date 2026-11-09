@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { ChevronRight, SlidersHorizontal } from 'lucide-react';
 import { Avatar } from './avatar';
-import { CaObjectif, CARTE, FOCUS, ListePromoteurs, Pastille, initiales } from './equipe-ui';
+import { AvertissementIncomplet, CaObjectif, CARTE, FOCUS, ListePromoteurs, Pastille, initiales } from './equipe-ui';
 import { resumeEcarts, LIBELLE_STATUT_RAPPORT, type CsCarte, type PromoLigne } from '@/lib/equipe-utils';
 
 type Vue = 'cs' | 'promoteurs';
@@ -91,6 +91,8 @@ export function EquipeDrBoard({ chefs, promos }: { chefs: CsCarte[]; promos: Pro
           ) : null}
         </div>
       </div>
+
+      <AvertissementIncomplet actif={chefs.some((c) => c.incomplet) || promos.some((p) => p.incomplet)} />
 
       {vue === 'cs' ? (
         csFiltres.length === 0 ? (

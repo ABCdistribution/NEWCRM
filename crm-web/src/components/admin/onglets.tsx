@@ -51,11 +51,11 @@ export function AdminOnglets({ actif }: { actif: OngletId }) {
             aria-current={courant ? 'page' : undefined}
             className={`flex shrink-0 items-center gap-2.5 rounded-lg border-l-[3px] px-3 py-2 text-sm font-medium transition ${
               courant
-                ? 'border-violet-600 bg-violet-50 text-violet-800'
+                ? 'border-brand bg-brand/10 text-navy'
                 : 'border-transparent text-neutral-600 hover:bg-neutral-50 hover:text-neutral-900'
             }`}
           >
-            <Icone size={17} className={courant ? 'text-violet-600' : 'text-neutral-400'} aria-hidden />
+            <Icone size={17} className={courant ? 'text-brand' : 'text-neutral-400'} aria-hidden />
             <span className="whitespace-nowrap">{o.label}</span>
             {o.bientot ? (
               <span className="ml-auto rounded-full bg-neutral-100 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-neutral-500">

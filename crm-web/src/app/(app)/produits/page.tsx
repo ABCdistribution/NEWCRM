@@ -88,7 +88,10 @@ async function KpisTerrain() {
   );
 }
 
-/** Bandeau KPI encadrement (chiffres réels ; évolutions « vs mois dernier » et ventes moyennes illustratives). */
+/**
+ * Bandeau KPI encadrement : uniquement des chiffres réels de l'API. Les évolutions « vs mois dernier » et les
+ * ventes moyennes mensuelles ont été retirées : l'API ne fournit ni historique du catalogue ni ventes par produit.
+ */
 async function KpisEncadrement() {
   const [total, actifs, rappels] = await Promise.all([
     countArticles({}),
@@ -96,33 +99,14 @@ async function KpisEncadrement() {
     countArticles({ rappel: true }),
   ]);
   return (
-    <section className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-      <KpiTile
-        label="Total produits"
-        info="Références présentes au catalogue"
-        value={fmt(total)}
-        sub="vs mois dernier"
-        pill={{ text: '↑ 3', tone: 'up' }}
-      />
-      <KpiTile
-        label="Produits actifs"
-        info="Actifs et commandables"
-        value={fmt(actifs)}
-        sub="vs mois dernier"
-        pill={{ text: '↑ 2%', tone: 'up' }}
-      />
+    <section className="grid grid-cols-2 gap-4 lg:grid-cols-3">
+      <KpiTile label="Total produits" info="Références présentes au catalogue" value={fmt(total)} />
+      <KpiTile label="Produits actifs" info="Actifs et commandables" value={fmt(actifs)} />
       <KpiTile
         label="En rappel"
         info="Produits à retour autorisé — à contrôler sur le terrain"
         value={fmt(rappels)}
         pill={rappels == null ? undefined : rappels > 0 ? { text: 'à contrôler', tone: 'warn' } : { text: 'aucun', tone: 'up' }}
-      />
-      <KpiTile
-        label="Avg. ventes mensuelles"
-        info="Moyenne mensuelle des ventes (donnée d'illustration)"
-        value="890"
-        sub="vs mois dernier"
-        pill={{ text: '↑ 5%', tone: 'up' }}
       />
     </section>
   );

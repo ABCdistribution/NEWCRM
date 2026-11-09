@@ -2,7 +2,8 @@
 
 import { revalidatePath } from 'next/cache';
 import { serverFetch, type StatutLivraison } from './api';
-import { exigerRole } from './roles';
+import { messagesApi } from './erreurs-api';
+import { exigerRole, messageRefus } from './roles';
 import { ROLES_LIVRAISON } from './commande-roles';
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -23,8 +24,8 @@ export async function majLivraison(
 ): Promise<string | null> {
   try {
     await exigerRole(ROLES_LIVRAISON);
-  } catch {
-    return "Accès refusé : vous n'avez pas le droit de modifier le suivi de livraison.";
+  } catch (e) {
+    return messageRefus(e, "Accès refusé : vous n'avez pas le droit de modifier le suivi de livraison.");
   }
   if (!UUID.test(commandeId)) return 'Commande invalide.';
   if (data.statutLivraison !== undefined && !STATUTS.includes(data.statutLivraison)) {
@@ -42,9 +43,8 @@ export async function majLivraison(
     return "L'API est injoignable. Réessayez dans un instant.";
   }
   if (!res.ok) {
-    const body = (await res.json().catch(() => null)) as { message?: string | string[] } | null;
-    const msg = Array.isArray(body?.message) ? body.message.join(', ') : body?.message;
-    return msg ?? `Échec de la mise à jour (HTTP ${res.status}).`;
+    const messages = await messagesApi(res);
+    return messages.length > 0 ? messages.join(' ') : `Échec de la mise à jour (HTTP ${res.status}).`;
   }
   revalidatePath(`/commandes/${commandeId}`);
   revalidatePath('/commandes');

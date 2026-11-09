@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { Activity, Database, Network, Smartphone, UserCheck, Users } from 'lucide-react';
 import type { AdminApercu } from '@/lib/api';
 import { ROLE_LABELS } from '@/components/badges';
+import { FUSEAU } from '@/lib/planning-dates';
 
 type Ton = 'ok' | 'attention' | 'neutre';
 
@@ -11,7 +12,8 @@ const TON: Record<Ton, string> = {
   neutre: 'text-neutral-900',
 };
 
-const dateFr = new Intl.DateTimeFormat('fr-FR', { dateStyle: 'short', timeStyle: 'short' });
+// Heure affichée À PARIS (fuseau de la plateforme), quel que soit le fuseau du serveur ou du navigateur.
+const dateFr = new Intl.DateTimeFormat('fr-FR', { timeZone: FUSEAU, dateStyle: 'short', timeStyle: 'short' });
 
 /** Un indicateur : valeur, libellé, et lien optionnel vers l'onglet concerné. Simple compteur, sans état. */
 function Indicateur({
@@ -36,7 +38,7 @@ function Indicateur({
   );
   const classes = 'block rounded-xl border border-neutral-100 bg-neutral-50/60 px-4 py-3';
   return href ? (
-    <Link href={href} className={`${classes} transition hover:border-violet-200 hover:bg-violet-50/40`}>
+    <Link href={href} className={`${classes} transition hover:border-brand/30 hover:bg-brand/5`}>
       {corps}
     </Link>
   ) : (
@@ -48,7 +50,7 @@ function Carte({ titre, icone: Icone, children }: { titre: string; icone: typeof
   return (
     <section className="rounded-2xl bg-white shadow-card">
       <h2 className="flex items-center gap-2 border-b border-neutral-100 px-5 py-3 text-sm font-semibold">
-        <Icone size={16} className="text-violet-600" aria-hidden />
+        <Icone size={16} className="text-brand" aria-hidden />
         {titre}
       </h2>
       <div className="grid grid-cols-2 gap-3 p-4">{children}</div>

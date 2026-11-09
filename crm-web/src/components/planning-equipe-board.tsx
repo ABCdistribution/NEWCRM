@@ -6,13 +6,14 @@ import { AlertCircle, BellRing, CheckCircle2, Plus, Repeat, Store, Trash2, X } f
 import { ClassBadge } from './class-badge';
 import { CARTE, FOCUS } from './equipe-ui';
 import { ajouterVisite, deplacerVisite, relancerVisite, supprimerVisite } from '@/lib/planning-equipe-actions';
+import { aujourdhuiParis } from '@/lib/planning-dates';
 
-export type VisiteJour = { id: string; clientNom: string; ville: string | null; classe: string | null; fait: boolean; recurrente: boolean };
+export type VisiteJour = { id: string; clientId: string; clientNom: string; ville: string | null; classe: string | null; fait: boolean; recurrente: boolean };
 export type JourPlanning = { nom: string; libelle: string; date: string; visites: VisiteJour[] };
 export type ClientChoix = { id: string; enseigne: string; ville: string | null; codeAs400: string };
 
 function dateLocale(): string {
-  const d = new Date();
+  const d = aujourdhuiParis();
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
@@ -45,7 +46,7 @@ export function SelecteurPromoteur({ promoteurs, valeur, semaine }: { promoteurs
 }
 
 /** Formulaire d'ajout d'une visite pour un jour : recherche (enseigne, ville, code) puis choix du client. */
-function AjoutVisite({ promoteurId, date, clients, onErreur }: { promoteurId: string; date: string; clients: ClientChoix[]; onErreur: (m: string | null) => void }) {
+function AjoutVisite({ promoteurId, date, clients, dejaPlanifies, onErreur }: { promoteurId: string; date: string; clients: ClientChoix[]; dejaPlanifies: ReadonlySet<string>; onErreur: (m: string | null) => void }) {
   const [ouvert, setOuvert] = useState(false);
   const [recherche, setRecherche] = useState('');
   const [clientId, setClientId] = useState('');
@@ -95,6 +96,7 @@ function AjoutVisite({ promoteurId, date, clients, onErreur }: { promoteurId: st
           <option key={c.id} value={c.id}>
             {c.enseigne}
             {c.ville ? ` — ${c.ville}` : ''}
+            {dejaPlanifies.has(c.id) ? ' (déjà planifié cette semaine)' : ''}
           </option>
         ))}
       </select>
@@ -145,7 +147,7 @@ function LigneVisite({ v, jours, dateCourante, aujourdhui, onErreur, onInfo }: {
                   else onInfo(`Relance envoyée au promoteur pour ${v.clientNom}.`);
                 });
               }}
-              className={`inline-flex items-center gap-1 rounded-lg bg-accent px-2 py-1 text-xs font-semibold text-brand disabled:opacity-50 ${FOCUS}`}
+              className={`inline-flex items-center gap-1 rounded-lg bg-brand px-2 py-1 text-xs font-semibold text-white transition hover:bg-brand/90 disabled:opacity-50 ${FOCUS}`}
               aria-label={`Relancer le promoteur pour ${v.clientNom}`}
               title="Envoyer une notification de relance au promoteur"
             >
@@ -216,8 +218,27 @@ export function PlanningEquipeBoard({ promoteurId, jours, clients }: { promoteur
   const [erreur, setErreur] = useState<string | null>(null);
   const [info, setInfo] = useState<string | null>(null);
   const aujourdhui = dateLocale();
+  // Clients déjà planifiés cette semaine (repère dans la liste d'ajout) et totaux de la semaine.
+  const dejaPlanifies = useMemo(() => new Set(jours.flatMap((j) => j.visites.map((v) => v.clientId))), [jours]);
+  const total = jours.reduce((n, j) => n + j.visites.length, 0);
+  const faites = jours.reduce((n, j) => n + j.visites.filter((v) => v.fait).length, 0);
   return (
     <div className="flex flex-col gap-3">
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-neutral-600">
+        <span className="font-semibold">
+          {total} visite{total > 1 ? 's' : ''} planifiée{total > 1 ? 's' : ''} cette semaine
+          {total > 0 ? ` (${faites} effectuée${faites > 1 ? 's' : ''})` : ''}
+        </span>
+        <span className="inline-flex items-center gap-1.5">
+          <CheckCircle2 size={13} className="text-emerald-600" aria-hidden /> Effectuée
+        </span>
+        <span className="inline-flex items-center gap-1.5">
+          <AlertCircle size={13} className="text-red-600" aria-hidden /> Manquée
+        </span>
+        <span className="inline-flex items-center gap-1.5">
+          <Repeat size={13} className="text-neutral-500" aria-hidden /> Récurrente
+        </span>
+      </div>
       {info ? (
         <p role="status" className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
           {info}
@@ -228,12 +249,13 @@ export function PlanningEquipeBoard({ promoteurId, jours, clients }: { promoteur
           {erreur}
         </p>
       ) : null}
+      {/* Jour courant : `ring` et non `border` (`.shadow-card`, hors couche Tailwind, impose sa propre bordure). */}
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
         {jours.map((j) => (
-          <section key={j.date} className={`flex flex-col ${CARTE}`} aria-label={`${j.nom} ${j.libelle}`}>
+          <section key={j.date} className={`flex flex-col ${CARTE} ${j.date === aujourdhui ? 'ring-2 ring-brand' : ''}`} aria-label={`${j.nom} ${j.libelle}${j.date === aujourdhui ? " (aujourd'hui)" : ''}`}>
             <header className="flex items-baseline justify-between border-b border-neutral-100 px-3.5 py-2.5 dark:border-navy-700">
-              <span className="text-sm font-semibold">{j.nom}</span>
-              <span className="text-xs text-neutral-400">{j.libelle}</span>
+              <span className={`text-sm font-semibold ${j.date === aujourdhui ? 'text-brand' : ''}`}>{j.nom}</span>
+              <span className="text-xs text-neutral-500">{j.date === aujourdhui ? `${j.libelle} · auj.` : j.libelle}</span>
             </header>
             <div className="flex flex-col gap-2 p-2.5">
               {j.visites.length === 0 ? <p className="py-2 text-center text-xs text-neutral-400">Aucune visite</p> : null}
@@ -244,7 +266,7 @@ export function PlanningEquipeBoard({ promoteurId, jours, clients }: { promoteur
                   ))}
                 </ul>
               ) : null}
-              <AjoutVisite promoteurId={promoteurId} date={j.date} clients={clients} onErreur={setErreur} />
+              <AjoutVisite promoteurId={promoteurId} date={j.date} clients={clients} dejaPlanifies={dejaPlanifies} onErreur={setErreur} />
             </div>
           </section>
         ))}

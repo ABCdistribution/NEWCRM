@@ -7,14 +7,19 @@ import { KpiTile } from './kpi-tile';
 import { LignesParJour } from './tournee-prevue';
 import { ROLE_LABELS } from './badges';
 import { chargerRapportDetail } from '@/lib/rapports-actions';
+import { FUSEAU } from '@/lib/planning-dates';
 import type { RapportAuteur, RapportDetail, RapportsListe, StatutRapport } from '@/lib/api';
 
 const WEEK_FMT = new Intl.DateTimeFormat('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' });
-const DATE_FMT = new Intl.DateTimeFormat('fr-FR', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
+// Heure affichée À PARIS (fuseau de la plateforme) : le HTML rendu par le serveur et celui du navigateur concordent.
+// WEEK_FMT n'affiche qu'un jour, tiré d'une date « locale » (minuit) : lui donner un fuseau décalerait le jour.
+const DATE_FMT = new Intl.DateTimeFormat('fr-FR', { timeZone: FUSEAU, day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
 
 function isoToDate(iso: string): Date {
   const [y, m, d] = iso.split('-').map(Number);
-  return new Date(y, m - 1, d);
+  const date = new Date(y, m - 1, d);
+  // Garde-fou : une date illisible ferait lever « Invalid time value » à Intl pendant le rendu ; on retombe sur aujourd'hui.
+  return Number.isNaN(date.getTime()) ? new Date() : date;
 }
 function decaler(iso: string, jours: number): string {
   const d = isoToDate(iso);
@@ -23,11 +28,11 @@ function decaler(iso: string, jours: number): string {
 }
 
 const STATUTS: Record<StatutRapport, { libelle: string; classe: string; icone: React.ReactNode }> = {
-  PREVISION_A_SAISIR: { libelle: 'Prévision à saisir', classe: 'bg-neutral-500/10 text-neutral-500', icone: null },
-  PREVISION_ENREGISTREE: { libelle: 'Prévision enregistrée', classe: 'bg-sky-500/12 text-sky-600 dark:text-sky-400', icone: <Save size={12} /> },
-  EN_COURS: { libelle: 'Rapport en cours', classe: 'bg-amber-500/12 text-amber-600 dark:text-amber-400', icone: <Hourglass size={12} /> },
-  VALIDE: { libelle: 'Validé', classe: 'bg-emerald-500/12 text-emerald-600 dark:text-emerald-400', icone: <BadgeCheck size={12} /> },
-  VALIDE_AUTO: { libelle: 'Validé auto', classe: 'bg-violet-500/12 text-violet-600 dark:text-violet-400', icone: <Lock size={12} /> },
+  PREVISION_A_SAISIR: { libelle: 'Prévision à saisir', classe: 'bg-neutral-500/10 text-neutral-700', icone: null },
+  PREVISION_ENREGISTREE: { libelle: 'Prévision enregistrée', classe: 'bg-sky-500/12 text-sky-800', icone: <Save size={12} /> },
+  EN_COURS: { libelle: 'Rapport en cours', classe: 'bg-amber-500/12 text-amber-800', icone: <Hourglass size={12} /> },
+  VALIDE: { libelle: 'Validé', classe: 'bg-emerald-500/12 text-emerald-800', icone: <BadgeCheck size={12} /> },
+  VALIDE_AUTO: { libelle: 'Validé auto', classe: 'bg-brand/10 text-navy', icone: <Lock size={12} /> },
 };
 
 function Statut({ statut }: { statut: StatutRapport }) {
@@ -53,9 +58,14 @@ export function RapportsBoard({ data, semaine, nonDisponible }: { data: Rapports
   const ouvrir = (a: RapportAuteur) =>
     start(async () => {
       setErreur(null);
-      const d = await chargerRapportDetail(a.userId, semaine);
-      if (d) setDetail(d);
-      else setErreur('Rapport indisponible.');
+      try {
+        const r = await chargerRapportDetail(a.userId, semaine);
+        if (r.detail) setDetail(r.detail);
+        else setErreur(r.error);
+      } catch {
+        // Rejet de la requête elle-même (session expirée, API ou réseau indisponible).
+        setErreur('Rapport indisponible (session expirée ou API injoignable). Rechargez la page.');
+      }
     });
 
   const auteurs = data?.auteurs ?? [];
@@ -93,7 +103,7 @@ export function RapportsBoard({ data, semaine, nonDisponible }: { data: Rapports
             <KpiTile label="Prévisions à saisir" value={String(nb('PREVISION_A_SAISIR'))} />
           </section>
 
-          {erreur ? <p className="text-sm text-red-600">{erreur}</p> : null}
+          {erreur ? <p role="alert" className="text-sm text-red-600">{erreur}</p> : null}
 
           <div className="overflow-x-auto rounded-xl bg-white shadow-card">
             <table className="w-full text-sm">

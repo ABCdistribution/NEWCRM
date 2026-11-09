@@ -4,7 +4,7 @@ import { listPlannings } from '@/lib/api';
 import { requireRole, type Role } from '@/lib/roles';
 import { clientsDuPromoteur, commandesDe, lignesPromoteurs, listerUtilisateurs, visitesDe } from '@/lib/equipe';
 import { ajouterJours, estUuid, iso, lundiDemande, zoneDe } from '@/lib/equipe-utils';
-import { CaObjectif, CARTE, NavSemaine, Onglets } from '@/components/equipe-ui';
+import { AvertissementIncomplet, CaObjectif, CARTE, NavSemaine, Onglets } from '@/components/equipe-ui';
 import { ListeCommandes, ListeVisites, PlanningPromoteur } from '@/components/equipe-fiche';
 import { FicheEntete } from '@/components/fiche-entete';
 import { SelecteurClient } from '@/components/selecteur-client';
@@ -104,6 +104,7 @@ export default async function FichePromoteurPage({
         retourLabel="Retour à Mon équipe"
         email={promo.email}
       />
+      <AvertissementIncomplet actif={ligne.incomplet} />
       <section className={`${CARTE} grid grid-cols-1 gap-4 p-4 sm:grid-cols-3`} aria-label="Indicateurs du promoteur">
         <div>
           <p className="text-xs text-neutral-400">Visites de la semaine</p>

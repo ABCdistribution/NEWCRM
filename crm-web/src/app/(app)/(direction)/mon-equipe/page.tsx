@@ -1,7 +1,7 @@
 import { Users } from 'lucide-react';
 import { requireRole, type Role } from '@/lib/roles';
 import { cartesChefs, lignesPromoteurs, listerUtilisateurs } from '@/lib/equipe';
-import { CARTE, ListePromoteurs } from '@/components/equipe-ui';
+import { AvertissementIncomplet, CARTE, ListePromoteurs } from '@/components/equipe-ui';
 import { EquipeDrBoard } from '@/components/equipe-dr-board';
 
 export const metadata = { title: 'Mon équipe — Direction commerciale' };
@@ -44,6 +44,7 @@ export default async function MonEquipePage() {
             {users.find((u) => u.id === me.id)?.secteur ? ` · ${users.find((u) => u.id === me.id)!.secteur!.nom}` : ''}
           </p>
         </div>
+        <AvertissementIncomplet actif={promos.some((p) => p.incomplet)} />
         <ListePromoteurs promos={promos} vide="Aucun promoteur dans votre secteur." />
         <p className="text-center text-xs text-neutral-400">Touchez un promoteur pour voir ses visites, ses commandes et son planning.</p>
       </div>

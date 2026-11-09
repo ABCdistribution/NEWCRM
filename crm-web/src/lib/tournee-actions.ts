@@ -1,14 +1,16 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
-import { serverFetch, listClients, listProspects, getRapportDetail, idSur, type RapportDetail } from './api';
-import { ENCADREMENT, exigerRole } from './roles';
+import { serverFetch, listClients, listProspects, idSur } from './api';
+import { messageErreurApi } from './erreurs-api';
+import { ENCADREMENT, exigerRole, messageRefus } from './roles';
 
 const PAGE = '/planning';
 const ERREUR_RESEAU = "Impossible de joindre l'API.";
 const ACCES_REFUSE = 'Accès refusé : action réservée à l’encadrement.';
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-const SEMAINE = /^\d{4}-\d{2}-\d{2}$/;
+const DATE_ISO = /^\d{4}-\d{2}-\d{2}$/;
+const HEURE = /^([01]\d|2[0-3]):[0-5]\d$/;
 
 type Resultat = { error: string | null };
 
@@ -40,17 +42,29 @@ async function controle(): Promise<string | null> {
   try {
     await exigerRole(ENCADREMENT);
     return null;
-  } catch {
-    return ACCES_REFUSE;
+  } catch (e) {
+    return messageRefus(e, ACCES_REFUSE);
   }
 }
 
+/** Jour « yyyy-mm-dd » qui existe réellement au calendrier (refuse 2026-02-31). */
+function jourValide(v: string): boolean {
+  if (!DATE_ISO.test(v)) return false;
+  const d = new Date(`${v}T12:00:00Z`);
+  return !Number.isNaN(d.getTime()) && d.toISOString().slice(0, 10) === v;
+}
+
+/** Contrôle du jour de passage et de l'heure « HH:MM » facultative ; renvoie un message d'erreur sinon. */
+function erreurDateHeure(datePassage: string, heure?: string): string | null {
+  if (!jourValide(datePassage)) return 'Date invalide.';
+  if (heure && !HEURE.test(heure)) return 'Heure invalide (format attendu : HH:MM).';
+  return null;
+}
+
 async function messageErreur(res: Response): Promise<string> {
-  if (res.status === 401 || res.status === 403) return 'Accès refusé.';
+  if (res.status === 403) return 'Accès refusé.';
   if (res.status === 404) return 'Étape introuvable (déjà supprimée ?).';
-  const body = (await res.json().catch(() => null)) as { message?: string | string[] } | null;
-  const msg = Array.isArray(body?.message) ? body.message[0] : body?.message;
-  return msg ?? `Erreur serveur (${res.status}).`;
+  return messageErreurApi(res, 'tournee');
 }
 
 /** Appel d'une mutation : contrôle de rôle, validation de l'id, statut HTTP, message français. */
@@ -111,6 +125,8 @@ export async function addEtape(
   if ((cible.type === 'CLIENT' || cible.type === 'PROSPECT') && !(cible.id && UUID.test(cible.id))) {
     return { error: 'Identifiant invalide.' };
   }
+  const invalide = erreurDateHeure(datePassage, options.heure);
+  if (invalide) return { error: invalide };
   const { heure, note, ...drapeaux } = options;
   return muter(() => '/tournees', null, {
     method: 'POST',
@@ -141,6 +157,7 @@ export async function toggleEtapeFaite(id: string, fait: boolean): Promise<Resul
 
 /** Déplace une étape vers une autre date (drag & drop entre jours). */
 export async function moveEtape(id: string, datePassage: string): Promise<Resultat> {
+  if (!jourValide(datePassage)) return { error: 'Date invalide.' };
   return muter((i) => `/tournees/${i}`, id, {
     method: 'PATCH',
     headers: JSON_HEADERS,
@@ -154,6 +171,8 @@ export async function requalifierEtape(
   datePassage: string,
   options: OptionsEtape,
 ): Promise<Resultat> {
+  const invalide = erreurDateHeure(datePassage, options.heure);
+  if (invalide) return { error: invalide };
   const { heure, note, ...drapeaux } = options;
   return muter((i) => `/tournees/${i}`, id, {
     method: 'PATCH',
@@ -171,7 +190,7 @@ export async function enregistrerSemaine(
   semaine: string,
   etape: 'prevision' | 'validation',
 ): Promise<Resultat> {
-  if (!SEMAINE.test(semaine)) return { error: 'Semaine invalide.' };
+  if (!jourValide(semaine)) return { error: 'Semaine invalide.' };
   if (etape !== 'prevision' && etape !== 'validation') return { error: 'Étape invalide.' };
   return muter(() => `/tournees/semaine/${etape}`, null, {
     method: 'POST',
@@ -195,11 +214,4 @@ export async function getIcalInfo(): Promise<{ userId: string; token: string } |
   } catch {
     return null;
   }
-}
-
-/** Détail d'un rapport (tournée prévue et réalisée) pour la consultation, appelé depuis le tableau des rapports. */
-export async function chargerRapportDetail(userId: string, semaine: string): Promise<RapportDetail | null> {
-  if (await controle()) return null;
-  if (!UUID.test(userId) || !SEMAINE.test(semaine)) return null;
-  return getRapportDetail(userId, semaine);
 }

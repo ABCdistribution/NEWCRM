@@ -32,9 +32,10 @@ const DATE = new Intl.DateTimeFormat('fr-FR', { weekday: 'short', day: '2-digit'
 const CLASSES = ['A', 'B', 'C', 'D', 'E', 'F', 'G'];
 
 const ETAT_BADGE = {
-  ok: { label: 'À jour', cls: 'bg-emerald-500/12 text-emerald-600 dark:text-emerald-400', Icon: CheckCircle2 },
-  attention: { label: 'Attention', cls: 'bg-amber-500/15 text-amber-600 dark:text-amber-400', Icon: AlertTriangle },
-  alerte: { label: 'Alerte', cls: 'bg-red-500/12 text-red-500', Icon: AlertTriangle },
+  // Teintes `-800` / `-700` : lisibles sur fond clair (contraste AA) ; les variantes `dark:` ne servent qu'en surface sombre.
+  ok: { label: 'À jour', cls: 'bg-emerald-500/12 text-emerald-800 dark:text-emerald-400', Icon: CheckCircle2 },
+  attention: { label: 'Attention', cls: 'bg-amber-500/15 text-amber-800 dark:text-amber-400', Icon: AlertTriangle },
+  alerte: { label: 'Alerte', cls: 'bg-red-500/12 text-red-700 dark:text-red-400', Icon: AlertTriangle },
 } as const;
 
 function Delta({ pct }: { pct: number | null }) {

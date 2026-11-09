@@ -51,6 +51,20 @@ export function Pastille({ children, ton = 'neutre' }: { children: React.ReactNo
   return <span className={`inline-block whitespace-nowrap rounded-full px-2.5 py-0.5 text-xs font-semibold ${cls}`}>{children}</span>;
 }
 
+/**
+ * Bandeau affiché quand des chiffres manquent parce qu'une requête à l'API a échoué (et non parce qu'ils sont vides) :
+ * sans lui, un « — » ou un « n/d » ne se distingue pas d'une vraie absence de donnée.
+ */
+export function AvertissementIncomplet({ actif }: { actif: boolean }) {
+  if (!actif) return null;
+  return (
+    <p role="status" className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+      Certains chiffres n&apos;ont pas pu être chargés (le serveur n&apos;a pas répondu à toutes les requêtes). Les valeurs
+      affichées « — » ou « n/d » peuvent donc être incomplètes : rechargez la page dans un instant.
+    </p>
+  );
+}
+
 /** Une ligne de la liste des promoteurs (clic = fiche du promoteur). */
 export function LignePromoteur({ p, avecChef = false }: { p: PromoLigne; avecChef?: boolean }) {
   return (

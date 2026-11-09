@@ -4,6 +4,7 @@ import { listPlannings, listRegles } from '@/lib/api';
 import { clientsDuPromoteur, listerUtilisateurs } from '@/lib/equipe';
 import { ajouterJours, estUuid, iso, lundiDemande, zoneDe } from '@/lib/equipe-utils';
 import { ENCADREMENT, requireRole } from '@/lib/roles';
+import { ROUTES } from '@/lib/routes';
 import { CARTE, NavSemaine } from '@/components/equipe-ui';
 import { PlanningEquipeBoard, SelecteurPromoteur, type JourPlanning } from '@/components/planning-equipe-board';
 import { RecurrenceCard } from '@/components/recurrence-card';
@@ -22,6 +23,9 @@ const JOUR_COURT = new Intl.DateTimeFormat('fr-FR', { day: 'numeric', month: 'sh
 export default async function PlanningEquipePage({ searchParams }: { searchParams: Promise<{ promoteur?: string; semaine?: string }> }) {
   const acces = await requireRole(ENCADREMENT);
   if (acces.refuse) return acces.refuse;
+
+  // Les fiches « Mon équipe » excluent DIRECTION : on n'affiche le lien (table des routes) qu'aux rôles qui y entrent.
+  const peutVoirFiche = ROUTES.find((r) => r.href === '/mon-equipe')?.roles.includes(acces.me.role) ?? false;
 
   const sp = await searchParams;
   const users = await listerUtilisateurs();
@@ -62,6 +66,7 @@ export default async function PlanningEquipePage({ searchParams }: { searchParam
           .filter((v) => v.datePassage.slice(0, 10) === date)
           .map((v) => ({
             id: v.id,
+            clientId: v.client.id,
             clientNom: v.client.enseigne.trim(),
             ville: v.client.ville,
             classe: v.client.niveauClass,
@@ -82,10 +87,15 @@ export default async function PlanningEquipePage({ searchParams }: { searchParam
           />
         </div>
         <p className="text-sm text-neutral-500">
-          {promo.displayName} · {zoneDe(promo)} ·{' '}
-          <Link href={`/mon-equipe/promoteur/${encodeURIComponent(promo.id)}`} className="font-medium text-brand underline-offset-2 hover:underline dark:text-accent">
-            Voir la fiche
-          </Link>
+          {promo.displayName} · {zoneDe(promo)}
+          {peutVoirFiche ? (
+            <>
+              {' · '}
+              <Link href={`/mon-equipe/promoteur/${encodeURIComponent(promo.id)}`} className="font-medium text-brand underline-offset-2 hover:underline dark:text-accent">
+                Voir la fiche
+              </Link>
+            </>
+          ) : null}
         </p>
         {visites === null ? (
           <p role="alert" className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">

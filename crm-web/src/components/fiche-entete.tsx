@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { ArrowLeft, Mail, Phone } from 'lucide-react';
+import { lienMailto } from '@/lib/contact-liens';
 import { Avatar } from './avatar';
 import { BOUTON_LIEN, FOCUS, initiales } from './equipe-ui';
 
@@ -22,6 +23,8 @@ export function FicheEntete({
   email: string | null;
   children?: React.ReactNode;
 }) {
+  // Lien validé (contact-liens.ts) : l'adresse vient d'un annuaire, on ne l'insère pas telle quelle dans un mailto:.
+  const lienMail = lienMailto(email);
   const desactive = 'inline-flex cursor-not-allowed items-center gap-1.5 rounded-lg border border-neutral-200 px-3 py-2 text-sm font-medium text-neutral-300 dark:border-navy-700 dark:text-neutral-600';
   return (
     <div className="flex flex-wrap items-center justify-between gap-3">
@@ -41,12 +44,12 @@ export function FicheEntete({
       </div>
       <div className="flex flex-wrap items-center gap-2">
         {children}
-        {email ? (
-          <a href={`mailto:${email}`} className={BOUTON_LIEN}>
+        {lienMail ? (
+          <a href={lienMail} className={BOUTON_LIEN}>
             <Mail size={15} aria-hidden /> Envoyer un mail
           </a>
         ) : (
-          <span className={desactive} title="Adresse e-mail non disponible" aria-disabled="true">
+          <span className={desactive} title={email ? 'Adresse e-mail invalide' : 'Adresse e-mail non disponible'} aria-disabled="true">
             <Mail size={15} aria-hidden /> Envoyer un mail
           </span>
         )}

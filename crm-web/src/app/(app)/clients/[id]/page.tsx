@@ -14,9 +14,11 @@ import {
   Smartphone,
 } from 'lucide-react';
 import { getClient, getClientHistorique, idReprVariants, idSur, listPeriodicites } from '@/lib/api';
+import { EDITEURS_CLIENT } from '@/lib/client-roles';
 import { estEncadrement, requireRole, TOUS_ROLES } from '@/lib/roles';
 import { ActiveBadge } from '@/components/badges';
 import { CaChart } from '@/components/ca-chart';
+import { ClassBadge } from '@/components/class-badge';
 import { ContactsCard } from '@/components/contacts-card';
 import { NotesCard } from '@/components/notes-card';
 import { PeriodiciteCard } from '@/components/periodicite-card';
@@ -26,25 +28,10 @@ export const metadata = { title: 'Fiche client' };
 
 const DATE_FMT = new Intl.DateTimeFormat('fr-FR', { day: '2-digit', month: 'short', year: 'numeric' });
 
-/** Pastille de classe A→G, colorée selon le niveau. */
-function ClassBadge({ value }: { value: string | null }) {
-  if (!value) return <span className="text-neutral-400">—</span>;
-  const colors: Record<string, string> = {
-    A: 'bg-emerald-500/10 text-emerald-600',
-    B: 'bg-green-500/10 text-green-600',
-    C: 'bg-lime-500/10 text-lime-600',
-    D: 'bg-yellow-500/10 text-yellow-600',
-    E: 'bg-amber-500/10 text-amber-600',
-    F: 'bg-orange-500/10 text-orange-600',
-    G: 'bg-red-500/10 text-red-600',
-  };
-  return (
-    <span
-      className={`inline-flex h-6 w-6 items-center justify-center rounded-full text-xs font-bold ${colors[value] ?? 'bg-neutral-500/10 text-neutral-600'}`}
-    >
-      {value}
-    </span>
-  );
+/** Pastille de classe de l'en-tête : composant partagé (contraste vérifié), « — » si le client n'est pas classé. */
+function ClasseFiche({ value }: { value: string | null }) {
+  if (!value) return <span className="text-neutral-500">—</span>;
+  return <ClassBadge value={value} size="md" />;
 }
 
 function Field({ label, value }: { label: string; value: string | null | undefined }) {
@@ -75,6 +62,8 @@ export default async function ClientFiche({ params }: { params: Promise<{ id: st
   const { id: idBrut } = await params;
   const id = idSur(idBrut);
   const encadrement = estEncadrement(me.role);
+  // Boutons d'édition (périodicité, contacts, notes) : mêmes rôles que les Server Actions (MARKETING en lecture seule).
+  const peutEditer = EDITEURS_CLIENT.includes(me.role);
 
   const [client, histo, periodicites] = await Promise.all([
     getClient(id),
@@ -104,7 +93,7 @@ export default async function ClientFiche({ params }: { params: Promise<{ id: st
           <div>
             <div className="flex flex-wrap items-center gap-2.5">
               <h1 className="text-2xl font-bold">{client.enseigne || client.raisonSociale}</h1>
-              <ClassBadge value={client.niveauClass} />
+              <ClasseFiche value={client.niveauClass} />
               <ActiveBadge active={client.actif} />
             </div>
             <p className="mt-0.5 text-sm text-neutral-500">
@@ -222,13 +211,14 @@ export default async function ClientFiche({ params }: { params: Promise<{ id: st
             clientId={client.id}
             actuelle={client.periodicites[0]?.periodicite ?? null}
             referentiel={periodicites}
+            peutEditer={peutEditer}
           />
         </section>
 
         {/* Colonne 3 — Contacts + Notes (CRM, éditables) */}
         <section className="flex flex-col gap-5">
-          <ContactsCard clientId={client.id} contacts={client.contacts} />
-          <NotesCard clientId={client.id} notes={client.notes} />
+          <ContactsCard clientId={client.id} contacts={client.contacts} peutEditer={peutEditer} />
+          <NotesCard clientId={client.id} notes={client.notes} peutEditer={peutEditer} />
         </section>
       </div>
 
