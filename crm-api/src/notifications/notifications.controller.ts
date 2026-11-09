@@ -6,6 +6,7 @@ import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
+import { PLANIFICATEURS } from '../common/roles.constants';
 import { NotificationsService } from './notifications.service';
 
 class RelanceDto {
@@ -34,9 +35,11 @@ export class NotificationsController {
   constructor(private readonly notifications: NotificationsService) {}
 
   @Post('relance')
-  @ApiOperation({ summary: "Relancer le promoteur d'une visite non effectuée (notification in-app / mobile)" })
-  relance(@Body() dto: RelanceDto, @CurrentUser() user: { id: string }) {
-    return this.notifications.relancerVisite(dto.planningId, user.id);
+  @UseGuards(RolesGuard)
+  @Roles(...PLANIFICATEURS)
+  @ApiOperation({ summary: "Relancer le promoteur d'une visite non effectuée (encadrement, dans son périmètre)" })
+  relance(@Body() dto: RelanceDto, @CurrentUser() user: { id: string; role: string; regionId?: string | null }) {
+    return this.notifications.relancerVisite(dto.planningId, user);
   }
 
   @Post('relance-membre')

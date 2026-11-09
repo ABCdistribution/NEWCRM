@@ -30,7 +30,7 @@ import {
 import { User } from '@crm/database';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
-import { VisitesService } from './visites.service';
+import { auteursDeVisitesVisibles, VisitesService } from './visites.service';
 
 class ReponseDto {
   @ApiProperty({ description: 'UUID de la question du questionnaire' })
@@ -120,7 +120,8 @@ export class VisitesController {
     @CurrentUser() me: User,
   ) {
     const promoteurId = me.role === 'COMMERCIAL' ? me.id : null;
-    return this.visites.findAll(promoteurId, { page: Number(page) || 1, search });
+    const equipe = me.role === 'CHEF_SECTEUR' || me.role === 'DIRECTEUR_REGIONAL' ? auteursDeVisitesVisibles(me) : null;
+    return this.visites.findAll(promoteurId, { page: Number(page) || 1, search, equipe: equipe ?? undefined });
   }
 
   @Post()

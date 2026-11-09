@@ -1,5 +1,16 @@
-import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  ForbiddenException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
+import { Role } from '@crm/database';
 import { PrismaService } from '../prisma/prisma.service';
+import { perimetreEquipe } from '../common/perimetre-users.util';
+
+/** Appelant authentifié (sous-ensemble de User). */
+export type Appelant = { id: string; role: string; regionId?: string | null };
 
 /** Lundi (minuit local) de la semaine contenant `d`. */
 function mondayOf(d: Date): Date {
@@ -16,6 +27,36 @@ function isoDay(d: Date): string {
 @Injectable()
 export class PlanningsService {
   constructor(private readonly prisma: PrismaService) {}
+
+  /**
+   * Vérifie que `me` peut agir sur le planning du promoteur `promoteurId`.
+   *  - lecture : ADMIN / DIRECTION (tout), CS / DR (promoteurs de leur périmètre), COMMERCIAL (le sien uniquement) ;
+   *    autres rôles : 403 ;
+   *  - écriture : ADMIN / DIRECTION (tout), CS / DR (promoteurs de leur périmètre) ; le COMMERCIAL n'écrit jamais.
+   * Hors périmètre : 404 (on ne révèle pas l'existence de l'utilisateur).
+   */
+  async verifierAcces(me: Appelant, promoteurId: string, ecriture: boolean): Promise<void> {
+    if (me.role === Role.COMMERCIAL) {
+      if (ecriture) throw new ForbiddenException('Le planning est géré par votre chef de secteur ou votre directeur régional');
+      if (promoteurId !== me.id) throw new ForbiddenException('Un commercial ne consulte que son propre planning');
+      return;
+    }
+    const perimetre = perimetreEquipe(me);
+    if (!perimetre) throw new ForbiddenException("Accès aux plannings réservé à l'encadrement");
+    if (me.role === Role.ADMIN || me.role === Role.DIRECTION) return;
+    const cible = await this.prisma.user.findFirst({
+      where: { AND: [{ id: promoteurId }, perimetre, ...(ecriture ? [{ role: Role.COMMERCIAL }] : [])] },
+      select: { id: true },
+    });
+    if (!cible) throw new NotFoundException('Promoteur introuvable dans votre périmètre');
+  }
+
+  /** Filtre `promoteur` Prisma pour les lectures transverses (`{}` = pas de filtre, ADMIN / DIRECTION). */
+  private filtrePromoteur(me: Appelant) {
+    const perimetre = perimetreEquipe(me);
+    if (!perimetre) throw new ForbiddenException("Accès aux plannings réservé à l'encadrement");
+    return Object.keys(perimetre).length === 0 ? {} : { promoteur: perimetre };
+  }
 
   /**
    * Matérialise les occurrences des règles de récurrence actives du promoteur
@@ -91,11 +132,11 @@ export class PlanningsService {
 
   /** Visites planifiées d'un promoteur sur une période (bornes ISO, fin exclue). */
   /** Visites planifiées à venir (non faites) d'un magasin — pour le suivi encadrement. */
-  async findAVenirPourClient(clientId: string) {
+  async findAVenirPourClient(me: Appelant, clientId: string) {
     const aujourdhui = new Date();
     aujourdhui.setHours(0, 0, 0, 0);
     return this.prisma.planning.findMany({
-      where: { clientId, deletedAt: null, fait: false, datePassage: { gte: aujourdhui } },
+      where: { clientId, deletedAt: null, fait: false, datePassage: { gte: aujourdhui }, ...this.filtrePromoteur(me) },
       orderBy: { datePassage: 'asc' },
       take: 10,
       select: {
@@ -106,7 +147,8 @@ export class PlanningsService {
     });
   }
 
-  async findPeriode(promoteurId: string, debut: Date, fin: Date) {
+  async findPeriode(me: Appelant, promoteurId: string, debut: Date, fin: Date) {
+    await this.verifierAcces(me, promoteurId, false);
     await this.ensureOccurrences(promoteurId, debut, fin);
     return this.prisma.planning.findMany({
       where: { promoteurId, deletedAt: null, datePassage: { gte: debut, lt: fin } },
@@ -123,7 +165,8 @@ export class PlanningsService {
   }
 
   /** Planifie une visite ponctuelle (direction). Refuse le doublon même client / même jour. */
-  async create(promoteurId: string, clientId: string, datePassage: Date) {
+  async create(me: Appelant, promoteurId: string, clientId: string, datePassage: Date) {
+    await this.verifierAcces(me, promoteurId, true);
     if (Number.isNaN(datePassage.getTime())) {
       throw new BadRequestException('Date invalide');
     }
@@ -148,12 +191,13 @@ export class PlanningsService {
   }
 
   /** Déplace une visite planifiée vers une autre date (même garde anti-doublon). */
-  async move(id: string, datePassage: Date) {
+  async move(me: Appelant, id: string, datePassage: Date) {
     if (Number.isNaN(datePassage.getTime())) {
       throw new BadRequestException('Date invalide');
     }
     const planning = await this.prisma.planning.findFirst({ where: { id, deletedAt: null } });
     if (!planning) throw new NotFoundException('Visite planifiée introuvable');
+    await this.verifierAcces(me, planning.promoteurId, true);
     if (planning.fait) throw new ConflictException('Visite déjà effectuée — non déplaçable');
 
     await this.verifieDoublon(planning.promoteurId, planning.clientId, datePassage, id);
@@ -166,9 +210,10 @@ export class PlanningsService {
   }
 
   /** Retire une visite planifiée (soft delete). */
-  async remove(id: string) {
+  async remove(me: Appelant, id: string) {
     const planning = await this.prisma.planning.findFirst({ where: { id, deletedAt: null } });
     if (!planning) throw new NotFoundException('Visite planifiée introuvable');
+    await this.verifierAcces(me, planning.promoteurId, true);
     await this.prisma.planning.update({ where: { id }, data: { deletedAt: new Date() } });
     return { id, deleted: true };
   }
@@ -199,7 +244,8 @@ export class PlanningsService {
   // --- Règles de récurrence (plannifications) ----------------------------
 
   /** Règles actives d'un promoteur, avec le magasin. */
-  listRegles(promoteurId: string) {
+  async listRegles(me: Appelant, promoteurId: string) {
+    await this.verifierAcces(me, promoteurId, false);
     return this.prisma.plannification.findMany({
       where: { promoteurId, deletedAt: null },
       orderBy: { createdAt: 'asc' },
@@ -216,12 +262,14 @@ export class PlanningsService {
 
   /** Crée une règle de récurrence (magasin × jours × fréquence). */
   async createRegle(
+    me: Appelant,
     promoteurId: string,
     clientId: string,
     jours: number[],
     recurrence: number,
     dateDebut: Date,
   ) {
+    await this.verifierAcces(me, promoteurId, true);
     const joursValides = [...new Set(jours)].filter((j) => j >= 1 && j <= 6).sort();
     if (joursValides.length === 0) throw new BadRequestException('Au moins un jour de semaine requis');
     if (!(recurrence >= 1 && recurrence <= 8)) throw new BadRequestException('Fréquence invalide (1 à 8 semaines)');
@@ -248,9 +296,10 @@ export class PlanningsService {
   }
 
   /** Supprime une règle + ses occurrences futures non réalisées. */
-  async removeRegle(id: string) {
+  async removeRegle(me: Appelant, id: string) {
     const regle = await this.prisma.plannification.findFirst({ where: { id, deletedAt: null } });
     if (!regle) throw new NotFoundException('Récurrence introuvable');
+    await this.verifierAcces(me, regle.promoteurId, true);
 
     const aujourdhui = new Date(new Date().getFullYear(), new Date().getMonth(), new Date().getDate());
     await this.prisma.$transaction([

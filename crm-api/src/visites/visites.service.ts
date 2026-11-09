@@ -1,5 +1,14 @@
 import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import { Prisma } from '@crm/database';
 import { PrismaService } from '../prisma/prisma.service';
+import { perimetreEquipe } from '../common/perimetre-users.util';
+
+/** Filtre des auteurs de visites visibles par `me` : null = pas de filtre (siège, direction, admin) ; CS / DR = équipe + soi ; COMMERCIAL = soi. */
+export function auteursDeVisitesVisibles(me: { id: string; role: string; regionId?: string | null }): Prisma.UserWhereInput | null {
+  if (me.role !== 'CHEF_SECTEUR' && me.role !== 'DIRECTEUR_REGIONAL') return me.role === 'COMMERCIAL' ? { id: me.id } : null;
+  const equipe = perimetreEquipe(me);
+  return { OR: [{ id: me.id }, ...(equipe ? [equipe] : [])] };
+}
 
 export interface CreationVisite {
   idApk: string;
@@ -28,11 +37,16 @@ export class VisitesService {
    * globale (rôles siège : ADV, direction, marketing, admin…) ; sinon la vue
    * est scopée sur ce promoteur (cas du commercial connecté).
    */
-  async findAll(promoteurId: string | null, opts: { page?: number; search?: string } = {}) {
+  async findAll(
+    promoteurId: string | null,
+    opts: { page?: number; search?: string; equipe?: Prisma.UserWhereInput } = {},
+  ) {
     const page = opts.page && opts.page > 0 ? opts.page : 1;
     const limit = 30;
     const where = {
       ...(promoteurId ? { promoteurId } : {}),
+      // CS / DR : visites de leurs équipes (et les leurs) uniquement.
+      ...(opts.equipe ? { promoteur: opts.equipe } : {}),
       deletedAt: null,
       ...(opts.search
         ? {
@@ -169,9 +183,10 @@ export class VisitesService {
   // --- Photos de rayon (ABC Pilot Mobile) -----------------------------------
 
   /** Un promoteur ne voit que ses visites ; l'encadrement voit tout (comme GET /visites). */
-  private async visiteAccessible(me: { id: string; role: string }, visiteId: string) {
+  private async visiteAccessible(me: { id: string; role: string; regionId?: string | null }, visiteId: string) {
+    const auteurs = auteursDeVisitesVisibles(me);
     const visite = await this.prisma.visite.findFirst({
-      where: { id: visiteId, deletedAt: null, ...(me.role === 'COMMERCIAL' ? { promoteurId: me.id } : {}) },
+      where: { id: visiteId, deletedAt: null, ...(auteurs ? { promoteur: auteurs } : {}) },
       select: { id: true, promoteurId: true },
     });
     if (!visite) throw new NotFoundException(`Visite ${visiteId} introuvable`);
