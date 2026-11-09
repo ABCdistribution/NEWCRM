@@ -363,9 +363,11 @@ const ETAPES_DPH = [
   ['arrivee', "Photos d'arrivée sur site"],
   ['rayonArrivee', "Photo(s) du rayon à l'arrivée"],
   ['dn', 'Vérification DN'],
+  ['concurrence', 'Concurrence'],
   ['promos', 'Vérification Promos'],
   ['face', 'Photos vue de face'],
   ['rayonFin', 'Photos du rayon de fin de visite DPH'],
+  ['bilan', 'Bilan de visite'],
 ];
 const RAISONS_PEM = ['Pas de rayon PEM', 'Rayon fermé ou en travaux', 'Autre'];
 let NUM_VISITE = 218081;
@@ -374,11 +376,11 @@ const stampDe = (j, mois, h, mi) => `${p2(j)}/${mois === 'nov' ? '11' : '10'}/20
 const ageTexte = (txt) => { const m = /^(\d+) (nov|oct)/.exec(txt); return m ? (m[2] === 'nov' ? 4 - Number(m[1]) : 35 - Number(m[1])) : 99; };
 /** Horodatage de chaque étape d'une visite terminée, à partir de son début (exemple : 15h42, 16h39, 17h26, 17h26, 17h42, 17h42, 17h46). */
 function visiteComplete(o) {
-  const offs = [0, 57, 104, 104, 120, 120, 124], chrono = {};
+  const offs = [0, 57, 104, 104, 120, 122, 122, 126, 128], chrono = {};
   ETAPES_DPH.forEach(([k], i) => { const t = o.h * 60 + o.mi + offs[i]; chrono[k] = stampDe(o.jour, o.mois, Math.floor(t / 60) % 24, t % 60); });
   const date = `${o.jour} ${o.mois}. ${p2(o.h)}:${p2(o.mi)}`;
   return { num: NUM_VISITE++, m: o.m, par: o.par, etat: o.etat || 'envoyee', date, age: ageTexte(date), chrono, recu: chrono.rayonFin,
-    photos: { arrivee: 2, rayonArrivee: 3, face: 2, rayonFin: 3 }, dn: { 'COSMIA-01': 5, '900024': 4 }, kits: o.kits || ['COSMIA-01', '900024'], promos: { ok: 'oui', note: '' },
+    photos: { arrivee: 2, rayonArrivee: 3, face: 2, rayonFin: 3 }, dn: { 'COSMIA-01': 5, '900024': 4 }, kits: o.kits || ['COSMIA-01', '900024'], promos: { ok: 'oui', note: '' }, bilan: { ok: true, note: '' }, conc: { aucune: false, liste: [{ marque: 'Marque concurrente A', m: 2 }, { marque: 'Marque concurrente B', m: 1.5 }] },
     pem: o.pem ? { realisee: false, raison: o.pem } : { realisee: true, raison: '' }, cmd: o.cmd || null };
 }
 
@@ -671,7 +673,7 @@ function pageAccueil() {
     return `<div class="carte" data-act="ouvrir-etape" data-id="${e.id}"><div class="ligne"><div class="rond ${e.fait ? 'fait' : ''}">${e.fait ? '✓' : '🕒'}</div><div style="flex:1"><h4>${esc(e.titre)}</h4><p>${esc(det)}</p></div><span class="pastille ${e.fait ? 'p-vert' : 'p-gris'}">${e.fait ? 'Fait' : 'À venir'}</span></div></div>`;
   };
   return `<div class="entete">${bandeauBonjour(`${ROLES[ROLE].label} · mer. 4 nov.`)}${selecteur('pilot')}
-    <div class="tuiles"><div class="tuile"><small>RDV du jour</small><b>${faites}/${lignes.length}</b></div>${ROLE === 'cs' ? `<div class="tuile" data-act="onglet" data-i="2" style="cursor:pointer"><small>Prospects</small><b>${S.prospects.length}</b></div>` : ''}${(() => { const t = totalEq(ROLE === 'dir' ? ['n', 'k', 's'] : ['n']); return `<div class="tuile" style="flex:2"><small>Objectif du mois${ROLE === 'dir' ? ' · région' : ''}</small><b style="font-size:${ROLE === 'cs' ? 16 : 19}px;white-space:nowrap">${eur(t.real)} <span style="font-size:${ROLE === 'cs' ? 11 : 13}px;opacity:.7;font-weight:600">/ ${eur(t.cible)}</span></b>${barreEur(t.real, t.cible)}</div>`; })()}</div></div>
+    <div class="tuiles"><div class="tuile"><small>RDV du jour</small><b>${faites}/${lignes.length}</b></div>${ROLE === 'cs' ? `<div class="tuile" data-act="onglet" data-i="2" style="cursor:pointer"><small>Prospects</small><b>${S.prospects.length}</b></div>` : ''}${(() => { const t = totalEq(ROLE === 'dir' ? ['n', 'k', 's'] : ['n']); return `<div class="tuile" style="flex:2"><small>CA / objectif${ROLE === 'dir' ? ' · région' : ' du mois'}</small><b style="font-size:${ROLE === 'cs' ? 16 : 19}px;white-space:nowrap">${eur(t.real)} <span style="font-size:${ROLE === 'cs' ? 11 : 13}px;opacity:.7;font-weight:600">/ ${eur(t.cible)}</span></b>${barreEur(t.real, t.cible)}</div>`; })()}</div></div>
     <div class="corps">${ROLE === 'cs' ? blocProspectsCS() : ''}<div class="titre-ligne"><h2>Ma tournée du jour</h2><button class="lien" data-act="onglet" data-i="3">Voir mon planning</button></div>
     ${lignes.length ? lignes.map(carte).join('') : '<div class="vide">Aucune étape aujourd\'hui. Ajoutez un RDV ci-dessous.</div>'}</div>`;
 }
@@ -685,22 +687,22 @@ function pageMagasins() {
 }
 
 function pageProspects() {
-  const dir = ROLE === 'dir', mes = (p) => p.tl.some((e) => (e.s || '').includes('par ' + ROLES.dir.nom));
-  const baseVue = S.prospects.filter((p) => (!dir || S.vue !== 'liste' || mes(p)) && (!dir || S.vue !== 'tous' || !S.pvCs.length || S.pvCs.includes(p.cs)));
+  const dirR = ROLE === 'dir', dir = ROLE === 'dir' || ROLE === 'cs', mes = (p) => p.tl.some((e) => (e.s || '').includes('par ' + ROLES[ROLE].nom));
+  const baseVue = S.prospects.filter((p) => (!dir || S.vue !== 'liste' || mes(p)) && (!dirR || S.vue !== 'tous' || !S.pvCs.length || S.pvCs.includes(p.cs)));
   const g = (n) => baseVue.filter((p) => groupe(p.statut) === n).length;
   const total = baseVue.reduce((s, p) => s + p.pot, 0);
   const liste = baseVue.filter((p) => !S.filtre || groupe(p.statut) === S.filtre).sort((a, b) => b.pot - a.pot);
-  const carte = (p) => `<div class="carte" data-act="fiche-prospect" data-id="${p.id}"><div class="ligne"><div style="flex:1"><h4>${esc(p.nom)}</h4><p>Classe ${p.classe}${ROLE === 'dir' && p.cs ? ' · ' + esc(p.cs) : ''}</p></div><span class="pastille ${classePast(groupe(p.statut))}">${groupe(p.statut)}</span></div>
+  const carte = (p) => `<div class="carte" data-act="fiche-prospect" data-id="${p.id}"><div class="ligne"><div style="flex:1"><h4>${esc(p.nom)}</h4><p>Classe ${p.classe}${dir && S.vue === 'tous' && p.cs ? ' · ' + esc(p.cs) : ''}</p></div><span class="pastille ${classePast(groupe(p.statut))}">${groupe(p.statut)}</span></div>
     <div style="display:flex;justify-content:space-between;margin-top:8px;font-size:13px"><span><span style="color:var(--muted)">Potentiel </span><b>${kf(p.pot)} k€/an</b></span>${prochaineAction(p)}</div>${p.attente ? '<div class="en-attente">📤 En attente d\'envoi</div>' : ''}</div>`;
   let corps;
   if (S.vue === 'pipeline') {
     corps = ['À contacter', 'RDV pris', 'En négo', 'Référencé'].map((n) => { const l = liste.filter((p) => groupe(p.statut) === n); return l.length ? `<div style="display:flex;justify-content:space-between;margin:6px 2px 8px;font-weight:800;font-size:14px"><span>${n}</span><span style="color:var(--muted)">${l.length}</span></div>${l.map(carte).join('')}` : ''; }).join('');
   } else corps = liste.map(carte).join('');
-  const segDir = `<div class="seg"><button class="${S.vue === 'liste' ? 'on' : ''}" data-act="vue" data-v="liste">☰ Mes prospects</button><button class="${S.vue === 'tous' ? 'on' : ''}" data-act="vue" data-v="tous">👥 Tous les prospects</button></div>${S.vue === 'tous' ? `<div class="barre-rech" style="margin-top:10px"><div class="selecteur" style="flex:1;box-shadow:none" data-act="pv-filtres"><span>${S.pvCs.length ? S.pvCs.join(', ') : 'Tous les chefs de secteur'}${S.filtre ? ' · ' + S.filtre : ''}</span><span>▾</span></div><button class="btn-filtre" data-act="pv-filtres" aria-label="Filtres">${ICONES.filtre}${S.pvCs.length || S.filtre ? `<i>${(S.pvCs.length ? 1 : 0) + (S.filtre ? 1 : 0)}</i>` : ''}</button></div>` : ''}`;
-  return `<div class="entete"><h1>${dir ? 'Prospects' : 'Mes prospects'}</h1><div class="sous">${baseVue.length} point${baseVue.length > 1 ? 's' : ''} de vente · potentiel ${kf(Math.round(total * 10) / 10)} k€/an</div>
+  const segDir = `<div class="seg"><button class="${S.vue === 'liste' ? 'on' : ''}" data-act="vue" data-v="liste">☰ Mes prospects</button><button class="${S.vue === 'tous' ? 'on' : ''}" data-act="vue" data-v="tous">👥 ${dirR ? 'Tous les prospects' : 'Tout le secteur'}</button></div>${S.vue === 'tous' && dirR ? `<div class="barre-rech" style="margin-top:10px"><div class="selecteur" style="flex:1;box-shadow:none" data-act="pv-filtres"><span>${S.pvCs.length ? S.pvCs.join(', ') : 'Tous les chefs de secteur'}${S.filtre ? ' · ' + S.filtre : ''}</span><span>▾</span></div><button class="btn-filtre" data-act="pv-filtres" aria-label="Filtres">${ICONES.filtre}${S.pvCs.length || S.filtre ? `<i>${(S.pvCs.length ? 1 : 0) + (S.filtre ? 1 : 0)}</i>` : ''}</button></div>` : ''}`;
+  return `<div class="entete"><h1>${dirR ? 'Prospects' : 'Mes prospects'}</h1><div class="sous">${baseVue.length} point${baseVue.length > 1 ? 's' : ''} de vente · potentiel ${kf(Math.round(total * 10) / 10)} k€/an</div>
     <div class="tuiles">${['À contacter', 'RDV pris', 'En négo', 'Référencé'].map((n) => `<button class="tuile c ${S.filtre === n ? 'on' : ''}" data-act="filtre" data-n="${n}"><b data-cnt="${g(n)}" data-cle="pv-${n}">${g(n)}</b><small>${n}</small></button>`).join('')}</div></div>
     <div class="corps">${dir ? segDir : `<div class="seg"><button class="${S.vue === 'liste' ? 'on' : ''}" data-act="vue" data-v="liste">☰ Mes prospects</button><button class="${S.vue === 'pipeline' ? 'on' : ''}" data-act="vue" data-v="pipeline">▥ Timeline</button></div>`}
-    <div class="titre-ligne"><h2>${dir ? (S.vue === 'tous' ? 'Tous les prospects' : 'Mes prospects') : S.vue === 'pipeline' ? 'Timeline' : 'Mes prospects'}</h2><span style="color:var(--muted);font-size:13px">${dir && S.vue === 'tous' ? 'Trié par potentiel' : S.vue === 'pipeline' ? 'Par étape' : 'Trié par potentiel'}</span></div>
+    <div class="titre-ligne"><h2>${dir ? (S.vue === 'tous' ? (dirR ? 'Tous les prospects' : 'Mon secteur') : 'Mes prospects') : S.vue === 'pipeline' ? 'Timeline' : 'Mes prospects'}</h2><span style="color:var(--muted);font-size:13px">${dir && S.vue === 'tous' ? 'Trié par potentiel' : S.vue === 'pipeline' ? 'Par étape' : 'Trié par potentiel'}</span></div>
     ${corps || '<div class="vide">Aucun prospect dans cette colonne.</div>'}</div>`;
 }
 function prochaineAction(p) {
@@ -767,7 +769,7 @@ function salesEquipe() {
   }
   const tot = totalEq(EQUIPE_CS.map((c) => c.id));
   return `${enteteSales('Mon équipe', EQUIPE_CS.length + ' chefs de secteur · ' + nbPromos() + ' promoteurs')}
-    <div class="corps">${carteObjectif('Objectif en cours · ma région', tot)}<div style="height:12px"></div>
+    <div class="corps">${carteObjectif('CA / objectif · ma région', tot)}<div style="height:12px"></div>
     <div class="titre-ligne"><h2 style="font-size:18px">Chefs de secteur</h2></div>
     ${EQUIPE_CS.map((c) => { const r = resumeCS(c); return `<div class="carte" data-act="equipe-cs" data-id="${c.id}"><div class="ligne" style="align-items:center"><div class="avatar" style="background:#E7E0F7;border-color:#E7E0F7;color:var(--violet);width:42px;height:42px">${c.ini}</div><div style="flex:1;min-width:0"><h4>${c.nom}</h4><p>Secteur ${c.sec} · ${r.eq.length} promoteurs</p></div><span style="color:var(--muted);font-size:20px">›</span></div>
       <div style="display:flex;justify-content:space-between;font-size:12.5px;margin-top:10px"><span><b>${r.v}/${r.p}</b> visites</span><span><b style="color:${couleurObj(r.pct)}">${eur(r.t.real)}</b> <span style="color:var(--muted)">sur ${eur(r.t.cible)}</span></span></div>${barreEur(r.t.real, r.t.cible)}</div>`; }).join('')}
@@ -848,7 +850,7 @@ function pageCS(c) {
   const visitesCS = act.visites.map(carteVisiteRO).join('');
   const commandesCS = act.cmds.map(carteCmdRO).join('');
   const activite = `<div class="kpi"><div><small>Visites équipe</small><b>${r.v}/${r.p}</b></div></div>
-      ${carteObjectif('Objectif en cours · ' + c.sec, obj)}
+      ${carteObjectif('CA / objectif · ' + c.sec, obj)}
       <div class="titre-ligne" style="margin-top:18px"><h2 style="font-size:18px">Rapports d'activité</h2><button class="btn-filtre" style="width:40px;height:40px;border-radius:13px" data-act="cs-filtres" aria-label="Filtres">${ICONES.filtre}${(S.csFiltre || 'toutes') !== 'toutes' ? '<i>1</i>' : ''}</button></div>
       ${semainesFiltrees(c).map((w) => `<div class="carte" data-act="cs-semaine" data-id="${c.id}" data-n="${w.n}"><div class="rap-h"><div><h4>Semaine ${w.n}${w.enCours ? ' · en cours' : ''}</h4><p>${w.p}</p></div><span class="pastille ${w.enCours ? 'p-jaune' : 'p-gris'}">${w.enCours ? 'En cours' : 'Validé auto'}</span></div>
         ${w.nonRenseignee ? '<div class="pied" style="margin-top:8px">Prévision non renseignée : pas de comparaison</div>' : `<div class="chiffres" style="margin-top:8px"><span><b>${w.pct} %</b> du prévu</span><span>${resumeEcarts(w.ecarts)}</span></div>`}</div>`).join('') || '<div class="vide">Aucune semaine pour ce filtre.</div>'}
@@ -1122,7 +1124,7 @@ function salesAccueilCS() {
   const livs = commandesVisibles().filter((c) => c.st !== 'LIVREE').sort((a, b) => ordreLiv[a.st] - ordreLiv[b.st]);
   return `<div class="entete sales">${bandeauBonjour(`${ROLES[ROLE].label} · mer. 4 nov.`)}${selecteur('sales')}
     <div class="tuiles"><div class="tuile"><small>Visites équipe</small><b>${somme((p) => p.v)}<span style="font-size:14px;opacity:.75"> / ${somme((p) => p.p)}</span></b></div></div></div>
-    <div class="corps">${carteObjectif('Objectif en cours · mon secteur', tot)}<div style="height:12px"></div>${blocLivraisons(livs)}<div class="titre-ligne" style="margin-top:0"><h2 style="font-size:18px">Résumé de mon équipe</h2></div>
+    <div class="corps">${carteObjectif('CA / objectif · mon secteur', tot)}<div style="height:12px"></div>${blocLivraisons(livs)}<div class="titre-ligne" style="margin-top:0"><h2 style="font-size:18px">Résumé de mon équipe</h2></div>
     ${eq.map((p) => ligneProm(p, 'n', true)).join('')}</div>`;
 }
 function salesAccueil() {
@@ -1140,8 +1142,8 @@ function salesAccueil() {
       ${actif || demarrer ? `<div style="padding:0 12px 12px"><button class="btn sm plein sales" data-act="v-ouvrir" data-m="${t.m}">${actif ? 'Reprendre la visite' : 'Démarrer la visite'}</button></div>` : ''}</div>`;
   }).join('');
   return `<div class="entete sales">${bandeauBonjour(`${ROLES[ROLE].label} · mer. 4 nov.`)}${selecteur('sales')}
-    <div class="tuiles"><div class="tuile"><small>Visites</small><b>${realisees}<span style="font-size:14px;opacity:.75"> / ${S.tourneeSales.length}</span></b></div>${ROLE === 'dir' ? '' : `<div class="tuile" style="flex:2"><small>Objectif du mois</small><b style="font-size:19px">${eur(OBJ_EUR[ROLES[ROLE].nom][0])} <span style="font-size:13px;opacity:.7;font-weight:600">/ ${eur(OBJ_EUR[ROLES[ROLE].nom][1])}</span></b>${barreEur(OBJ_EUR[ROLES[ROLE].nom][0], OBJ_EUR[ROLES[ROLE].nom][1])}</div>`}</div></div>
-    <div class="corps">${ROLE === 'dir' ? carteObjectif('Objectif en cours · ma région', totalEq(['n', 'k', 's']), EQUIPE_CS.map((c) => ({ nom: c.nom, ...totalEq([c.id]) }))) + '<div style="height:16px"></div>' : ''}${ROLE === 'promoteur' ? '<button class="btn plein sales" style="width:100%;margin-bottom:12px" data-act="cmd-nouvelle">＋ Nouvelle commande</button>' : ''}${blocLivraisons(livs)}<div class="titre-ligne" style="margin-top:0px"><h2 style="font-size:18px">Ma tournée du jour</h2></div>${items}
+    <div class="tuiles"><div class="tuile"><small>Visites</small><b>${realisees}<span style="font-size:14px;opacity:.75"> / ${S.tourneeSales.length}</span></b></div>${ROLE === 'dir' ? '' : `<div class="tuile" style="flex:2"><small>CA / objectif du mois</small><b style="font-size:19px">${eur(OBJ_EUR[ROLES[ROLE].nom][0])} <span style="font-size:13px;opacity:.7;font-weight:600">/ ${eur(OBJ_EUR[ROLES[ROLE].nom][1])}</span></b>${barreEur(OBJ_EUR[ROLES[ROLE].nom][0], OBJ_EUR[ROLES[ROLE].nom][1])}</div>`}</div></div>
+    <div class="corps">${ROLE === 'dir' ? carteObjectif('CA / objectif · ma région', totalEq(['n', 'k', 's']), EQUIPE_CS.map((c) => ({ nom: c.nom, ...totalEq([c.id]) }))) + '<div style="height:16px"></div>' : ''}${ROLE === 'promoteur' ? '<button class="btn plein sales" style="width:100%;margin-bottom:12px" data-act="cmd-nouvelle">＋ Nouvelle commande</button>' : ''}${blocLivraisons(livs)}<div class="titre-ligne" style="margin-top:0px"><h2 style="font-size:18px">Ma tournée du jour</h2></div>${items}
     ${brouillons.length ? `<div class="titre-ligne" style="margin-top:18px"><h2 style="font-size:16px">Brouillons</h2></div>${brouillons.map((v) => `<div class="carte" data-act="v-ouvrir-id" data-id="${v.id}"><h4>${esc(getM(v.m).nom)}</h4><p>Visite en cours · brouillon sur ce téléphone</p></div>`).join('')}` : ''}</div>`;
 }
 
@@ -1252,7 +1254,7 @@ function visiteEtapes(d) {
   const ed = d.etat === 'brouillon', faites = ETAPES_DPH.filter(([k]) => etapeFaite(d, k)).length, courante = ETAPES_DPH.findIndex(([k]) => !etapeFaite(d, k));
   const ligne = ([k, l], i) => {
     const photo = PHOTO_CLES.includes(k), fait = etapeFaite(d, k);
-    const detail = fait ? `${d.chrono[k]}${k === 'dn' && d.kits.length ? ` · ${d.kits.length} kit${d.kits.length > 1 ? 's' : ''}` : ''}${photo ? ` · ${d.photos[k]} photo${d.photos[k] > 1 ? 's' : ''}` : ''}` : (i === courante ? 'À faire maintenant' : '');
+    const detail = fait ? `${d.chrono[k]}${k === 'dn' && d.kits.length ? ` · ${d.kits.length} kit${d.kits.length > 1 ? 's' : ''}` : ''}${k === 'concurrence' ? (d.conc.aucune ? ' · aucune marque' : ` · ${d.conc.liste.length} marque${d.conc.liste.length > 1 ? 's' : ''}`) : ''}${photo ? ` · ${d.photos[k]} photo${d.photos[k] > 1 ? 's' : ''}` : ''}` : (i === courante ? 'À faire maintenant' : '');
     return `<div class="ligne ve" ${ed && k !== 'debut' ? `data-act="v-etape" data-k="${k}"` : ''} style="${i ? 'border-top:1px solid var(--ligne)' : ''}"><div class="vnum ${fait ? 'ok' : i === courante ? 'cur' : ''}">${fait ? '✓' : i + 1}</div><div style="flex:1"><b style="font-size:14.5px">${l}</b>${detail ? `<div style="font-size:12px;color:var(--muted)">${detail}</div>` : ''}</div>${ed && k !== 'debut' ? `<span style="color:var(--bleu);font-weight:700;font-size:13px">${photo ? '＋ Photo' : fait ? 'Modifier' : 'Saisir'}</span>` : ''}</div>`;
   };
   const pem = d.pem;
@@ -1277,11 +1279,25 @@ function visiteSaisie(d, k) {
        ${d.kits.map((c) => { const k = kitDe(c), v = d.dn[c] ?? 0; return `<div class="carte statique" style="margin-top:12px"><div class="ligne" style="align-items:center"><div style="flex:1;min-width:0;cursor:pointer" data-act="kit-detail" data-c="${c}"><h4>${esc(k.nom)} <span style="color:var(--bleu);font-weight:600">›</span></h4><p>${k.marque ? esc(k.marque) + ' · ' : ''}Réf. ${k.code}</p></div><b data-act="kit-retire" data-c="${c}" style="cursor:pointer;color:var(--muted);padding:4px">✕</b></div>
        </div>`; }).join('')}
        ${d.kits.length ? '' : '<div class="vide" style="margin-top:12px">Aucun kit sélectionné : choisissez les kits constatés en rayon, pour la distribution numérique.</div>'}`
+    : k === 'bilan'
+    ? (() => { const m = getM(d.m), o = objMag(m), pct = Math.round(o.ca / o.obj * 100), ligne = (a, b) => `<div class="ch"><span style="color:var(--muted)">${a}</span><b style="text-align:right">${b}</b></div>`;
+      return `<div class="np-section" style="color:var(--bleu);margin-top:0">RÉSUMÉ DES RÉSULTATS</div>
+       ${ligne('Distribution numérique', d.kits.length + ' kit' + (d.kits.length > 1 ? 's' : '') + ' vérifié' + (d.kits.length > 1 ? 's' : ''))}${ligne('Concurrence', d.conc.aucune || !d.conc.liste.length ? 'Aucune marque' : d.conc.liste.length + ' marque' + (d.conc.liste.length > 1 ? 's' : '') + ' · ' + String(d.conc.liste.reduce((a, c) => a + c.m, 0)).replace('.', ',') + ' m')}${ligne('Promotions', d.promos.ok === 'oui' ? 'Conformes' : 'Non conformes')}${ligne('Photos', PHOTO_CLES.reduce((a, c) => a + d.photos[c], 0))}${ligne('Visite PEM', d.pem.realisee ? 'Réalisée' : 'Non réalisée')}
+       <div class="np-section" style="color:var(--bleu)">OBJECTIFS DU MAGASIN</div>
+       ${ligne('CA / objectif du mois', o.ca.toLocaleString('fr-FR') + ' € / ' + o.obj.toLocaleString('fr-FR') + ' € (' + pct + ' %)')}${ligne('OP en cours', o.ops.filter((x) => x[3] === 'En cours').length)}
+       <div class="qrow" style="margin-top:12px"><span>Je valide les objectifs et le bilan de cette visite</span><button class="sw ${d.bilan.ok ? 'on' : ''}" data-act="v-bilan"><i></i></button></div>
+       <div class="champ"><label>Commentaire (facultatif)</label><textarea data-bind="bilan.note" placeholder="Ex. objectif atteint grâce à la PEM">${esc(d.bilan.note)}</textarea></div>`; })()
+    : k === 'concurrence'
+    ? `<div class="np-section" style="color:var(--bleu);margin-top:0">MARQUES ET MÉTRAGES CONCURRENTS</div>
+       <div class="qrow"><span>Aucune marque concurrente en rayon</span><button class="sw ${d.conc.aucune ? 'on' : ''}" data-act="conc-aucune"><i></i></button></div>
+       ${d.conc.aucune ? '' : `${d.conc.liste.map((c, i) => `<div class="carte statique" style="margin-top:12px"><div class="ligne" style="align-items:center"><div style="flex:1;min-width:0"><h4>${esc(c.marque)}</h4><p>${String(c.m).replace('.', ',')} m linéaire</p></div><b data-act="conc-retire" data-i="${i}" style="cursor:pointer;color:var(--muted);padding:4px">✕</b></div></div>`).join('')}
+       <div class="carte statique" style="margin-top:12px"><div class="champ"><label>Marque concurrente</label><input id="conc-marque" placeholder="Ex. nom de la marque"></div><div class="champ"><label>Métrage (mètres linéaires)</label><input id="conc-m" inputmode="decimal" placeholder="Ex. 1,5"></div><button class="btn sm plein sales" data-act="conc-ajouter">＋ Ajouter cette marque</button></div>
+       ${d.conc.liste.length ? '' : '<div class="vide" style="margin-top:12px">Aucune marque saisie : ajoutez les marques concurrentes et leur métrage, ou cochez « Aucune marque concurrente ».</div>'}`}`
     : `<div class="qrow"><span>Les promotions sont en place et conformes</span><button class="sw ${d.promos.ok === 'oui' ? 'on' : ''}" data-act="v-promo" data-v="${d.promos.ok === 'oui' ? 'non' : 'oui'}"><i></i></button></div>
        <div class="champ"><label>Remarque (facultatif)</label><textarea data-bind="promos.note" placeholder="Ex. tête de gondole non refaite">${esc(d.promos.note)}</textarea></div>`;
   return {
     page: `<div class="topbar" style="background:#fff;border-bottom:1px solid var(--ligne)"><button class="retour sombre" data-act="retour">←</button><div style="flex:1;min-width:0"><b style="font-size:16px">${titre}</b><small>${esc(getM(d.m).nom)}</small></div></div><div class="corps">${corps}</div>`,
-    bas: `<div class="bas" style="background:#fff"><button class="btn plein sales" data-act="v-etape-ok" data-k="${k}">✓ Enregistrer ${k === 'dn' ? 'la vérification DN' : 'la vérification Promos'}</button></div>`,
+    bas: `<div class="bas" style="background:#fff"><button class="btn plein sales" data-act="v-etape-ok" data-k="${k}">✓ Enregistrer ${k === 'dn' ? 'la vérification DN' : k === 'concurrence' ? 'la concurrence' : k === 'bilan' ? 'le bilan de visite' : 'la vérification Promos'}</button></div>`,
   };
 }
 
@@ -1301,6 +1317,7 @@ function compteRendu(d) {
       ${d.cmd ? lig('Commande', `#${d.cmd.id} : ${d.cmd.ht} - ${d.cmd.liv}`) : '<div class="ch"><span style="color:var(--muted)">Aucune commande liée</span></div>'}
       ${d.pem.realisee ? '' : `<div class="np-section" style="color:var(--bleu)">VISITE PEM</div>${lig('Pas de visite PEM car', esc(d.pem.raison))}`}
       ${d.kits && d.kits.length ? `<div class="np-section" style="color:var(--bleu)">DISTRIBUTION NUMÉRIQUE PAR KIT</div>${d.kits.map((c) => `<div class="ch" data-act="kit-detail" data-c="${c}" style="cursor:pointer"><span>${esc(nomKit(c))} <span style="color:var(--bleu)">›</span></span><b style="color:var(--ok)">✓</b></div>`).join('')}` : ''}
+      <div class="np-section" style="color:var(--bleu)">CONCURRENCE</div>${d.conc.aucune || !d.conc.liste.length ? '<div class="ch"><span style="color:var(--muted)">Aucune marque concurrente en rayon</span></div>' : d.conc.liste.map((c) => lig(esc(c.marque), String(c.m).replace('.', ',') + ' m')).join('')}
       <div class="np-section" style="color:var(--bleu)">TIMING DE VISITE</div>
       ${ETAPES_DPH.map(([k, l]) => `<div class="ecart"><span class="ecart-ic" style="background:#DDF5E6;color:#166534">✓</span><div style="flex:1"><b>${l}</b><small>${d.chrono[k]}</small></div></div>`).join('')}
       ${d.etat === 'brouillon' ? '' : `<div class="pied" style="margin-top:10px">${d.propre === false || d.par !== ROLES[ROLE].nom ? 'Lecture seule : cette visite n\'est pas la vôtre.' : 'Visite validée : elle n\'est plus modifiable.'}</div>`}</div>`,
@@ -1446,7 +1463,7 @@ function startVisite(mId) {
   let d = S.visites.find((v) => v.m === mId && v.etat === 'brouillon');
   if (!d) {
     d = { id: 'd' + (S.visites.length + 1) + Math.random().toString(36).slice(2, 5), num: NUM_VISITE++, m: mId, par: ROLES[ROLE].nom, etat: 'brouillon', date: '4 nov. 14:23', age: 0, chrono: { debut: stampDe(4, 'nov', 14, 23) },
-      photos: { arrivee: 0, rayonArrivee: 0, face: 0, rayonFin: 0 }, dn: {}, kits: [], promos: { ok: '', note: '' }, pem: { realisee: null, raison: '' }, cmd: null, recu: null };
+      photos: { arrivee: 0, rayonArrivee: 0, face: 0, rayonFin: 0 }, dn: {}, kits: [], promos: { ok: '', note: '' }, conc: { aucune: false, liste: [] }, bilan: { ok: false, note: '' }, pem: { realisee: null, raison: '' }, cmd: null, recu: null };
     S.min = 0;
     S.visites.unshift(d);
   }
@@ -1496,9 +1513,11 @@ const SA = {
   'v-etape-ok'(d) {
     const v = getV(S.pile.at(-1).id), k = d.k;
     if (k === 'dn' && !v.kits.length) return toast('Sélectionnez au moins un kit pour la vérification DN.');
+    if (k === 'concurrence' && !v.conc.aucune && !v.conc.liste.length) return toast('Ajoutez au moins une marque concurrente, ou cochez « Aucune marque concurrente ».');
+    if (k === 'bilan' && !v.bilan.ok) return toast('Validez les objectifs pour enregistrer le bilan.');
     if (k === 'promos' && !v.promos.ok) return toast('Indiquez si les promotions sont conformes.');
     if (!v.chrono[k]) v.chrono[k] = horloge();
-    S.pile.pop(); toast(k === 'dn' ? 'Vérification DN enregistrée.' : 'Vérification Promos enregistrée.');
+    S.pile.pop(); toast(k === 'dn' ? 'Vérification DN enregistrée.' : k === 'bilan' ? 'Bilan de visite enregistré.' : k === 'concurrence' ? 'Concurrence enregistrée.' : 'Vérification Promos enregistrée.');
   },
   'km-plus-tard'() { S.modale = null; render(); },
   'km-ok'(d) {
@@ -1513,6 +1532,15 @@ const SA = {
   'kit-toggle'(d) { const v = getV(S.modale.id); if (v.kits.includes(d.c)) { v.kits = v.kits.filter((x) => x !== d.c); delete v.dn[d.c]; } else { v.kits = [...v.kits, d.c]; v.dn[d.c] = 0; } render(); },
   'kit-vider'() { const v = getV(S.modale.id); v.kits = []; v.dn = {}; render(); },
   'kit-retire'(d) { const v = getV(S.pile.at(-1).id); v.kits = v.kits.filter((x) => x !== d.c); delete v.dn[d.c]; render(); },
+  'conc-aucune'() { const c = getV(S.pile.at(-1).id).conc; c.aucune = !c.aucune; if (c.aucune) c.liste = []; render(); },
+  'conc-retire'(d) { getV(S.pile.at(-1).id).conc.liste.splice(Number(d.i), 1); render(); },
+  'conc-ajouter'() {
+    const c = getV(S.pile.at(-1).id).conc, marque = document.getElementById('conc-marque').value.trim(), m = parseFloat(document.getElementById('conc-m').value.replace(',', '.'));
+    if (!marque) return toast('Indiquez la marque concurrente.');
+    if (!(m > 0)) return toast('Indiquez le métrage en mètres (ex. 1,5).');
+    c.liste.push({ marque, m }); render();
+  },
+  'v-bilan'() { const b = getV(S.pile.at(-1).id).bilan; b.ok = !b.ok; render(); },
   'v-promo'(d) { getV(S.pile.at(-1).id).promos.ok = d.v; render(); },
   'v-pem'(d) { const v = getV(S.pile.at(-1).id); v.pem.realisee = d.v === 'oui'; if (v.pem.realisee) v.pem.raison = ''; render(); },
   'v-raison'(d) { getV(S.pile.at(-1).id).pem.raison = d.r; render(); },
@@ -1703,7 +1731,7 @@ function ecranPile(h) {
 const actionsSales = () => `<div class="actions"><button data-act="appeler">${ICONES.tel}Appeler</button><button data-act="envoyer-mail">${ICONES.mail}Mail</button><button data-act="itineraire">${ICONES.nav}Itinéraire</button><button data-act="v-ouvrir-mag" class="plein">＋ Visite</button></div>`;
 /** Fiche client côté Direction (chef de secteur, directeur) : Visite et Commande à côté d'Itinéraire. */
 const actionsClientDir = () => `<div class="actions six"><button data-act="appeler">${ICONES.tel}Appeler</button><button data-act="envoyer-mail">${ICONES.mail}Mail</button><button data-act="planifier">${ICONES.cal}Planifier</button><button data-act="v-ouvrir-mag">${ICONES.pin}Visite</button><button data-act="cmd-client">${ICONES.doc}Commande</button><button data-act="itineraire">${ICONES.nav}Itinéraire</button></div>`;
-const actionsEntete = (nom) => `<div class="actions"><button data-act="appeler">${ICONES.tel}Appeler</button><button data-act="itineraire">${ICONES.nav}Itinéraire</button><button data-act="planifier">${ICONES.cal}Planifier</button><button data-act="note">${ICONES.note}Note</button></div>`;
+const actionsEntete = (nom) => `<div class="actions six"><button data-act="appeler">${ICONES.tel}Appeler</button><button data-act="envoyer-mail">${ICONES.mail}Mail</button><button data-act="itineraire">${ICONES.nav}Itinéraire</button><button data-act="planifier">${ICONES.cal}Planifier</button><button data-act="note">${ICONES.note}Note</button></div>`;
 
 /** Magasins de la même enseigne renvoyés par l'API : client, prospect, ou « À prospecter » (ni client ni prospect). Liste d'exemple. */
 const VILLES_A_PROSPECTER = [['Le Havre', '76600'], ['Dieppe', '76200'], ['Pont-Audemer', '27500'], ['Saint-Lô', '50000'], ['Bayeux', '14400'], ['Fécamp', '76400']];
@@ -1742,6 +1770,17 @@ function fichePros(p) {
   };
 }
 
+/** Objectifs et opérations promotionnelles (OP) d'un magasin : CA du mois / objectif, visites, OP en cours. Données de démonstration, stables par magasin. */
+function objMag(m) {
+  const n = [...String(m.id)].reduce((a, c) => a + c.charCodeAt(0), 0), obj = 3000 + (n % 9) * 450, ca = Math.round(obj * (0.55 + (n % 7) * 0.08) / 10) * 10;
+  const ops = [['Remise -20 % gamme soin', '2 nov.', '15 nov.', 'En cours'], ['Tête de gondole PEM Noël', '16 nov.', '6 déc.', 'À venir'], ['2 achetés = 1 offert maquillage', '1 oct.', '31 oct.', 'Terminée']].filter((_, i) => (n + i) % 3 !== 0 || i === 0);
+  return { ca, obj, ops };
+}
+const blocObjMag = (m) => {
+  const o = objMag(m), pct = Math.min(100, Math.round(o.ca / o.obj * 100)), eur = (v) => v.toLocaleString('fr-FR').replace(/ /g, ' ') + ' €', col = { 'En cours': 'p-vert', 'À venir': 'p-bleu', 'Terminée': 'p-gris' };
+  return `<div class="carte statique" style="margin-bottom:12px"><div style="display:flex;justify-content:space-between;font-size:12px;color:var(--muted)"><span>CA / objectif du mois</span><b style="color:inherit">${pct} %</b></div><div style="font-size:18px;font-weight:800;margin:4px 0 8px">${eur(o.ca)} / ${eur(o.obj)}</div><div class="barre"><span style="width:${pct}%"></span></div>
+    <div style="font-size:12px;color:var(--muted);margin:14px 0 6px">Opérations promotionnelles (OP)</div>${o.ops.map(([nom, du, au, st]) => `<div class="ecart"><div style="flex:1;min-width:0"><b>${nom}</b><small>${du} → ${au}</small></div><span class="pastille ${col[st]}">${st}</span></div>`).join('')}</div>`;
+};
 /** Commandes d'un client, les plus récentes d'abord, et leur statut de livraison (livrée / pas livrée). */
 const cmdsClient = (mId) => COMMANDES.filter((c) => c.m === mId).sort((a, b) => b.id.localeCompare(a.id));
 const pastilleLiv = (c) => `<span class="pastille ${STATUTS_LIV[c.st].cl}">${STATUTS_LIV[c.st].lib}</span>`;
@@ -1758,7 +1797,7 @@ function ficheMag(m) {
     page: `<div class="entete ${S.espace === 'sales' ? 'sales' : ''}"><div style="display:flex;justify-content:space-between;align-items:center"><button class="retour" data-act="retour">←</button><span class="badge">${esc(m.statut)}</span></div>
       <h1 style="margin-top:14px;line-height:1.15">${esc(m.nom)}</h1><div class="sous">Classe ${m.classe} · ${esc(m.adresse)}</div>${S.espace === 'sales' ? actionsSales() : actionsClientDir()}</div>
       <div class="corps"><div class="kpi"><div><small>CA 12 mois</small><b>${m.ca}</b><i>${m.evo}</i></div><div><small>Dernière cde</small><b>${m.cde}</b><small>${m.cdeDate}</small></div><div><small>Visites / mois</small><b>${m.visites}</b><small>obj. ${m.objectif}</small></div></div>
-      <div class="onglets">${(S.espace === 'sales' ? ['Aperçu', 'Contacts', 'Commandes', 'Notes'] : ['Suivi', 'Commandes', 'Contacts', 'Infos']).map((o) => `<button class="${onglet === o ? 'on' : ''}" data-act="onglet-mag" data-o="${o}">${o}</button>`).join('')}</div><div class="tl">${corps}</div></div>`,
+      ${blocObjMag(m)}<div class="onglets">${(S.espace === 'sales' ? ['Aperçu', 'Contacts', 'Commandes', 'Notes'] : ['Suivi', 'Commandes', 'Contacts', 'Infos']).map((o) => `<button class="${onglet === o ? 'on' : ''}" data-act="onglet-mag" data-o="${o}">${o}</button>`).join('')}</div><div class="tl">${corps}</div></div>`,
     bas: S.espace === 'sales' ? `<div class="bas"><button class="btn tonal" data-act="note">Ajouter une note</button><button class="btn plein sales" data-act="v-ouvrir" data-m="${m.id}">Démarrer une visite</button></div>` : `<div class="bas"><button class="btn tonal" data-act="note">Ajouter une note</button><button class="btn plein" data-act="planifier">Planifier une visite</button></div>`,
   };
 }
@@ -1888,8 +1927,8 @@ function formulaire(m) {
     ${cible === 'libre' ? `<div class="champ"><label>Client ou lieu</label><input id="f-libelle" value="${esc(f.libelle || '')}" placeholder="ex. Chez Marcel"></div>` : ''}
     ${cible !== 'adm' && !f.depuisFiche ? `<div class="champ"><label>Adresse (facultatif)</label><input id="f-adresse" value="${esc(f.adresse || '')}"></div>` : ''}
     <div class="rangee"><div class="champ"><label>Jour</label><select id="f-jour">${JOURS.map((j, i) => `<option value="${i}" ${f.jour === i ? 'selected' : ''}>${j} ${i + 2} nov.</option>`).join('')}</select></div><div class="champ"><label>Heure</label><input id="f-heure" type="time" value="${f.heure || ''}"></div></div>
-    ${cible !== 'adm' ? `<div class="cases"><label><input type="checkbox" id="f-visite" ${f.visite ? 'checked' : ''}> Visite simple</label><label><input type="checkbox" id="f-acc" ${f.acc ? 'checked' : ''}> Accompagnement</label><label><input type="checkbox" id="f-rdv" ${f.rdv ? 'checked' : ''}> RDV</label><label><input type="checkbox" id="f-appel" ${f.appel ? 'checked' : ''}> Appel téléphonique</label><label><input type="checkbox" id="f-remp" ${f.remp ? 'checked' : ''}> Visite de remplacement</label><label><input type="checkbox" id="f-soiree" data-act="f-soiree" ${f.soiree ? 'checked' : ''}> Soirée étape</label></div>` : ''}
-    ${f.soiree && cible !== 'adm' ? `<div class="champ"><label>Lieu de la soirée étape (obligatoire)</label><input id="f-slieu" value="${esc(f.soireeLieu || '')}"></div><div class="champ"><label>Adresse de la soirée étape (obligatoire)</label><input id="f-sadr" value="${esc(f.soireeAdr || '')}"></div>` : ''}
+    ${cible !== 'adm' ? `<div class="champ"><label>Type de visite</label><select id="f-type">${[['visite', 'Visite simple'], ['acc', 'Accompagnement'], ['rdv', 'RDV'], ['appel', 'Appel téléphonique'], ['remp', 'Visite de remplacement']].map(([c, l]) => `<option value="${c}" ${(f.remp ? 'remp' : f.appel ? 'appel' : f.acc ? 'acc' : f.rdv ? 'rdv' : 'visite') === c ? 'selected' : ''}>${l}</option>`).join('')}</select></div><div class="cases">${f.depuisFiche ? '' : `<label><input type="checkbox" id="f-soiree" data-act="f-soiree" ${f.soiree ? 'checked' : ''}> Soirée étape</label>`}</div>` : ''}
+    ${f.soiree && !f.depuisFiche && cible !== 'adm' ? `<div class="champ"><label>Lieu de la soirée étape (obligatoire)</label><input id="f-slieu" value="${esc(f.soireeLieu || '')}"></div><div class="champ"><label>Adresse de la soirée étape (obligatoire)</label><input id="f-sadr" value="${esc(f.soireeAdr || '')}"></div>` : ''}
     <div class="champ"><label>Observations</label><textarea id="f-note">${esc(f.note || '')}</textarea></div>
     ${m.edition ? `<div class="cases"><label><input type="checkbox" id="f-fait" ${f.fait ? 'checked' : ''}> Visite effectuée</label></div>` : ''}
     <div class="rangee"><button class="btn sm" data-act="fermer">Annuler</button><button class="btn sm plein" data-act="f-ok">${m.edition ? 'Enregistrer' : 'Ajouter la ligne'}</button></div>
@@ -1905,9 +1944,7 @@ function lireFormulaire() {
   if (v('f-ref')) f.ref = v('f-ref').value;
   if (v('f-libelle')) f.libelle = v('f-libelle').value;
   if (v('f-adresse')) f.adresse = v('f-adresse').value;
-  if (v('f-visite')) { f.visite = v('f-visite').checked; f.acc = v('f-acc').checked; f.rdv = v('f-rdv').checked; f.soiree = v('f-soiree').checked; }
-  if (v('f-appel')) f.appel = v('f-appel').checked;
-  if (v('f-remp')) f.remp = v('f-remp').checked;
+  if (v('f-type')) { const t = v('f-type').value; f.visite = t === 'visite'; f.acc = t === 'acc'; f.rdv = t === 'rdv'; f.appel = t === 'appel'; f.remp = t === 'remp'; f.soiree = v('f-soiree') ? v('f-soiree').checked : false; }
   if (v('f-slieu')) { f.soireeLieu = v('f-slieu').value; f.soireeAdr = v('f-sadr').value; }
   if (v('f-fait')) f.fait = v('f-fait').checked;
 }
@@ -2022,6 +2059,7 @@ Object.assign(SA, {
   'liv-suivre'() { toast('Ouverture du suivi du transporteur (lien externe).'); },
 });
 A.feat = function (d) {
+  if (['conc', 'bilan', 'objop', 'secteur', 'typevisite', 'equipe'].includes(d.f)) return A.featNouv(d);
   S.espace = 'sales'; S.pile = []; S.modale = null; S.plusOuvert = false; S.pick = false; S.focus = null;
   const base = { q: '', etat: 'tous', periode: 'toutes', type: 'tous', portee: ROLE === 'promoteur' ? 'mes' : 'toutes' };
   if (d.f === 'suivi') { S.sOnglet = 2; S.cf = { ...S.cf, ...base }; }
@@ -2040,6 +2078,23 @@ A.feat = function (d) {
   }
   render();
   if (S.focus) { clearTimeout(A.feat.t); A.feat.t = setTimeout(() => { S.focus = null; render(); }, 4500); }
+};
+A.featNouv = function (d) {
+  S.pile = []; S.modale = null; S.plusOuvert = false; S.pick = false; S.focus = null;
+  if (d.f === 'conc' || d.f === 'bilan') {
+    S.espace = 'sales'; S.sOnglet = 0; S.km = { ...S.km, vu: { depart: true, arrivee: true } };
+    startVisite('m1'); const v = getV(S.pile.at(-1).id); S.pile.push({ type: 'saisie', id: v.id, k: d.f === 'conc' ? 'concurrence' : 'bilan' });
+  } else if (d.f === 'objop') {
+    S.espace = ROLE === 'promoteur' ? 'sales' : 'pilot'; S.pile = [{ type: 'magasin', id: 'm1' }]; S.ongletMag = ROLE === 'promoteur' ? 'Aperçu' : 'Suivi';
+  } else if (d.f === 'equipe') {
+    S.espace = 'pilot'; S.onglet = 5;
+  } else if (d.f === 'secteur') {
+    S.espace = 'pilot'; S.onglet = 2; S.vue = 'tous'; S.filtre = null; S.pvCs = [];
+  } else if (d.f === 'typevisite') {
+    S.espace = 'pilot'; S.pile = [{ type: 'magasin', id: 'm1' }]; S.ongletMag = 'Suivi';
+  }
+  render();
+  if (d.f === 'typevisite') { const b = document.querySelector('[data-act=planifier]'); if (b) b.click(); }
 };
 Object.assign(A, SA);
 function erreurForm(t) { S.modale.erreur = t; render(); const v = document.querySelector('.feuille'); if (v) v.scrollTop = 0; }
@@ -2111,6 +2166,9 @@ const RACCOURCIS = {
   cs: [],
   dir: [],
 };
+/** Chef de secteur et directeur : uniquement les nouveautés de la partie Direction. */
+RACCOURCIS.cs = [['equipe', "Suivi de l'équipe"], ['objop', 'Objectifs et OP du magasin'], ['secteur', 'Prospects du secteur'], ['typevisite', 'Type de visite du planning']];
+RACCOURCIS.dir = [['equipe', "Suivi de l'équipe"], ['objop', 'Objectifs et OP du magasin'], ['secteur', 'Tous les prospects'], ['typevisite', 'Type de visite du planning']];
 function nouveautes() {
   const el = $('#nouveautes');
   if (!el) return;

@@ -1,18 +1,23 @@
 import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { PlanningsService, type Appelant } from '../plannings/plannings.service';
 
 const DATE_FMT = new Intl.DateTimeFormat('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' });
 
 @Injectable()
 export class NotificationsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly plannings: PlanningsService,
+  ) {}
 
   /**
    * Relance le promoteur d'une visite planifiée non effectuée.
    * Aujourd'hui : notification in-app (ABC Sales) ; demain : la même API alimentera
    * l'app mobile (+ push Firebase quand elle existera).
    */
-  async relancerVisite(planningId: string, emetteurId: string) {
+  async relancerVisite(planningId: string, emetteur: Appelant) {
+    const emetteurId = emetteur.id;
     const planning = await this.prisma.planning.findFirst({
       where: { id: planningId, deletedAt: null },
       select: {
@@ -24,6 +29,8 @@ export class NotificationsService {
       },
     });
     if (!planning) throw new NotFoundException('Visite planifiée introuvable');
+    // Périmètre : le promoteur doit relever de l'émetteur (404 sinon).
+    await this.plannings.verifierAcces(emetteur, planning.promoteurId, true);
     if (planning.fait) throw new ConflictException('Cette visite a déjà été effectuée');
 
     const lieu = [planning.client.enseigne.trim(), planning.client.ville?.trim()]

@@ -6,13 +6,18 @@ import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { DashboardService } from './dashboard.service';
+import { CarteService } from './carte.service';
+import { QueryCarteSecteurDto } from './dto/query-carte-secteur.dto';
 
 @ApiTags('dashboard')
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Controller('dashboard')
 export class DashboardController {
-  constructor(private readonly dashboard: DashboardService) {}
+  constructor(
+    private readonly dashboard: DashboardService,
+    private readonly carte: CarteService,
+  ) {}
 
   @Get('me')
   @ApiOperation({ summary: 'Chiffres du tableau de bord de l\'utilisateur courant (scopé sur son idRepr, sinon global)' })
@@ -55,6 +60,26 @@ export class DashboardController {
     const annee = Number(anneeQ) || now.getFullYear();
     const mois = Math.min(12, Math.max(1, Number(moisQ) || now.getMonth() + 1));
     return this.dashboard.direction(user, annee, mois);
+  }
+
+  @Get('carte-equipes')
+  @Roles(Role.ADMIN, Role.DIRECTION, Role.DIRECTEUR_REGIONAL, Role.CHEF_SECTEUR)
+  @ApiOperation({
+    summary:
+      'Carte des équipes : compteurs par région, chefs de secteur et promoteurs, région dominante par département (périmètre : tout / sa région / ses secteurs)',
+  })
+  carteEquipes(@CurrentUser() user: User) {
+    return this.carte.carteEquipes(user);
+  }
+
+  @Get('carte-secteur')
+  @Roles(Role.ADMIN, Role.DIRECTION, Role.DIRECTEUR_REGIONAL, Role.CHEF_SECTEUR)
+  @ApiOperation({
+    summary:
+      'Points géolocalisés des clients (avec leur promoteur) et des prospects du périmètre, filtrables par région / secteur (5 000 points max par type)',
+  })
+  carteSecteur(@CurrentUser() user: User, @Query() query: QueryCarteSecteurDto) {
+    return this.carte.carteSecteur(user, query);
   }
 
   private periode(anneeQ?: string, moisQ?: string) {

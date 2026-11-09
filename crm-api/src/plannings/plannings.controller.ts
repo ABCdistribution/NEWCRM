@@ -3,7 +3,6 @@ import {
   Body,
   Controller,
   Delete,
-  ForbiddenException,
   Get,
   Param,
   ParseUUIDPipe,
@@ -25,11 +24,11 @@ import { PlanningsService } from './plannings.service';
 /** Rôles autorisés à modifier les plannings (« c'est pas les promoteurs qui font leur tournée »). */
 const PLANIFICATEURS = [Role.ADMIN, Role.DIRECTION, Role.DIRECTEUR_REGIONAL, Role.CHEF_SECTEUR] as const;
 
-/** Un commercial ne consulte que son propre planning ; l'encadrement voit tout. */
-function checkLecture(me: User, promoteurId: string) {
-  if (me.role === Role.COMMERCIAL && promoteurId !== me.id) {
-    throw new ForbiddenException('Un commercial ne consulte que son propre planning');
-  }
+class MovePlanningDto {
+  @ApiProperty({ example: '2026-09-02', description: 'Nouvelle date de passage (ISO)' })
+  @IsDateString()
+  @IsNotEmpty()
+  datePassage!: string;
 }
 
 class CreatePlanningDto {
@@ -65,41 +64,40 @@ export class PlanningsController {
     @Query('debut') debut: string,
     @Query('fin') fin: string,
   ) {
-    checkLecture(me, promoteurId);
     const d = new Date(debut);
     const f = new Date(fin);
     if (Number.isNaN(d.getTime()) || Number.isNaN(f.getTime()) || f <= d) {
       throw new BadRequestException('Période invalide');
     }
-    return this.plannings.findPeriode(promoteurId, d, f);
+    return this.plannings.findPeriode(me, promoteurId, d, f);
   }
 
   @Get('client/:clientId')
   @Roles(...PLANIFICATEURS)
   @ApiOperation({ summary: "Visites planifiées À VENIR d'un magasin (suivi encadrement)" })
-  findByClient(@Param('clientId', ParseUUIDPipe) clientId: string) {
-    return this.plannings.findAVenirPourClient(clientId);
+  findByClient(@CurrentUser() me: User, @Param('clientId', ParseUUIDPipe) clientId: string) {
+    return this.plannings.findAVenirPourClient(me, clientId);
   }
 
   @Post()
   @Roles(...PLANIFICATEURS)
   @ApiOperation({ summary: 'Planifier une visite (direction)' })
-  create(@Body() dto: CreatePlanningDto) {
-    return this.plannings.create(dto.promoteurId, dto.clientId, new Date(dto.datePassage));
+  create(@CurrentUser() me: User, @Body() dto: CreatePlanningDto) {
+    return this.plannings.create(me, dto.promoteurId, dto.clientId, new Date(dto.datePassage));
   }
 
   @Patch(':id')
   @Roles(...PLANIFICATEURS)
   @ApiOperation({ summary: 'Déplacer une visite planifiée vers une autre date' })
-  move(@Param('id', ParseUUIDPipe) id: string, @Body() body: { datePassage: string }) {
-    return this.plannings.move(id, new Date(body?.datePassage ?? ''));
+  move(@CurrentUser() me: User, @Param('id', ParseUUIDPipe) id: string, @Body() body: MovePlanningDto) {
+    return this.plannings.move(me, id, new Date(body.datePassage));
   }
 
   @Delete(':id')
   @Roles(...PLANIFICATEURS)
   @ApiOperation({ summary: 'Retirer une visite planifiée (soft delete)' })
-  remove(@Param('id', ParseUUIDPipe) id: string) {
-    return this.plannings.remove(id);
+  remove(@CurrentUser() me: User, @Param('id', ParseUUIDPipe) id: string) {
+    return this.plannings.remove(me, id);
   }
 }
 
@@ -143,15 +141,15 @@ export class PlannificationsController {
   @ApiOperation({ summary: "Règles de récurrence actives d'un promoteur — un commercial ne voit que les siennes" })
   @ApiQuery({ name: 'promoteurId', required: true })
   list(@CurrentUser() me: User, @Query('promoteurId', ParseUUIDPipe) promoteurId: string) {
-    checkLecture(me, promoteurId);
-    return this.plannings.listRegles(promoteurId);
+    return this.plannings.listRegles(me, promoteurId);
   }
 
   @Post()
   @Roles(...PLANIFICATEURS)
   @ApiOperation({ summary: 'Créer une règle : magasin récurrent (jours × fréquence)' })
-  create(@Body() dto: CreateRegleDto) {
+  create(@CurrentUser() me: User, @Body() dto: CreateRegleDto) {
     return this.plannings.createRegle(
+      me,
       dto.promoteurId,
       dto.clientId,
       dto.jours,
@@ -163,7 +161,7 @@ export class PlannificationsController {
   @Delete(':id')
   @Roles(...PLANIFICATEURS)
   @ApiOperation({ summary: 'Supprimer une règle + ses occurrences futures non réalisées' })
-  remove(@Param('id', ParseUUIDPipe) id: string) {
-    return this.plannings.removeRegle(id);
+  remove(@CurrentUser() me: User, @Param('id', ParseUUIDPipe) id: string) {
+    return this.plannings.removeRegle(me, id);
   }
 }

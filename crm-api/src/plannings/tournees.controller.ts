@@ -21,6 +21,7 @@ import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { PrismaService } from '../prisma/prisma.service';
+import { perimetreEquipe } from '../common/perimetre-users.util';
 import { icalToken } from './ical.controller';
 import { RapportsService } from './rapports.service';
 import { dateDePassage, lundiDe } from './rapport-semaine.util';
@@ -248,16 +249,13 @@ export class TourneesController {
     @Query('fin') fin: string,
     @CurrentUser() me: User,
   ) {
-    const cible = await this.prisma.user.findUnique({
-      where: { id: userId },
-      select: { id: true, displayName: true, poste: true, directeurId: true, regionId: true },
+    // Même périmètre que GET /users (CS : ses secteurs + son équipe AD ; DR : sa région + son équipe AD) ; soi-même toujours visible.
+    const perimetre = perimetreEquipe(me);
+    const cible = await this.prisma.user.findFirst({
+      where: { AND: [{ id: userId }, { OR: [{ id: me.id }, ...(perimetre ? [perimetre] : [])] }] },
+      select: { id: true, displayName: true, poste: true },
     });
-    if (!cible) throw new NotFoundException(`Utilisateur ${userId} introuvable`);
-    // ADMIN / DIRECTION voient tout ; un DR (ou CS) ne voit que sa propre équipe AD.
-    const encadreTout = me.role === 'ADMIN' || me.role === 'DIRECTION';
-    if (!encadreTout && cible.directeurId !== me.id && cible.id !== me.id) {
-      throw new NotFoundException(`Utilisateur ${userId} hors de votre équipe`);
-    }
+    if (!cible) throw new NotFoundException(`Utilisateur ${userId} introuvable ou hors de votre périmètre`);
     const etapes = await this.prisma.tourneeEtape.findMany({
       where: {
         userId,

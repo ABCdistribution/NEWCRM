@@ -7,7 +7,7 @@ import { CaObjectif, CARTE, NavSemaine, Onglets } from '@/components/equipe-ui';
 import { ListeCommandes, ListeVisites, PlanningPromoteur } from '@/components/equipe-fiche';
 import { FicheEntete } from '@/components/fiche-entete';
 import { SelecteurClient } from '@/components/selecteur-client';
-import { SeliosLink } from '@/components/selios-link';
+import Link from 'next/link';
 
 export const metadata = { title: 'Fiche promoteur — Direction commerciale' };
 
@@ -18,8 +18,6 @@ const ONGLETS = [
   { id: 'commandes', label: 'Commandes' },
 ];
 const JOUR_FMT = new Intl.DateTimeFormat('fr-FR', { day: 'numeric', month: 'long' });
-// Port d'ABC Sales (même variable que le menu latéral).
-const SELIOS_PORT = process.env.SELIOS_PORT ?? '3002';
 
 export default async function FichePromoteurPage({
   params,
@@ -54,7 +52,7 @@ export default async function FichePromoteurPage({
     contenu = (
       <div className="flex flex-col gap-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <p className="text-sm text-neutral-500">Vous pouvez modifier ce planning (visites chez un client) dans ABC Sales.</p>
+          <p className="text-sm text-neutral-500">Vous pouvez modifier ce planning (visites chez un client) depuis « Planning de l&apos;équipe ».</p>
           <NavSemaine
             libelle={semaineLibelle}
             hrefPrec={`${base}?onglet=planning&semaine=${iso(ajouterJours(lundi, -7))}`}
@@ -69,13 +67,12 @@ export default async function FichePromoteurPage({
           </p>
         )}
         <div>
-          <SeliosLink
-            path={`/planification?promoteur=${encodeURIComponent(promo.id)}&semaine=${iso(lundi)}`}
-            port={SELIOS_PORT}
+          <Link
+            href={`/pilotage/planning-equipe?promoteur=${encodeURIComponent(promo.id)}&semaine=${iso(lundi)}`}
             className="inline-flex items-center gap-1.5 rounded-lg bg-brand px-4 py-2.5 text-sm font-medium text-white transition hover:opacity-90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
           >
             <Pencil size={15} aria-hidden /> Modifier le planning
-          </SeliosLink>
+          </Link>
         </div>
       </div>
     );
