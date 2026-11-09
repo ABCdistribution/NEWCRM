@@ -1,6 +1,6 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
-import { IsBooleanString, IsEnum, IsInt, IsOptional, IsString, Max, Min } from 'class-validator';
+import { IsBooleanString, IsEnum, IsIn, IsInt, IsOptional, IsString, Max, Min } from 'class-validator';
 import { StatutLivraison } from '@crm/database';
 
 export class QueryCommandesDto {
@@ -33,4 +33,12 @@ export class QueryCommandesDto {
   @IsOptional()
   @IsEnum(StatutLivraison)
   livraison?: StatutLivraison;
+
+  @ApiPropertyOptional({
+    enum: ['edi', 'appli'],
+    description: "Origine (règle provisoire) : 'appli' = saisie sur mobile (idCommandeApk renseigné), 'edi' = importée ERP/AS400",
+  })
+  @IsOptional()
+  @IsIn(['edi', 'appli'])
+  origine?: 'edi' | 'appli';
 }

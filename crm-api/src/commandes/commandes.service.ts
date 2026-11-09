@@ -21,6 +21,9 @@ export class CommandesService {
       ...(mine ? { idRepr: { in: idReprVariants(mine) } } : {}),
       ...(query.annulees === 'true' ? { dateAnnulation: { not: null } } : {}),
       ...(query.livraison ? { statutLivraison: query.livraison } : {}),
+      // Origine provisoire : Appli = saisie mobile (idCommandeApk), EDI = import ERP.
+      ...(query.origine === 'appli' ? { idCommandeApk: { not: null } } : {}),
+      ...(query.origine === 'edi' ? { idCommandeApk: null } : {}),
       ...(query.search
         ? {
             OR: [
@@ -49,6 +52,7 @@ export class CommandesService {
           dateLivraison: true,
           raisonSocialeCmd: true,
           idRepr: true,
+          idCommandeApk: true,
           client: { select: { id: true, codeAs400: true, enseigne: true } },
         },
       }),
@@ -68,8 +72,9 @@ export class CommandesService {
     const byId = new Map(sums.map((s) => [s.commandeId, s]));
 
     return {
-      data: rows.map((r) => ({
+      data: rows.map(({ idCommandeApk, ...r }) => ({
         ...r,
+        viaMobile: idCommandeApk !== null,
         annulee: r.dateAnnulation !== null,
         nbLignes: byId.get(r.id)?._count._all ?? 0,
         total: Number(byId.get(r.id)?._sum.montant ?? 0),
@@ -118,6 +123,7 @@ export class CommandesService {
     }
     return {
       ...commande,
+      viaMobile: commande.idCommandeApk !== null,
       annulee: commande.dateAnnulation !== null,
       total: commande.lignes.reduce((s, l) => s + Number(l.montant), 0),
     };
