@@ -9,6 +9,7 @@ Monorepo CRM : une API NestJS, une base Postgres (Prisma) et deux fronts Next.js
 | `packages/database` | Schéma Prisma 7 (`prisma/schema.prisma`, ~46 modèles), migrations, seed. Package `@crm/database`. |
 | `crm-promoteur` | **ABC Sales** — espace terrain (Next 15, React 19, Tailwind 4, port 3000). |
 | `crm-helios` | **ABC Pilot** — pilotage/encadrement (même stack, port 3001). |
+| `crm-web` | **Application unique** (Next 15, port 3002) qui fusionnera `crm-promoteur` et `crm-helios` (en cours de migration). |
 | `scripts/` | Imports AS400, copie de l'ancien CRM, diagnostic AD. |
 
 **Noms** : `crm-promoteur` = **ABC Sales**, `crm-helios` = **ABC Pilot** (plateforme « SalesPilot ABC »). Les noms visibles sont à jour ; les noms de dossiers, les variables `HELIOS_PORT` / `SELIOS_PORT` et les identifiants de code gardent les anciens noms (ne pas les renommer sans coordonner la prod).
