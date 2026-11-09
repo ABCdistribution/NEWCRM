@@ -1,0 +1,11 @@
+# Démo mobile (maquette HTML) servie seule, hors des fronts et de l'API. Sans mot de passe.
+# Par défaut le port n'écoute que sur la machine (127.0.0.1) : rien n'est exposé tant qu'on ne la publie pas.
+services:
+  demo:
+    image: nginx:1.27-alpine
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8088:80"
+    volumes:
+      - ../demo-appli.html:/usr/share/nginx/html/index.html:ro
+      - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro

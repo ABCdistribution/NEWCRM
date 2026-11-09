@@ -2059,6 +2059,7 @@ Object.assign(SA, {
   'liv-suivre'() { toast('Ouverture du suivi du transporteur (lien externe).'); },
 });
 A.feat = function (d) {
+  if (['conc', 'bilan', 'objop', 'secteur', 'typevisite', 'equipe'].includes(d.f)) return A.featNouv(d);
   S.espace = 'sales'; S.pile = []; S.modale = null; S.plusOuvert = false; S.pick = false; S.focus = null;
   const base = { q: '', etat: 'tous', periode: 'toutes', type: 'tous', portee: ROLE === 'promoteur' ? 'mes' : 'toutes' };
   if (d.f === 'suivi') { S.sOnglet = 2; S.cf = { ...S.cf, ...base }; }
@@ -2077,6 +2078,23 @@ A.feat = function (d) {
   }
   render();
   if (S.focus) { clearTimeout(A.feat.t); A.feat.t = setTimeout(() => { S.focus = null; render(); }, 4500); }
+};
+A.featNouv = function (d) {
+  S.pile = []; S.modale = null; S.plusOuvert = false; S.pick = false; S.focus = null;
+  if (d.f === 'conc' || d.f === 'bilan') {
+    S.espace = 'sales'; S.sOnglet = 0; S.km = { ...S.km, vu: { depart: true, arrivee: true } };
+    startVisite('m1'); const v = getV(S.pile.at(-1).id); S.pile.push({ type: 'saisie', id: v.id, k: d.f === 'conc' ? 'concurrence' : 'bilan' });
+  } else if (d.f === 'objop') {
+    S.espace = ROLE === 'promoteur' ? 'sales' : 'pilot'; S.pile = [{ type: 'magasin', id: 'm1' }]; S.ongletMag = ROLE === 'promoteur' ? 'Aperçu' : 'Suivi';
+  } else if (d.f === 'equipe') {
+    S.espace = 'pilot'; S.onglet = 5;
+  } else if (d.f === 'secteur') {
+    S.espace = 'pilot'; S.onglet = 2; S.vue = 'tous'; S.filtre = null; S.pvCs = [];
+  } else if (d.f === 'typevisite') {
+    S.espace = 'pilot'; S.pile = [{ type: 'magasin', id: 'm1' }]; S.ongletMag = 'Suivi';
+  }
+  render();
+  if (d.f === 'typevisite') { const b = document.querySelector('[data-act=planifier]'); if (b) b.click(); }
 };
 Object.assign(A, SA);
 function erreurForm(t) { S.modale.erreur = t; render(); const v = document.querySelector('.feuille'); if (v) v.scrollTop = 0; }
@@ -2148,6 +2166,9 @@ const RACCOURCIS = {
   cs: [],
   dir: [],
 };
+/** Chef de secteur et directeur : uniquement les nouveautés de la partie Direction. */
+RACCOURCIS.cs = [['equipe', "Suivi de l'équipe"], ['objop', 'Objectifs et OP du magasin'], ['secteur', 'Prospects du secteur'], ['typevisite', 'Type de visite du planning']];
+RACCOURCIS.dir = [['equipe', "Suivi de l'équipe"], ['objop', 'Objectifs et OP du magasin'], ['secteur', 'Tous les prospects'], ['typevisite', 'Type de visite du planning']];
 function nouveautes() {
   const el = $('#nouveautes');
   if (!el) return;
