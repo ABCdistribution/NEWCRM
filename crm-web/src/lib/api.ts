@@ -1,4 +1,16 @@
+import { notFound } from 'next/navigation';
 import { apiBase, getToken } from './session';
+
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/**
+ * Valide un identifiant avant de l'insérer dans un chemin d'API (anti path traversal) :
+ * UUID attendu, sinon `notFound()` (404). À appeler HORS d'un try/catch (notFound lève).
+ */
+export function idSur(id: string): string {
+  if (!UUID.test(id)) notFound();
+  return id;
+}
 
 export type Role =
   | 'COMMERCIAL'
@@ -178,8 +190,9 @@ export function listCommandes(params: {
 
 /** Détail d'une commande (lignes incluses), ou null si introuvable. */
 export async function getCommande(id: string): Promise<CommandeDetail | null> {
+  const sid = idSur(id);
   try {
-    const res = await serverFetch(`/commandes/${id}`);
+    const res = await serverFetch(`/commandes/${sid}`);
     if (!res.ok) return null;
     return (await res.json()) as CommandeDetail;
   } catch {
@@ -250,8 +263,9 @@ export type ClientHistorique = {
 
 /** Historique du magasin (commandes, visites, CA N/N-1), ou null en cas d'erreur. */
 export async function getClientHistorique(id: string): Promise<ClientHistorique | null> {
+  const sid = idSur(id);
   try {
-    const res = await serverFetch(`/clients/${id}/historique`);
+    const res = await serverFetch(`/clients/${sid}/historique`);
     if (!res.ok) return null;
     return (await res.json()) as ClientHistorique;
   } catch {
@@ -261,8 +275,9 @@ export async function getClientHistorique(id: string): Promise<ClientHistorique 
 
 /** Fiche magasin complète, ou null si introuvable. */
 export async function getClient(id: string): Promise<ClientDetail | null> {
+  const sid = idSur(id);
   try {
-    const res = await serverFetch(`/clients/${id}`);
+    const res = await serverFetch(`/clients/${sid}`);
     if (!res.ok) return null;
     return (await res.json()) as ClientDetail;
   } catch {
@@ -988,8 +1003,9 @@ export type ProspectDetail = {
 
 /** Fiche prospect complète, ou null si introuvable. */
 export async function getProspect(id: string): Promise<ProspectDetail | null> {
+  const sid = idSur(id);
   try {
-    const res = await serverFetch(`/prospects/${id}`);
+    const res = await serverFetch(`/prospects/${sid}`);
     if (!res.ok) return null;
     return (await res.json()) as ProspectDetail;
   } catch {
@@ -1076,8 +1092,9 @@ export type PlanningMagasin = {
 
 /** Visites planifiées à venir d'un magasin. */
 export async function listPlanningsMagasin(clientId: string): Promise<PlanningMagasin[]> {
+  const sid = idSur(clientId);
   try {
-    const res = await serverFetch(`/plannings/client/${clientId}`);
+    const res = await serverFetch(`/plannings/client/${sid}`);
     if (!res.ok) return [];
     return (await res.json()) as PlanningMagasin[];
   } catch {
@@ -1112,8 +1129,9 @@ export async function listPlanningMembre(
   debut: string,
   fin: string,
 ): Promise<{ user: { id: string; displayName: string; poste: string | null }; etapes: TourneeEtapeRow[] } | null> {
+  const sid = idSur(userId);
   try {
-    const res = await serverFetch(`/tournees/user/${userId}${qs({ debut, fin })}`);
+    const res = await serverFetch(`/tournees/user/${sid}${qs({ debut, fin })}`);
     if (!res.ok) return null;
     return (await res.json()) as { user: { id: string; displayName: string; poste: string | null }; etapes: TourneeEtapeRow[] };
   } catch {
@@ -1234,8 +1252,9 @@ export type RapportDetail = {
 };
 
 export async function getRapportDetail(userId: string, semaine: string): Promise<RapportDetail | null> {
+  const sid = idSur(userId);
   try {
-    const res = await serverFetch(`/rapports/${userId}${qs({ semaine })}`);
+    const res = await serverFetch(`/rapports/${sid}${qs({ semaine })}`);
     if (!res.ok) return null;
     return (await res.json()) as RapportDetail;
   } catch {
@@ -1308,8 +1327,9 @@ export type ProspectEvenement =
 
 /** Timeline du prospect (appels + visites de prospection + opportunités), du plus récent au plus ancien. */
 export async function getProspectTimeline(id: string): Promise<ProspectEvenement[] | null> {
+  const sid = idSur(id);
   try {
-    const res = await serverFetch(`/prospects/${id}/historique`);
+    const res = await serverFetch(`/prospects/${sid}/historique`);
     if (!res.ok) return null;
     const json = (await res.json()) as { data?: ProspectEvenement[] };
     return json.data ?? [];

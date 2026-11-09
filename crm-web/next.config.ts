@@ -4,11 +4,18 @@ const nextConfig: NextConfig = {
   reactStrictMode: true,
   // Indicateur de dev Next.js déplacé en bas à droite.
   devIndicators: { position: 'bottom-right' },
-  // L'application consomme l'API NestJS (@crm/api) sur :4000.
-  // Un rewrite évite les soucis CORS en dev : /api/* → http://localhost:4000/*
-  async rewrites() {
-    const apiUrl = process.env.API_URL ?? 'http://localhost:4000';
-    return [{ source: '/api/:path*', destination: `${apiUrl}/:path*` }];
+  // Aucun rewrite vers l'API : le navigateur ne l'appelle jamais (serverFetch / Server Actions uniquement).
+  async headers() {
+    return [
+      {
+        source: '/:path*',
+        headers: [
+          { key: 'X-Frame-Options', value: 'DENY' },
+          { key: 'X-Content-Type-Options', value: 'nosniff' },
+          { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
+        ],
+      },
+    ];
   },
 };
 

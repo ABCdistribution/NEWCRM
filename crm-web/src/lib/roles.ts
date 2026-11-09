@@ -35,6 +35,9 @@ export function espaceDe(role: Role): Espace {
  * Rôle autorisé → renvoie l'utilisateur.
  *
  * Usage : const acces = await requireRole(ROLES); if (acces.refuse) return acces.refuse;
+ *
+ * ATTENTION : un layout ne protège pas les pages ni les Server Actions : chaque page [id] / action /
+ * route handler doit rappeler requireRole (ou exigerRole dans une action) ou s'appuyer sur l'API.
  */
 export async function requireRole(
   roles: readonly Role[],
@@ -45,4 +48,15 @@ export async function requireRole(
     return { me, refuse: createElement(AccesRefuse) };
   }
   return { me, refuse: null };
+}
+
+/**
+ * Variante pour les Server Actions : renvoie l'utilisateur si son rôle est autorisé,
+ * sinon lève une erreur « Accès refusé » (à intercepter pour renvoyer un message à l'utilisateur).
+ * Pas de session : lève aussi (une action ne redirige pas proprement vers /login).
+ */
+export async function exigerRole(roles: readonly Role[]): Promise<Me> {
+  const me = await getMe();
+  if (!me || !roles.includes(me.role)) throw new Error('Accès refusé');
+  return me;
 }

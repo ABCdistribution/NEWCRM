@@ -11,8 +11,8 @@ export default function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
   return (
-    // Pas de data-espace ici : il est posé par les layouts des groupes de routes
-    // (promoteurs) et (direction). La classe .dark est posée localement (menu, cartes).
+    // Pas de data-espace ici : il est posé par le layout (app) selon le rôle
+    // (et par /login). La classe .dark est posée localement (menu, cartes).
     <html lang="fr" suppressHydrationWarning>
       {/* suppressHydrationWarning : neutralise les attributs injectés par des extensions
           navigateur (gestionnaires de mots de passe, Grammarly…) sur html/body. */}
