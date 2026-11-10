@@ -28,10 +28,10 @@ FICHIERS=$(git diff --name-only "$OLD" "$NEW")
 RANGE_CHANGED() { [ -n "${FORCE:-}" ] || grep -qE "$1" <<< "$FICHIERS"; }
 
 set -a; . ./.env; set +a
-DEPLOY_API=0; DEPLOY_PILOT=0; DEPLOY_SALES=0
+DEPLOY_API=0; DEPLOY_WEB=0
 RANGE_CHANGED '^(crm-api/|packages/|pnpm-lock.yaml|docker-compose.yml)' && DEPLOY_API=1
-RANGE_CHANGED '^(crm-helios/|packages/)' && DEPLOY_PILOT=1
-RANGE_CHANGED '^(crm-promoteur/|packages/)' && DEPLOY_SALES=1
+# crm-web = front unique, qui remplace ABC Pilot (ex-crm-helios) et ABC Sales (ex-crm-promoteur), supprimés le 2026-11-10.
+RANGE_CHANGED '^(crm-web/|packages/)' && DEPLOY_WEB=1
 
 # --- Migrations : on refuse les migrations destructrices non validées ---
 if RANGE_CHANGED '^packages/database/prisma/migrations/'; then
@@ -47,14 +47,32 @@ fi
 
 port_pid() { ss -tlnpH "sport = :$1" | grep -oP 'pid=\K[0-9]+' | head -1; }
 restart_next() { # dossier port
-  local dir=$1 port=$2 pid
+  local dir=$1 port=$2 pid cs
   log "Build $dir"
   (cd "$dir" && pnpm install --frozen-lockfile --ignore-workspace --silent && pnpm exec next build)
   pid=$(port_pid "$port" || true)
-  [ -n "$pid" ] && { kill "$pid" 2>/dev/null || true; sleep 2; }
+  if [ -n "$pid" ]; then
+    kill "$pid" 2>/dev/null || true
+    # Attend (15 s max) que l'ancien processus libère le port : sinon le nouveau échoue en EADDRINUSE.
+    for _ in $(seq 1 15); do [ -n "$(port_pid "$port" || true)" ] || break; sleep 1; done
+  fi
   # pnpm parent éventuel
-  (exec 9>&-; cd "$dir" && RUNNER_TRACKING_ID= setsid nohup pnpm exec next start -p "$port" >> "$LOGS/$(basename "$dir").log" 2>&1 < /dev/null &)
-  for _ in $(seq 1 30); do curl -s -o /dev/null "http://localhost:$port/" && { log "$dir OK (:$port)"; return; }; sleep 1; done
+  # Prod servie en HTTP interne : sans COOKIE_SECURE=false, crm-web (cookie « secure » par défaut en production) perd la session.
+  # crm-web ne reconnaît que true/false ; les anciens fronts traitaient toute autre valeur comme « non sécurisé » : on normalise
+  # (casse et espaces ignorés) et toute autre valeur donne false, avec une ligne de journal. À passer à true dans /var/www/.env
+  # dès que HTTPS est en place (docs/BACKLOG.md, 1.11). TZ : requis en production (CLAUDE.md).
+  cs=$(printf '%s' "${COOKIE_SECURE:-}" | tr -d '[:space:]' | tr 'A-Z' 'a-z')
+  case "$cs" in
+    true|false) ;;
+    '') log "COOKIE_SECURE non défini : false (prod en HTTP interne) ; définir true dans /var/www/.env dès que HTTPS est en place"; cs=false ;;
+    *) log "COOKIE_SECURE « ${COOKIE_SECURE} » non reconnu (attendu true ou false) : false appliqué"; cs=false ;;
+  esac
+  (exec 9>&-; cd "$dir" && RUNNER_TRACKING_ID= TZ=Europe/Paris COOKIE_SECURE="$cs" setsid nohup pnpm exec next start -p "$port" >> "$LOGS/$(basename "$dir").log" 2>&1 < /dev/null &)
+  # OK seulement si ça répond ET si le port n'est plus tenu par l'ancien processus (sinon faux « OK » sur l'ancien front).
+  for _ in $(seq 1 30); do
+    curl -sf -o /dev/null "http://localhost:$port/" && { [ -z "$pid" ] || [ "$(port_pid "$port" || true)" != "$pid" ]; } && { log "$dir OK (:$port)"; return; }
+    sleep 1
+  done
   log "$dir ne répond pas sur :$port"; return 1
 }
 
@@ -65,7 +83,8 @@ if [ $DEPLOY_API = 1 ]; then
   for _ in $(seq 1 40); do curl -sf -o /dev/null http://localhost:4000/health && { log "API OK"; break; }; sleep 2; done
   curl -sf -o /dev/null http://localhost:4000/health || { log "API ne répond pas sur /health"; exit 1; }
 fi
-[ $DEPLOY_PILOT = 1 ] && restart_next /var/www/crm-helios 3001
-[ $DEPLOY_SALES = 1 ] && restart_next /var/www/crm-promoteur 3002
+# crm-web reprend le port 3001 (ex-ABC Pilot) : restart_next tue l'ancien processus qui l'occupe.
+# L'ancien ABC Sales (3002) n'est PAS arrêté ici : à faire à la main au basculement du reverse proxy (docs/BACKLOG.md).
+[ $DEPLOY_WEB = 1 ] && restart_next /var/www/crm-web 3001
 echo "$NEW" > "$MARQUEUR"
 log "Déploiement terminé (${NEW:0:7})"
