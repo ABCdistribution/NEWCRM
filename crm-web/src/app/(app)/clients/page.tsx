@@ -1,12 +1,5 @@
 import Link from 'next/link';
-import {
-  listClientsEnriched,
-  listMagasinsSuivi,
-  listMagasinsGeo,
-  listProspects,
-  type ClientsEnrichedResult,
-  type ProspectRow,
-} from '@/lib/api';
+import { listClientsEnriched, listMagasinsSuivi, type ClientsEnrichedResult } from '@/lib/api';
 import { estEncadrement, requireRole, TOUS_ROLES } from '@/lib/roles';
 import { SearchBar } from '@/components/search-bar';
 import { Pagination } from '@/components/pagination';
@@ -25,7 +18,7 @@ const ALERTE =
 /**
  * Liste des clients, selon le rôle :
  *  - terrain (COMMERCIAL, ADV) et autres rôles : vue « portefeuille » (tableau, « mes clients uniquement ») ;
- *  - encadrement : vue « suivi » du secteur (carte + tableau de suivi) par défaut, et vue
+ *  - encadrement : vue « suivi » du secteur (tableau de suivi, sans carte : la page client est à refaire) par défaut, et vue
  *    « portefeuille » via `?vue=portefeuille` (l'encadrement garde l'accès aux écrans terrain).
  * Le périmètre (utilisateur / secteur / région) est filtré par l'API.
  */
@@ -70,24 +63,12 @@ function OngletsVue({ vue }: { vue: 'suivi' | 'portefeuille' }) {
   );
 }
 
-/** Vue de suivi du secteur (encadrement) : carte, tableau de suivi, détail du magasin. */
+/** Vue de suivi du secteur (encadrement) : tableau de suivi et détail du magasin. */
 async function VueSuivi({ sp }: { sp: SearchParams }) {
   const search = sp.search ?? '';
   const page = Number(sp.page ?? '1') || 1;
 
-  const [magasins, points] = await Promise.all([listMagasinsSuivi({ search, page }), listMagasinsGeo()]);
-
-  // Prospects « pas encore travaillés » : non convertis, non perdus (pour la carte).
-  const prospects: ProspectRow[] = [];
-  try {
-    for (let p = 1; p <= 5; p++) {
-      const res = await listProspects({ page: p });
-      prospects.push(...res.data.filter((x) => !x.clientId && x.statut !== 'PERDU'));
-      if (p * res.limit >= res.total) break;
-    }
-  } catch {
-    // carte sans prospects si l'API prospection est indisponible
-  }
+  const magasins = await listMagasinsSuivi({ search, page });
 
   return (
     <>
@@ -102,7 +83,7 @@ async function VueSuivi({ sp }: { sp: SearchParams }) {
         </p>
       ) : (
         <>
-          <MagasinsSecteurBoard magasins={magasins.data} points={points ?? []} prospects={prospects} />
+          <MagasinsSecteurBoard magasins={magasins.data} />
           <Pagination total={magasins.total} page={magasins.page} limit={magasins.limit} params={{ search }} unite="client" />
         </>
       )}

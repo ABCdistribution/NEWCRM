@@ -14,17 +14,10 @@ import {
   X,
 } from 'lucide-react';
 import { ClassBadge } from './class-badge';
-import dynamic from 'next/dynamic';
 import { getSuiviMagasin, type SuiviMagasin } from '@/lib/magasin-actions';
-import type { MagasinSuiviRow, MagasinGeoPoint, ProspectRow } from '@/lib/api';
+import type { MagasinSuiviRow } from '@/lib/api';
 import { MagasinContactActions } from './magasin-contact-actions';
 import { MagasinTourneeButton } from './magasin-tournee-button';
-
-// Leaflet touche window : chargement client uniquement.
-const CarteSecteur = dynamic(() => import('./carte-secteur').then((m) => m.CarteSecteur), {
-  ssr: false,
-  loading: () => <div className="h-[560px] w-full animate-pulse rounded-2xl bg-neutral-100 dark:bg-navy-800" />,
-});
 
 const EUR = new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 });
 const DATE = new Intl.DateTimeFormat('fr-FR', { weekday: 'short', day: '2-digit', month: 'short' });
@@ -177,16 +170,7 @@ function MagasinModal({ magasin, onClose }: { magasin: MagasinSuiviRow; onClose:
 }
 
 /** Gestion des magasins secteur : classification, KPI, suivi des tournées, promoteur en charge. */
-export function MagasinsSecteurBoard({
-  magasins,
-  points,
-  prospects,
-}: {
-  magasins: MagasinSuiviRow[];
-  points: MagasinGeoPoint[];
-  prospects: ProspectRow[];
-}) {
-  const [vue, setVue] = useState<'tableau' | 'carte'>('tableau');
+export function MagasinsSecteurBoard({ magasins }: { magasins: MagasinSuiviRow[] }) {
   const [classe, setClasse] = useState<'ALL' | string>('ALL');
   const [etat, setEtat] = useState<'ALL' | 'ok' | 'attention' | 'alerte'>('ALL');
   const [selected, setSelected] = useState<MagasinSuiviRow | null>(null);
@@ -221,28 +205,6 @@ export function MagasinsSecteurBoard({
 
   return (
     <div className="flex flex-col gap-4">
-      {/* Bascule Tableau / Carte */}
-      <div className="flex items-center gap-1 self-start rounded-xl bg-white p-1 shadow-card">
-        {(['tableau', 'carte'] as const).map((v) => (
-          <button
-            key={v}
-            type="button"
-            onClick={() => setVue(v)}
-            className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition ${
-              vue === v
-                ? 'bg-brand text-white dark:bg-accent dark:text-brand'
-                : 'text-neutral-500 hover:bg-neutral-100 dark:text-neutral-300 dark:hover:bg-navy-800'
-            }`}
-          >
-            {v === 'tableau' ? 'Tableau' : 'Carte'}
-          </button>
-        ))}
-      </div>
-
-      {vue === 'carte' ? (
-        <CarteSecteur points={points} prospects={prospects} />
-      ) : (
-        <>
       {/* Filtres : classification mise en avant */}
       <div className="flex flex-wrap items-center gap-2">
         <span className="text-[11px] font-semibold uppercase tracking-wider text-neutral-400">Classe</span>
@@ -326,9 +288,6 @@ export function MagasinsSecteurBoard({
           </tbody>
         </table>
       </div>
-
-        </>
-      )}
 
       {selected ? <MagasinModal magasin={selected} onClose={() => setSelected(null)} /> : null}
     </div>
