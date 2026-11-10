@@ -51,14 +51,32 @@ function telecharger(lignes: LigneRapport[]) {
   URL.revokeObjectURL(url);
 }
 
-/** Rapport détaillé des intégrations. Se rafraîchit seul tant qu'un import est en attente ou en cours. */
+/**
+ * Un import resté « en attente » ou « en cours » plus longtemps que cela est considéré comme interrompu (API
+ * redémarrée en plein import) : l'API ne remet jamais ces statuts à zéro, il ne faut pas rafraîchir la page sans fin.
+ */
+const ABANDON_IMPORT_MS = 60 * 60 * 1000;
+/** Plafond de rafraîchissements automatiques d'une même visite (3 s chacun, soit 5 minutes). */
+const RAFRAICHISSEMENTS_MAX = 100;
+
+/** Rapport détaillé des intégrations. Se rafraîchit seul tant qu'un import récent est en attente ou en cours (borné). */
 export function RapportMinos({ lignes }: { lignes: LigneRapport[] }) {
   const router = useRouter();
-  const enCours = lignes.some((l) => l.statut === 'PENDING' || l.statut === 'PROCESSING');
+  const enCours = lignes.some(
+    (l) =>
+      (l.statut === 'PENDING' || l.statut === 'PROCESSING') &&
+      Date.now() - new Date(l.date).getTime() < ABANDON_IMPORT_MS,
+  );
 
   useEffect(() => {
     if (!enCours) return;
-    const t = setInterval(() => router.refresh(), 3000);
+    let n = 0;
+    const t = setInterval(() => {
+      // Chaque rafraîchissement refait tout le rendu de /admin et s'empile derrière une action en cours (synchro AD) :
+      // on le borne pour ne jamais retenir l'écran indéfiniment.
+      if (++n > RAFRAICHISSEMENTS_MAX) clearInterval(t);
+      else router.refresh();
+    }, 3000);
     return () => clearInterval(t);
   }, [enCours, router]);
 
