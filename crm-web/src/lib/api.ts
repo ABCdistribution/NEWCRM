@@ -191,6 +191,10 @@ export function listCommandes(params: {
   annulees?: boolean;
   livraison?: StatutLivraison;
   origine?: 'edi' | 'appli';
+  /** « Mes commandes » : mon périmètre (promoteur, chef de secteur, directeur régional). */
+  mes?: boolean;
+  /** « Toutes » : lève la restriction du promoteur à ses propres commandes. */
+  tous?: boolean;
 }) {
   return list<CommandeRow>(
     `/commandes${qs({
@@ -199,6 +203,8 @@ export function listCommandes(params: {
       annulees: params.annulees ? 'true' : undefined,
       livraison: params.livraison,
       origine: params.origine,
+      mes: params.mes ? '1' : undefined,
+      tous: params.tous ? '1' : undefined,
       limit: 20,
     })}`,
   ) as Promise<CommandesResult>;
@@ -1479,8 +1485,13 @@ export type VisiteRow = {
 export type VisitesResult = Paginated<VisiteRow> & { scope?: { type: 'mine' | 'global' } };
 
 /** Visites paginées — les siennes pour un commercial, toutes pour les rôles siège. */
-export async function listVisites(params: { search?: string; page?: number }): Promise<VisitesResult> {
-  return (await list<VisiteRow>(`/visites${qs({ ...params })}`)) as VisitesResult;
+export async function listVisites(params: {
+  search?: string;
+  page?: number;
+  /** « Toutes » : lève la restriction du promoteur (ses visites) et du CS / DR (leur équipe). */
+  tous?: boolean;
+}): Promise<VisitesResult> {
+  return (await list<VisiteRow>(`/visites${qs({ search: params.search, page: params.page, tous: params.tous ? '1' : undefined })}`)) as VisitesResult;
 }
 
 export type NotificationItem = {

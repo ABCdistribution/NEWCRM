@@ -90,3 +90,6 @@ Rien n'est compensé côté front : les données sont filtrées par rôle ET pé
   5. `COOKIE_SECURE=true` dans `/var/www/.env` dès que HTTPS est en place (1.11).
   6. Les anciens dossiers `/var/www/crm-helios` et `/var/www/crm-promoteur` ne restent que par leurs fichiers non versionnés (`node_modules`, `.next`) : à supprimer après vérification.
   7. Surveiller la première exécution : `/home/admininfo/logs/deploy.log` et `/home/admininfo/logs/crm-web.log`.
+
+## Décision de visibilité du 2026-11-10 (promoteurs, commandes, visites, clients)
+Décision de l'utilisateur : un **promoteur peut passer sur « Toutes »** les commandes, les visites et les clients (cases « Mes … » cochées par défaut, décochables ; `?tous=1`). C'est un élargissement volontaire du périmètre de lecture, qui répond en partie à la décision attendue n° 1 (règles de visibilité par rôle) pour ces trois écrans seulement. Les fiches (`GET /commandes/:id`, `/clients/:id`) et les autres routes restent à borner (point 1.1). À noter : un promoteur sans code représentant voyait toutes les commandes par défaut ; l'écran envoie maintenant `mes=1` (aucune commande).

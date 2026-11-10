@@ -112,15 +112,19 @@ export class VisitesController {
   @Get()
   @ApiOperation({
     summary:
-      'Visites paginées — un commercial voit les siennes, les autres rôles (ADV, direction, CS, DR…) voient toutes les visites',
+      'Visites paginées — un commercial voit les siennes, un CS / DR celles de son équipe, les autres rôles toutes ; ?tous=1 lève la restriction (bascule « Mes visites / Toutes »)',
   })
   findAll(
     @Query('page') page: string | undefined,
     @Query('search') search: string | undefined,
+    @Query('tous') tous: string | undefined,
     @CurrentUser() me: User,
   ) {
-    const promoteurId = me.role === 'COMMERCIAL' ? me.id : null;
-    const equipe = me.role === 'CHEF_SECTEUR' || me.role === 'DIRECTEUR_REGIONAL' ? auteursDeVisitesVisibles(me) : null;
+    // tous=1 : bascule « Mes visites / Toutes » — lève la restriction du promoteur (ses visites) et du chef de secteur /
+    // directeur régional (leur équipe). Sans elle, le comportement est celui de toujours.
+    const lever = tous === '1';
+    const promoteurId = me.role === 'COMMERCIAL' && !lever ? me.id : null;
+    const equipe = !lever && (me.role === 'CHEF_SECTEUR' || me.role === 'DIRECTEUR_REGIONAL') ? auteursDeVisitesVisibles(me) : null;
     return this.visites.findAll(promoteurId, { page: Number(page) || 1, search, equipe: equipe ?? undefined });
   }
 

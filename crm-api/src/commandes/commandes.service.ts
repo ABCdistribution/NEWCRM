@@ -2,6 +2,7 @@ import { BadRequestException, Injectable, NotFoundException } from '@nestjs/comm
 import { Prisma } from '@crm/database';
 import { PrismaService } from '../prisma/prisma.service';
 import { idReprVariants } from '../common/id-repr.util';
+import { codesRepresentantsDuPerimetre } from '../common/perimetre-codes.util';
 import { QueryCommandesDto } from './dto/query-commandes.dto';
 import { UpdateLivraisonDto } from './dto/update-livraison.dto';
 
@@ -9,16 +10,35 @@ import { UpdateLivraisonDto } from './dto/update-livraison.dto';
 export class CommandesService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async findAll(query: QueryCommandesDto, user?: { role: string; idRepr: string | null }) {
+  async findAll(
+    query: QueryCommandesDto,
+    user?: { id?: string; role: string; idRepr: string | null; regionId?: string | null },
+  ) {
     const page = query.page ?? 1;
     const limit = query.limit ?? 20;
 
-    // Un commercial relié à un code représentant ne voit que SES commandes.
-    const mine = user?.role === 'COMMERCIAL' && user.idRepr ? user.idRepr : null;
+    // Périmètre : un promoteur relié à un code représentant ne voit que SES commandes, sauf bascule « Toutes »
+    // (tous=1). Les autres rôles voient tout, sauf demande « Mes commandes » (mes=1 : leur périmètre, même règle que
+    // les clients et la recherche). `codes` : null = pas de restriction, [] = aucune commande.
+    const lever = query.tous === '1';
+    let codes: string[] | null = null;
+    if (!lever) {
+      if (user?.role === 'COMMERCIAL') {
+        codes = user.idRepr ? idReprVariants(user.idRepr) : query.mes === '1' ? [] : null;
+      } else if (query.mes === '1' && user?.id) {
+        codes = await codesRepresentantsDuPerimetre(this.prisma, {
+          id: user.id,
+          role: user.role,
+          idRepr: user.idRepr,
+          regionId: user.regionId ?? null,
+        });
+      }
+    }
+    const mine = codes !== null && user?.role === 'COMMERCIAL' && user.idRepr ? user.idRepr : null;
 
     const where: Prisma.CommandeWhereInput = {
       // Équivalence AD (« 68 ») ↔ Minos (« 068 ») gérée à la comparaison.
-      ...(mine ? { idRepr: { in: idReprVariants(mine) } } : {}),
+      ...(codes ? (codes.length === 0 ? { id: { in: [] } } : { idRepr: { in: codes } }) : {}),
       ...(query.annulees === 'true' ? { dateAnnulation: { not: null } } : {}),
       ...(query.livraison ? { statutLivraison: query.livraison } : {}),
       // Origine provisoire : Appli = saisie mobile (idCommandeApk), EDI = import ERP.

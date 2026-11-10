@@ -41,4 +41,19 @@ export class QueryCommandesDto {
   @IsOptional()
   @IsIn(['edi', 'appli'])
   origine?: 'edi' | 'appli';
+
+  @ApiPropertyOptional({
+    description:
+      "mes=1 : uniquement les commandes de MON périmètre (promoteur = son code, chef de secteur = ses promoteurs, directeur régional = sa région) ; sans effet pour les rôles sans périmètre",
+  })
+  @IsOptional()
+  @IsIn(['1'])
+  mes?: '1';
+
+  @ApiPropertyOptional({
+    description: "tous=1 : lève la restriction d'un promoteur à ses propres commandes (bascule « Mes commandes / Toutes »)",
+  })
+  @IsOptional()
+  @IsIn(['1'])
+  tous?: '1';
 }

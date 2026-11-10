@@ -51,7 +51,7 @@ export class CommandesController {
   })
   findAll(
     @Query() query: QueryCommandesDto,
-    @CurrentUser() user: { role: string; idRepr: string | null },
+    @CurrentUser() user: { id: string; role: string; idRepr: string | null; regionId: string | null },
   ) {
     return this.commandes.findAll(query, user);
   }

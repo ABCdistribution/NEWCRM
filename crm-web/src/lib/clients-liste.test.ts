@@ -14,7 +14,7 @@ const { ClientsFiltres } = await import('@/components/clients-filtres');
 
 describe('filtres lus dans l’adresse', () => {
   it('valeurs par défaut : clients actifs, page 1, « Mes clients » pour les rôles qui ont un périmètre', () => {
-    expect(lireFiltresClients({}, 'COMMERCIAL')).toEqual({ search: '', page: 1, niveau: undefined, statut: 'actifs', mes: true });
+    expect(lireFiltresClients({}, 'COMMERCIAL')).toEqual({ search: '', page: 1, niveau: undefined, statut: 'actifs', mes: true, tous: false });
     expect(lireFiltresClients({}, 'CHEF_SECTEUR').mes).toBe(true);
     expect(lireFiltresClients({}, 'DIRECTEUR_REGIONAL').mes).toBe(true);
   });
@@ -28,6 +28,8 @@ describe('filtres lus dans l’adresse', () => {
 
   it('tous=1 sort de « Mes clients »', () => {
     expect(lireFiltresClients({ tous: '1' }, 'CHEF_SECTEUR').mes).toBe(false);
+    expect(lireFiltresClients({ tous: '1' }, 'CHEF_SECTEUR').tous).toBe(true);
+    expect(lireFiltresClients({ tous: '1' }, 'ADMIN').tous).toBe(false); // sans périmètre : rien à lever
     expect(lireFiltresClients({ tous: '0' }, 'CHEF_SECTEUR').mes).toBe(true);
   });
 

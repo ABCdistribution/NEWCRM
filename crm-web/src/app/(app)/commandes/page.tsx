@@ -2,6 +2,8 @@ import Link from 'next/link';
 import { getStatsCommandes, listCommandes, type CommandesResult, type StatutLivraison } from '@/lib/api';
 import { ENCADREMENT, TOUS_ROLES, requireRole } from '@/lib/roles';
 import { KpiTile } from '@/components/kpi-tile';
+import { MesToggle } from '@/components/mes-toggle';
+import { aUnPerimetre } from '@/lib/clients-liste';
 import { LivraisonBadge, LIVRAISON } from '@/components/livraison-badge';
 import { SearchBar } from '@/components/search-bar';
 import { Pagination } from '@/components/pagination';
@@ -28,7 +30,7 @@ function StatutBadge({ annulee }: { annulee: boolean }) {
 export default async function CommandesPage({
   searchParams,
 }: {
-  searchParams: Promise<{ search?: string; page?: string; annulees?: string; livraison?: string; origine?: string; stats?: string }>;
+  searchParams: Promise<{ search?: string; page?: string; annulees?: string; livraison?: string; origine?: string; stats?: string; tous?: string }>;
 }) {
   const acces = await requireRole(TOUS_ROLES);
   if (acces.refuse) return acces.refuse;
@@ -42,6 +44,9 @@ export default async function CommandesPage({
   const origine = parseOrigine(sp.origine);
   // Indicateurs : la journée par défaut, le mois sur demande (?stats=mois).
   const periodeStats: 'jour' | 'mois' = sp.stats === 'mois' ? 'mois' : 'jour';
+  // « Mes commandes » (promoteur, chef de secteur, directeur régional) : coché par défaut ; décoché (?tous=1), toutes.
+  const avecMes = aUnPerimetre(acces.me.role);
+  const mes = avecMes && sp.tous !== '1';
 
   /** URL de la page avec un ou plusieurs filtres modifiés ; tous les autres sont conservés. */
   const lien = (modif: {
@@ -62,6 +67,7 @@ export default async function CommandesPage({
     if (f.livraison) q.set('livraison', f.livraison);
     if (f.origine) q.set('origine', f.origine);
     if (f.stats === 'mois') q.set('stats', 'mois');
+    if (avecMes && !mes) q.set('tous', '1');
     const str = q.toString();
     return str ? `/commandes?${str}` : '/commandes';
   };
@@ -71,12 +77,11 @@ export default async function CommandesPage({
   let result: CommandesResult | null = null;
   let error: string | null = null;
   try {
-    result = await listCommandes({ search, page, annulees, livraison, origine });
+    result = await listCommandes({ search, page, annulees, livraison, origine, mes, tous: avecMes && !mes });
   } catch {
     error = "Impossible de charger les commandes. L'API est-elle démarrée ?";
   }
 
-  const mine = result?.scope?.type === 'mine';
 
   // Bandeau d'indicateurs : encadrement uniquement (l'API réserve ces chiffres à ces rôles), du jour par défaut.
   const avecKpi = ENCADREMENT.includes(acces.me.role);
@@ -88,14 +93,10 @@ export default async function CommandesPage({
     <div className="flex flex-col gap-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold">{mine ? 'Mes commandes' : 'Commandes'}</h1>
-          <p className="text-sm text-neutral-500">
-            {mine
-              ? `Commandes de mon code représentant (${result!.scope.idRepr}) — remontées de l'ERP Minos.`
-              : "Commandes remontées de l'ERP Minos."}
-          </p>
+          <h1 className="text-2xl font-bold">{mes ? 'Mes commandes' : 'Commandes'}</h1>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          {avecMes ? <MesToggle libelle="Mes commandes" /> : null}
           {/* Filtre annulées */}
           <Link
             href={lien({ annulees: !annulees })}
@@ -306,7 +307,7 @@ export default async function CommandesPage({
             total={result!.total}
             page={result!.page}
             limit={result!.limit}
-            params={{ search, ...(annulees ? { annulees: 'true' } : {}), ...(livraison ? { livraison } : {}), ...(origine ? { origine } : {}), ...(periodeStats === 'mois' ? { stats: 'mois' } : {}) }}
+            params={{ search, ...(annulees ? { annulees: 'true' } : {}), ...(livraison ? { livraison } : {}), ...(origine ? { origine } : {}), ...(periodeStats === 'mois' ? { stats: 'mois' } : {}), ...(avecMes && !mes ? { tous: '1' } : {}) }}
           />
         </>
       )}

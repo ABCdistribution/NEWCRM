@@ -24,6 +24,8 @@ export type FiltresClients = {
   statut: StatutClients;
   /** « Mes clients » : uniquement les clients de mon périmètre (promoteur, chef de secteur, directeur régional). */
   mes: boolean;
+  /** « Mes clients » décoché (rôle à périmètre) : lève la restriction du promoteur à ses propres clients. */
+  tous: boolean;
 };
 
 export type CompteursClients = { total: number; actifs: number; inactifs: number };
@@ -56,6 +58,7 @@ export function lireFiltresClients(
     niveau: NIVEAU.test(niveau) ? niveau : undefined,
     statut: sp.statut === 'inactifs' || sp.statut === 'tous' ? sp.statut : 'actifs',
     mes: aUnPerimetre(role) && sp.tous !== '1',
+    tous: aUnPerimetre(role) && sp.tous === '1',
   };
 }
 
@@ -74,7 +77,8 @@ type Page = { data: ClientListe[]; total: number; page: number; limit: number };
  * recherche et du niveau). Renvoie null si l'API ne répond pas ou refuse.
  */
 export async function chargerClients(f: FiltresClients): Promise<{ liste: Page; compteurs: CompteursClients } | null> {
-  const perimetre = f.mes ? { mes: 1 } : {};
+  // « Mes clients » coché : périmètre de l'appelant ; décoché : `tous=1` (sans lui, l'API garde un promoteur sur les siens).
+  const perimetre = f.mes ? { mes: 1 } : f.tous ? { tous: 1 } : {};
   try {
     const [liste, total, actifs, inactifs] = await Promise.all([
       lire<Page>(
