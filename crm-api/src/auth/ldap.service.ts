@@ -49,7 +49,6 @@ const OUS_FDV_FR = ['Promoteur des ventes', 'Chef de secteur', 'Directeur', 'Res
  */
 export const LIMITE_LECTURE_AD = 1000;
 
-/** Délais par défaut (ms) des échanges avec l'AD ; sans eux, un annuaire muet laisse la requête suspendue sans fin. */
 /**
  * Les comptes belges vivent dans une seule OU « _ABC Benelux » (pas de sous-OU par fonction, contrairement à la France) :
  * leur fonction se lit dans l'intitulé de poste (`title`).
@@ -66,6 +65,7 @@ export function ouParPoste(dn: string, poste: string | null): LdapFdvEntry['ou']
   return undefined;
 }
 
+/** Délais par défaut (ms) des échanges avec l'AD ; sans eux, un annuaire muet laisse la requête suspendue sans fin. */
 const DELAI_CONNEXION_MS = 10_000;
 const DELAI_OPERATION_MS = 120_000;
 
