@@ -16,6 +16,7 @@ import { Role } from '@crm/database';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
+import { ROLES_COMMANDES_VISITES } from '../common/roles.constants';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { ClientsService } from './clients.service';
 import { CreateClientDto } from './dto/create-client.dto';
@@ -222,12 +223,21 @@ export class ClientsController {
 
   @Get(':id')
   @ApiOperation({ summary: "Détail d'un client" })
-  findOne(@Param('id', ParseUUIDPipe) id: string) {
-    return this.clients.findOneDetail(id);
+  async findOne(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: { role: string }) {
+    const detail = await this.clients.findOneDetail(id);
+    // Le marketing ne voit ni commandes ni visites : pas non plus leurs compteurs.
+    if (user.role === Role.MARKETING) {
+      const { _count, ...reste } = detail as typeof detail & { _count?: unknown };
+      void _count;
+      return reste;
+    }
+    return detail;
   }
 
   @Get(':id/historique')
-  @ApiOperation({ summary: 'Historique du magasin : commandes, visites, CA mensuel N / N-1' })
+  @UseGuards(RolesGuard)
+  @Roles(...ROLES_COMMANDES_VISITES) // contient des commandes et des visites : pas d'accès pour le marketing
+  @ApiOperation({ summary: 'Historique du magasin : commandes, visites, CA mensuel N / N-1 (pas de marketing)' })
   historique(@Param('id', ParseUUIDPipe) id: string) {
     return this.clients.findHistorique(id);
   }

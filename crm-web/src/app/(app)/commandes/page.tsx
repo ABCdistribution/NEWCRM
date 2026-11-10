@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import { getStatsCommandes, listCommandes, type CommandesResult, type StatutLivraison } from '@/lib/api';
-import { ENCADREMENT, TOUS_ROLES, requireRole } from '@/lib/roles';
+import { ENCADREMENT, ROLES_COMMANDES_VISITES, requireRole } from '@/lib/roles';
 import { KpiTile } from '@/components/kpi-tile';
 import { MesToggle } from '@/components/mes-toggle';
 import { aUnPerimetre } from '@/lib/clients-liste';
@@ -32,7 +32,7 @@ export default async function CommandesPage({
 }: {
   searchParams: Promise<{ search?: string; page?: string; annulees?: string; livraison?: string; origine?: string; stats?: string; tous?: string }>;
 }) {
-  const acces = await requireRole(TOUS_ROLES);
+  const acces = await requireRole(ROLES_COMMANDES_VISITES);
   if (acces.refuse) return acces.refuse;
   const sp = await searchParams;
   const search = sp.search ?? '';

@@ -16,6 +16,12 @@ export const TERRAIN: readonly Role[] = ['COMMERCIAL', 'ADV'];
 /** Tous les rôles connus de l'API. */
 export const TOUS_ROLES: readonly Role[] = [...ENCADREMENT, ...TERRAIN, 'MARKETING'];
 
+/**
+ * Rôles qui ont accès aux commandes et aux visites : tous sauf le marketing (décision de l'utilisateur). Même liste que
+ * `ROLES_COMMANDES_VISITES` de l'API, qui reste la vraie protection.
+ */
+export const ROLES_COMMANDES_VISITES: readonly Role[] = [...ENCADREMENT, ...TERRAIN];
+
 /** Espaces de l'application : pilotent le thème (`data-espace`) et le menu. */
 export type Espace = 'promoteurs' | 'direction';
 

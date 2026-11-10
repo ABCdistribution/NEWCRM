@@ -30,6 +30,9 @@ import {
 import { User } from '@crm/database';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
+import { RolesGuard } from '../auth/guards/roles.guard';
+import { Roles } from '../auth/decorators/roles.decorator';
+import { ROLES_COMMANDES_VISITES } from '../common/roles.constants';
 import { auteursDeVisitesVisibles, VisitesService } from './visites.service';
 
 class ReponseDto {
@@ -104,7 +107,9 @@ class PhotoDto {
 
 @ApiTags('visites')
 @ApiBearerAuth()
-@UseGuards(JwtAuthGuard)
+// Pas d'accès pour le marketing (ni liste, ni création, ni photos).
+@UseGuards(JwtAuthGuard, RolesGuard)
+@Roles(...ROLES_COMMANDES_VISITES)
 @Controller('visites')
 export class VisitesController {
   constructor(private readonly visites: VisitesService) {}

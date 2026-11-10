@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import { Camera, Star } from 'lucide-react';
 import { listVisites, type VisitesResult } from '@/lib/api';
-import { requireRole, TOUS_ROLES } from '@/lib/roles';
+import { requireRole, ROLES_COMMANDES_VISITES } from '@/lib/roles';
 import { SearchBar } from '@/components/search-bar';
 import { Pagination } from '@/components/pagination';
 import { MesToggle } from '@/components/mes-toggle';
@@ -20,7 +20,7 @@ export default async function VisitesPage({
 }: {
   searchParams: Promise<{ search?: string; page?: string; tous?: string }>;
 }) {
-  const acces = await requireRole(TOUS_ROLES);
+  const acces = await requireRole(ROLES_COMMANDES_VISITES);
   if (acces.refuse) return acces.refuse;
 
   const sp = await searchParams;

@@ -84,7 +84,13 @@ export class SearchService {
 
     // Deux vagues de trois familles (6 requêtes chacune au plus) : une recherche ne doit pas occuper à elle seule le
     // pool de connexions (10) au détriment des autres écrans.
-    const vague1 = await Promise.all([this.clients(mots, codes), this.commandes(mots, codes), this.visites(me, mots)]);
+    // Le marketing n'a accès ni aux commandes ni aux visites : ces familles ne lui sont jamais cherchées.
+    const sansCommandesVisites = me.role === Role.MARKETING;
+    const vague1 = await Promise.all([
+      this.clients(mots, codes),
+      sansCommandesVisites ? Promise.resolve(null) : this.commandes(mots, codes),
+      sansCommandesVisites ? Promise.resolve(null) : this.visites(me, mots),
+    ]);
     const vague2 = await Promise.all([this.collaborateurs(me, mots), this.prospectsDuPerimetre(me, mots), this.produits(mots)]);
     const familles = [...vague1, ...vague2];
     return { q, groupes: familles.filter((g): g is GroupeResultats => g !== null && g.items.length > 0) };

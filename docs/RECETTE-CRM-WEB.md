@@ -266,10 +266,10 @@ Pour chaque rôle : se connecter avec le compte du §1.2, faire la série, se d�
 ### 3.7 MARKETING (provisoire : rien n'est défini, on observe seulement)
 
 - [ ] **MKT-01** Thème **bleu** (espace « promoteurs », comme le promoteur et l'ADV ; plus le violet). Le rôle MARKETING vient de l'**OU « Service Marketing »** de l'AD (siège, même règle que l'ADV) : la synchro AD lit alors 82 comptes au lieu de 64 (5 ADV et 13 marketing de plus) ; le groupe `Grp_Marketing` (45 membres de tous les services) n'est **pas** utilisé.
-- [ ] **MKT-02** Menu : Accueil, Les News · Terrain : Les visites, Les commandes · Catalogue : Les clients, puis 3 entrées. Aucune autre entrée.
+- [ ] **MKT-02** Menu : Accueil, Les News · Catalogue : Les clients, Les produits, Les promos / PEM, Qualité & rappels. **Aucune** entrée Terrain : **ni « Les visites » ni « Les commandes »**. Aucune autre entrée.
 - [ ] **MKT-03** Accueil : « Bonjour <prénom> » et une seule carte « Les News » (accueil provisoire) qui mène à `/news`.
 - [ ] **MKT-04** `/news` : **gestion complète** (comme ADM-11) ; `/promos` : **mode édition**.
-- [ ] **MKT-05** Fiche client : **lecture seule** (aucun bouton d'édition de périodicité, contacts, notes) ; fiche commande : pas d'éditeur de livraison.
+- [ ] **MKT-05** Fiche client : **lecture seule** (aucun bouton d'édition de périodicité, contacts, notes) ; **ni compteurs de visites et de commandes, ni blocs « Dernières commandes / visites » et CA N / N-1** sur la fiche. **Accès interdits au marketing** : `/commandes`, `/commandes/<id>`, `/visites` (écran « Accès refusé » ou page introuvable) et, côté API, `GET /commandes*`, `GET /visites*`, `GET /clients/<id>/historique` (403) ; la recherche générale ne lui renvoie **ni commandes ni visites** ; l'enrichissement de la liste clients (CA du mois, dernière visite) lui est refusé.
 - [ ] **MKT-06** `/clients` : liste unique, sans filtre « Mes clients » (tout le référentiel).
 - [ ] **MKT-07** Refusés : `/planning`, `/planning-equipe`, `/prospects`, `/mon-equipe`, `/rapports`, `/alertes`, `/admin`, `/agenda`, `/clients/<id>/visite`.
 - [ ] **MKT-08** **Noter** ce que l'API renvoie à MARKETING sur clients, commandes, visites (périmètre à définir, §6).

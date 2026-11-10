@@ -134,7 +134,8 @@ export type ClientDetail = {
     auteur: { displayName: string } | null;
   }[];
   periodicites: { id: string; periodicite: { id: string; code: number | null; libelle: string } }[];
-  _count: { visites: number; commandes: number };
+  /** Absent pour le marketing (qui n'a accès ni aux commandes ni aux visites). */
+  _count?: { visites: number; commandes: number };
 };
 
 export type CommandeRow = {

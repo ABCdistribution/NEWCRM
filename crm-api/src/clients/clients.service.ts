@@ -115,7 +115,8 @@ export class ClientsService {
       ...(conditions.length > 0 ? { AND: conditions } : {}),
     };
 
-    const enrich = query.enrich === 'true' || query.enrich === '1';
+    // L'enrichissement (CA du mois, dernière visite, alertes) lit commandes et visites : jamais pour le marketing.
+    const enrich = (query.enrich === 'true' || query.enrich === '1') && user?.role !== 'MARKETING';
 
     const [data, total] = await Promise.all([
       this.prisma.client.findMany({
