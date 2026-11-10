@@ -1,6 +1,6 @@
 # Fiche de recette manuelle — crm-web
 
-Application unique (Next 15, port 3002) qui fusionne ABC Sales (`crm-promoteur`) et ABC Pilot (`crm-helios`).
+Application unique (Next 15, port 3002) qui a fusionné ABC Sales (ex-`crm-promoteur`) et ABC Pilot (ex-`crm-helios`). Les deux anciens fronts ont été supprimés le 2026-11-10 (code lisible dans l'historique git, commit `4c5e7b6`).
 Fiche destinée à la personne qui teste avec de **vrais comptes Active Directory**.
 
 - Branche : `refonte/front-unique`. Rédigée le 2026-11-09.
@@ -31,7 +31,7 @@ Légende des tableaux : **OK** = page affichée ; **Refusé** = écran « Accès
    pnpm dev
    ```
    (`API_URL` vaut `http://localhost:4000` par défaut.) Ouvrir `http://localhost:3002`.
-6. Les anciens fronts (3000 ABC Sales, 3001 ABC Pilot) peuvent rester allumés : ils ne servent qu'à comparer. **Ne pas les arrêter ni les modifier.**
+6. Les anciens fronts (3000 ABC Sales, 3001 ABC Pilot) n'existent plus : aucune comparaison côte à côte n'est possible, voir URL-05.
 
 ### 1.2 Comptes de test (un compte AD par rôle)
 
@@ -55,7 +55,7 @@ Avant chaque série : se connecter, regarder le libellé sous le nom en bas du m
 - Des écrans **écrivent vraiment** : notes et contacts de clients, périodicité, planning de l'équipe, relances (une notification part chez le promoteur), prospects (étape, conversion en client), news, promos/PEM, administration (rôle, activation, secteur, synchro AD, synchro Minos). Les faire sur des données de test.
 - **Valider un rapport d'activité verrouille la semaine** (irréversible, boutons « Valider le rapport »). Le faire sur une semaine sans enjeu.
 - **Ne pas multiplier les mauvais mots de passe** : l'API ne limite pas encore les tentatives de connexion (BACKLOG 1.4), un verrouillage du compte AD est possible.
-- **Un seul compte à la fois par navigateur** : le cookie de session `crm_session` est partagé par les ports 3000, 3001 et 3002 (même hôte). Se déconnecter entre deux comptes, ou utiliser un profil de navigateur par compte. Une connexion sur un ancien front vaut aussi pour crm-web, et la déconnexion de crm-web vide le cookie des trois.
+- **Un seul compte à la fois par navigateur** : le cookie de session `crm_session` est propre à l'hôte, pas au port. Se déconnecter entre deux comptes, ou utiliser un profil de navigateur par compte.
 - Test d'un build de production derrière HTTP (`pnpm build` puis `pnpm start`) : sur une adresse autre que `localhost`, définir `COOKIE_SECURE=false` pour crm-web, sinon la session ne tient pas (BACKLOG 1.11). En `pnpm dev`, rien à faire.
 
 ### 1.4 Contrôles automatiques à lancer avant la recette (non exécutés pour cette fiche)
@@ -305,7 +305,7 @@ Autres contrôles :
 - [ ] **URL-02** Les adresses **inchangées** ne sont pas redirigées : `/`, `/agenda`, `/clients`, `/clients/<id>`, `/commandes`, `/commandes/<id>`, `/news`, `/parametres`, `/produits`, `/promos`, `/qualite`, `/visites`, `/login`, `/avatar/<id>`, `/pj/<id>/<pjId>`.
 - [ ] **URL-03** Un lien de notification ancien (voir GEN-04) s'ouvre sur la bonne page de crm-web.
 - [ ] **URL-04** Redirection avec un id invalide (`/pilotage/clients/abc`) : « Page introuvable » avec menu, pas d'erreur.
-- [ ] **URL-05** Comparer avec l'ancien front : une page de 3000 ou 3001 et son équivalent crm-web affichent les mêmes chiffres pour le même compte (écart de présentation toléré, écart de données à consigner).
+- [ ] **URL-05** Cohérence des chiffres : pour un même compte, les chiffres d'une page (CA, clients, commandes) correspondent à ceux de l'ancien CRM ou aux chiffres connus de l'équipe ; consigner tout écart de données. Les anciens fronts, supprimés, ne servent plus de référence.
 
 ---
 

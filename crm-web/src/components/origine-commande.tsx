@@ -7,7 +7,7 @@ import Link from 'next/link';
  * L'API renvoie `viaMobile` : true = saisie sur mobile = Appli, false = EDI.
  * Quand un vrai champ existera, ne changer que `origineDe` ci-dessous.
  * Le filtre `?origine=edi|appli` est transmis tel quel à `GET /commandes`.
- * Fichier identique dans crm-promoteur et crm-helios.
+ * Repris des anciens fronts (supprimés), où ce fichier était identique.
  */
 export type Origine = 'edi' | 'appli';
 
