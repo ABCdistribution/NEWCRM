@@ -47,7 +47,7 @@ Le rôle d'un compte est posé par son OU Active Directory à chaque connexion :
 | ADV *(à part, provisoire)* | | Compte AD ADV si disponible |
 | MARKETING *(à part, provisoire)* | | Compte AD MARKETING si disponible |
 
-Avant chaque série : se connecter, regarder le libellé sous le nom en bas du menu (« Chef de secteur », « Promoteur des ventes »…) pour confirmer le rôle réellement reçu.
+Avant chaque série : se connecter, regarder le libellé sous le nom, en haut à droite dans le bandeau (« Chef de secteur », « Promoteur des ventes »…) pour confirmer le rôle réellement reçu.
 
 ### 1.3 Précautions
 
@@ -139,14 +139,15 @@ Autres adresses :
 
 Pour chaque rôle : se connecter avec le compte du §1.2, faire la série, se déconnecter.
 
-**Repérer le thème** : bleu (ABC Sales, `data-espace="promoteurs"`, accent `#1f7aea`) ou violet (ABC Pilot, `data-espace="direction"`, accent `#7a56e6`). **Le fond du contenu est le même dans les deux espaces : gris très clair `#f6f8fa`** ; le menu latéral (et la barre du haut sur mobile) est **blanc plein**, avec l'entrée active teintée de la couleur de l'espace ; les cartes sont blanches. Seuls les accents (titres du menu, entrée active, boutons, graphes) distinguent bleu et violet. Moyen sûr et rapide : outils de développement du navigateur, chercher l'attribut `data-espace` (sur le `div` racine de l'application, sur `main` pour `/login`). Le thème suit le **rôle**, pas la page : l'encadrement garde le violet même sur les écrans « terrain ». Aucun dégradé de couleur nulle part (menu, connexion, bandeaux : aplats).
+**Repérer le thème** : bleu (ABC Sales, `data-espace="promoteurs"`, accent `#1f7aea`) ou violet (ABC Pilot, `data-espace="direction"`, tous les rôles sauf promoteur : palette violet foncé `#7656B8` pour la navigation, les boutons et les graphiques, violet clair `#A98AE9` pour les accents, rose principal `#E76AA5` en série secondaire des graphiques, rose pastel `#F8E7F0` pour les badges, vert menthe `#39C98A` pour les indicateurs positifs, jaune citron `#CFD46B` pour les indicateurs à surveiller, bleu nuit `#202B3A` pour les titres et textes). **Le fond du contenu est le même dans les deux espaces : gris très clair `#f6f8fa`** ; le menu latéral (et la barre du haut sur mobile) est **blanc plein**, avec l'entrée active teintée de la couleur de l'espace ; les cartes sont blanches. Seuls les accents (titres du menu, entrée active, boutons, graphes) distinguent bleu et violet. Moyen sûr et rapide : outils de développement du navigateur, chercher l'attribut `data-espace` (sur le `div` racine de l'application, sur `main` pour `/login`). Le thème suit le **rôle**, pas la page : l'encadrement garde le violet même sur les écrans « terrain ». Aucun dégradé de couleur nulle part (menu, connexion, bandeaux : aplats).
 
 ### 3.0 Contrôles communs (à faire une fois, puis répéter la ligne « menu / thème » pour chaque rôle)
 
 - [ ] **GEN-01** Connexion avec un identifiant ou un mot de passe faux : message « Identifiant ou mot de passe incorrect. », aucun détail sur l'existence du compte.
 - [ ] **GEN-02** Connexion correcte : arrivée sur `/` (ou sur la page demandée si l'adresse portait `?from=`).
-- [ ] **GEN-03** Déconnexion (icône en bas du menu, « Déconnexion ») : retour sur `/login` ; le bouton « Précédent » du navigateur ne ré-affiche **aucune** page protégée ; rouvrir `/` renvoie vers `/login`.
-- [ ] **GEN-04** Cloche de notifications (bas du menu, aussi dans la barre mobile) présente pour tous les rôles ; ouvrir une notification mène à une page valide de crm-web (jamais un 404, y compris pour une notification ancienne dont le lien visait `/tournees` ou `/pilotage/ma-tournee`).
+- [ ] **GEN-03** Déconnexion (icône à droite du bandeau du haut, « Déconnexion ») : retour sur `/login` ; le bouton « Précédent » du navigateur ne ré-affiche **aucune** page protégée ; rouvrir `/` renvoie vers `/login`.
+- [ ] **GEN-04** Cloche de notifications (bandeau du haut, à gauche de la photo ; le panneau s'ouvre vers le bas) présente pour tous les rôles ; ouvrir une notification mène à une page valide de crm-web (jamais un 404, y compris pour une notification ancienne dont le lien visait `/tournees` ou `/pilotage/ma-tournee`).
+- [ ] **GEN-05** Bandeau du haut (blanc, au-dessus du contenu, fixe sur ordinateur) : **recherche générale** à gauche, cloche, photo + nom + poste (ou rôle) et déconnexion à droite. Saisir au moins 2 lettres : les résultats s'affichent après un court délai, groupés par famille (**Clients, Commandes, Visites, Collaborateurs, Prospects, Produits**, 5 lignes au plus chacune, « Voir les N résultats » quand il y en a davantage). Plusieurs mots : tous doivent se retrouver (« auchan rouen »). Un résultat mène à sa fiche (client, commande, prospect), à la liste filtrée (visite, produit) ou à la fiche « Mon équipe » (collaborateur) **seulement si le rôle peut l'ouvrir** ; sinon la ligne reste affichée sans lien. Clavier : flèches haut/bas, Entrée ouvre la ligne choisie (sinon la première), Échap ferme puis efface. **Périmètre à vérifier par rôle** : COMMERCIAL ne trouve que ses clients, ses commandes et ses visites, et aucun collaborateur ni prospect ; CS = ses promoteurs ; DR = sa région ; DIRECTION / ADMIN / ADV / MARKETING = tout ce que leurs listes montrent (ADV et MARKETING : ni collaborateurs ni prospects) ; les produits sont ouverts à tous. Aucun e-mail, téléphone ni montant dans les résultats.
 - [ ] **GEN-05** Largeur < 768 px : barre supérieure avec hamburger, tiroir de menu (fermé par Échap, par le voile ou par une navigation), tableaux remplacés par des cartes.
 - [ ] **GEN-06** Pied de menu : nom, avatar (ou initiales) et fonction (« Administrateur », « Direction », « Directeur régional », « Chef de secteur », « Promoteur des ventes », « ADV », « Marketing ») cohérents avec le compte.
 - [ ] **GEN-07** Sous-titre sous « ABC » en haut du menu : « Promoteurs » (espace bleu) ou « Direction commerciale » (espace violet).
@@ -234,7 +235,7 @@ Pour chaque rôle : se connecter avec le compte du §1.2, faire la série, se d�
 ### 3.5 ADMIN
 
 - [ ] **ADM-01** Thème **violet** ; sous-titre « Direction commerciale ».
-- [ ] **ADM-02** Menu exact : Accueil, Les News · Terrain (5) · Catalogue (3) · **Pilotage : Prospection, Mon équipe, Alertes, Rapports d'activité** · **Administration : Administration**. Pas d'entrée « Paramètres ».
+- [ ] **ADM-02** Menu exact : **Accueil, Administration, Les News** (Administration au-dessus de Les News, sans section propre) · Terrain (5) · Catalogue (3) · **Pilotage : Prospection, Mon équipe, Alertes, Rapports d'activité**. Pas d'entrée « Paramètres ».
 - [ ] **ADM-03** Accueil « Pilotage force de vente » : comme DIR-03 (carte des équipes seule).
 - [ ] **ADM-04** `/admin` : bandeau « Accès administrateur » ; colonne d'onglets : Vue d'ensemble, Utilisateurs, Organisation, Synchronisations, Mobile (« bientôt »), Contenus, Configuration (« bientôt »), Journal d'audit (« bientôt »). L'onglet actif est porté par `?onglet=` ; un onglet inconnu (`?onglet=xyz`) ouvre « Vue d'ensemble ».
 - [ ] **ADM-05** Onglet **Utilisateurs** : recherche, filtres rôle / secteur / statut, pagination (paramètres d'URL conservés) ; changer un rôle, activer ou désactiver, rattacher un secteur **sur un compte de test**. Rappel : le rôle est réécrit par l'OU AD à la connexion suivante.

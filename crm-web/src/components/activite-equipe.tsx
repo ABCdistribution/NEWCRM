@@ -2,11 +2,12 @@ import { CalendarCheck, ShoppingCart, Target } from 'lucide-react';
 import type { Activite, CaADate } from '@/lib/carte';
 import { euros, libellePeriode, niveauObjectif, phraseObjectif, type NiveauObjectif } from '@/lib/activite';
 
-// Couleurs SÉMANTIQUES de statut (objectif atteint / en retard / très en retard), seules couleurs en dur autorisées :
-// l'état est aussi écrit en clair (pourcentage et phrase pour les lecteurs d'écran), la couleur n'est jamais seule.
+// Couleurs SÉMANTIQUES de statut (objectif atteint / en retard / très en retard) : « atteint » et « en retard » suivent les
+// jetons positif et attention de l'espace (menthe et citron en Direction), « très en retard » reste un rouge fixe.
+// L'état est aussi écrit en clair (pourcentage et phrase pour les lecteurs d'écran), la couleur n'est jamais seule.
 const COULEUR_BARRE: Record<NiveauObjectif, string> = {
-  bon: 'bg-emerald-500',
-  moyen: 'bg-amber-500',
+  bon: 'bg-positif',
+  moyen: 'bg-attention',
   bas: 'bg-red-500',
   aucun: 'bg-neutral-300',
 };

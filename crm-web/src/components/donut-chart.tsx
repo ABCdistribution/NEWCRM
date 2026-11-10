@@ -1,13 +1,14 @@
 export type DonutSegment = { label: string; value: number; color: string };
 
 /**
- * Couleurs SÉMANTIQUES des anneaux (JS de graphique, volontairement hors jetons du thème) : le sens d'un
- * segment (réussi / à surveiller / raté / non défini) doit rester identique dans les espaces bleu et violet.
- * Équivalents Tailwind : emerald-500, amber-500, red-500, neutral-300. Lisibles en clair comme en sombre.
+ * Couleurs SÉMANTIQUES des anneaux : le sens d'un segment (réussi / à surveiller / raté / non défini) reste identique
+ * dans les espaces bleu et violet. « Réussi » et « à surveiller » suivent les jetons de l'espace (positif et attention :
+ * menthe et citron en Direction, emerald-500 et amber-500 en Promoteurs) ; raté (red-500) et non défini (neutral-300)
+ * sont fixes. Chaque segment est aussi écrit dans la légende : la couleur n'est jamais seule à porter le sens.
  */
 export const COULEURS_DONUT = {
-  ok: '#10b981',
-  alerte: '#f59e0b',
+  ok: 'var(--espace-positif)',
+  alerte: 'var(--espace-attention)',
   ko: '#ef4444',
   neutre: '#d4d4d8',
 } as const;
@@ -47,7 +48,7 @@ export function DonutChart({
                     cy={50}
                     r={R}
                     fill="none"
-                    stroke={seg.color}
+                    style={{ stroke: seg.color }}
                     strokeWidth={13}
                     strokeDasharray={`${len} ${C - len}`}
                     strokeDashoffset={-offset}

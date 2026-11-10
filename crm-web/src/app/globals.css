@@ -23,6 +23,10 @@
   --color-accent: var(--espace-accent);
   --color-brand-light: var(--espace-brand-light);
   --color-navy: var(--espace-navy);
+  /* Fond des badges et pastilles ; couleurs des indicateurs positif / à surveiller (barres, anneaux, pastilles). */
+  --color-badge: var(--espace-badge);
+  --color-positif: var(--espace-positif);
+  --color-attention: var(--espace-attention);
 
   --color-navy-950: var(--espace-navy-950);
   --color-navy-900: var(--espace-navy-900);
@@ -54,24 +58,42 @@
   --espace-navy-800: #14276b;
   --espace-navy-700: #22367c;
   --espace-navy-600: #31479c;
+  --espace-badge: color-mix(in srgb, #1f7aea 10%, transparent);
+  --espace-positif: #10b981; /* emerald-500 */
+  --espace-attention: #f59e0b; /* amber-500 */
   --espace-shadow-card: 0 1px 2px 0 rgb(16 24 40 / 0.04);
   --espace-card-border: #eceef5;
 }
 
+/*
+ * Espace Direction (tous les rôles sauf promoteur) : palette ABC Pilot.
+ *   violet foncé  #7656B8 : navigation, boutons, graphiques        → brand
+ *   violet clair  #A98AE9 : cartes et accents                      → accent
+ *   rose principal #E76AA5 : graphiques, boutons et promotions     → brand-light (série secondaire)
+ *   rose pastel   #F8E7F0 : badges et arrière-plans                → badge
+ *   vert menthe   #39C98A : indicateurs positifs                   → positif
+ *   jaune citron  #CFD46B : graphiques et indicateurs              → attention
+ *   bleu nuit     #202B3A : titres et textes importants            → foreground, navy (et ses tons foncés)
+ * Le violet clair et la menthe / le citron ne servent que de remplissage : trop clairs pour du texte sur blanc
+ * (le texte garde brand, ou un ton foncé de la même teinte).
+ */
 [data-espace='direction'] {
   --background: #f6f8fa; /* même fond que l'espace Promoteurs : seules les couleurs d'accent changent */
-  --foreground: #2e1b56;
-  --espace-brand: #7a56e6; /* violet ABC Pilot */
-  --espace-accent: #b396fb;
-  --espace-brand-light: #d2c3fc; /* lilas — série tertiaire des graphes */
-  --espace-navy: #2e1b56;
-  --espace-navy-950: #14052b;
-  --espace-navy-900: #200a40;
-  --espace-navy-800: #2e1458;
-  --espace-navy-700: #3f2373;
-  --espace-navy-600: #533391;
-  --espace-shadow-card: 0 1px 2px 0 rgb(60 30 100 / 0.04);
-  --espace-card-border: #eae6f4;
+  --foreground: #202b3a;
+  --espace-brand: #7656b8;
+  --espace-accent: #a98ae9;
+  --espace-brand-light: #e76aa5;
+  --espace-navy: #202b3a;
+  --espace-navy-950: #0f151d;
+  --espace-navy-900: #161e2a;
+  --espace-navy-800: #202b3a;
+  --espace-navy-700: #2d3b50;
+  --espace-navy-600: #3f506a;
+  --espace-badge: #f8e7f0;
+  --espace-positif: #39c98a;
+  --espace-attention: #cfd46b;
+  --espace-shadow-card: 0 1px 2px 0 rgb(32 43 58 / 0.04);
+  --espace-card-border: #e6e9ef;
 }
 
 /* Le conteneur d'espace porte lui-même le fond et le texte de son thème. */

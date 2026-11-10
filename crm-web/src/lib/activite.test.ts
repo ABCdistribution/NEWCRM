@@ -58,7 +58,7 @@ describe('rendu de l’activité', () => {
     expect(html).toContain('role="img"');
     expect(html).toContain("aria-label=\"CA de 8 450 € sur 10 000 € d&#x27;objectif (85 %)\"");
     expect(html).toContain('width:85%');
-    expect(html).toContain('bg-amber-500');
+    expect(html).toContain('bg-attention'); // jeton de l'espace : citron en Direction, amber-500 en Promoteurs
   });
 
   it('singulier à 1 et pluriel au-delà', () => {
@@ -80,7 +80,7 @@ describe('rendu de l’activité', () => {
     const html = renderToStaticMarkup(createElement(LigneActivite, { a: A({ ca: 15000, tauxPct: 150 }) }));
     expect(html).toContain('width:100%');
     expect(html).toContain('150 %');
-    expect(html).toContain('bg-emerald-500');
+    expect(html).toContain('bg-positif'); // jeton de l'espace : menthe en Direction, emerald-500 en Promoteurs
   });
 
   it('un objectif très en retard est signalé en rouge', () => {

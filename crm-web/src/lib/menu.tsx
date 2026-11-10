@@ -11,7 +11,8 @@ export type MenuSection = { label: string | null; items: MenuItem[] };
  * la table unique `ROUTES` ; seul le découpage en sections est défini ici.
  */
 const SECTIONS: { cle: string; label: (role: Role) => string | null; hrefs: string[] }[] = [
-  { cle: 'general', label: () => null, hrefs: ['/', '/news'] },
+  // « Administration » (ADMIN seul : la table ROUTES ne la propose qu'à lui) se place entre l'accueil et Les News.
+  { cle: 'general', label: () => null, hrefs: ['/', '/admin', '/news'] },
   {
     cle: 'terrain',
     label: (role) => (role === 'COMMERCIAL' ? 'Mon terrain' : 'Terrain'),
@@ -19,7 +20,6 @@ const SECTIONS: { cle: string; label: (role: Role) => string | null; hrefs: stri
   },
   { cle: 'catalogue', label: () => 'Catalogue', hrefs: ['/produits', '/promos', '/qualite'] },
   { cle: 'pilotage', label: () => 'Pilotage', hrefs: ['/prospects', '/mon-equipe', '/alertes', '/rapports'] },
-  { cle: 'admin', label: () => 'Administration', hrefs: ['/admin'] },
 ];
 
 /** Libellés propres à un rôle (sinon celui de la table ROUTES). */
