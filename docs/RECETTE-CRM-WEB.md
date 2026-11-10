@@ -265,7 +265,7 @@ Pour chaque rôle : se connecter avec le compte du §1.2, faire la série, se d�
 
 ### 3.7 MARKETING (provisoire : rien n'est défini, on observe seulement)
 
-- [ ] **MKT-01** Thème **violet** (espace « direction » par défaut en attendant la décision). Le rôle MARKETING vient de l'**OU « Service Marketing »** de l'AD (siège, même règle que l'ADV) : la synchro AD lit alors 82 comptes au lieu de 64 (5 ADV et 13 marketing de plus) ; le groupe `Grp_Marketing` (45 membres de tous les services) n'est **pas** utilisé.
+- [ ] **MKT-01** Thème **bleu** (espace « promoteurs », comme le promoteur et l'ADV ; plus le violet). Le rôle MARKETING vient de l'**OU « Service Marketing »** de l'AD (siège, même règle que l'ADV) : la synchro AD lit alors 82 comptes au lieu de 64 (5 ADV et 13 marketing de plus) ; le groupe `Grp_Marketing` (45 membres de tous les services) n'est **pas** utilisé.
 - [ ] **MKT-02** Menu : Accueil, Les News · Terrain : Les visites, Les commandes · Catalogue : Les clients, puis 3 entrées. Aucune autre entrée.
 - [ ] **MKT-03** Accueil : « Bonjour <prénom> » et une seule carte « Les News » (accueil provisoire) qui mène à `/news`.
 - [ ] **MKT-04** `/news` : **gestion complète** (comme ADM-11) ; `/promos` : **mode édition**.

@@ -27,8 +27,9 @@ export function estEncadrement(role: Role): boolean {
 export function espaceDe(role: Role): Espace {
   if (estEncadrement(role)) return 'direction';
   if (TERRAIN.includes(role)) return 'promoteurs';
-  // MARKETING : à définir (espace provisoirement « direction »).
-  return 'direction';
+  // MARKETING : thème et menu de l'espace Promoteurs (bleu), sur décision de l'utilisateur ; ses accès restent ceux de
+  // son rôle (aucun écran de pilotage : ils sont réservés à l'encadrement par la table ROUTES).
+  return 'promoteurs';
 }
 
 /**
