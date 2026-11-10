@@ -1,6 +1,7 @@
 import { Injectable, Logger, ServiceUnavailableException, UnauthorizedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Client } from 'ldapts';
+import { regionFromSt } from '../common/regions.util';
 
 /** Profil utilisateur extrait de l'annuaire LDAP. */
 export interface LdapProfile {
@@ -49,6 +50,22 @@ const OUS_FDV_FR = ['Promoteur des ventes', 'Chef de secteur', 'Directeur', 'Res
 export const LIMITE_LECTURE_AD = 1000;
 
 /** Délais par défaut (ms) des échanges avec l'AD ; sans eux, un annuaire muet laisse la requête suspendue sans fin. */
+/**
+ * Les comptes belges vivent dans une seule OU « _ABC Benelux » (pas de sous-OU par fonction, contrairement à la France) :
+ * leur fonction se lit dans l'intitulé de poste (`title`).
+ */
+const OU_BENELUX = '_ABC Benelux';
+
+/** Fonction d'un compte de l'OU Benelux d'après son intitulé de poste ; undefined si hors OU Benelux ou fonction non commerciale. */
+export function ouParPoste(dn: string, poste: string | null): LdapFdvEntry['ou'] | undefined {
+  if (!dn.toLowerCase().includes(`ou=${OU_BENELUX.toLowerCase()}`)) return undefined;
+  const p = (poste ?? '').toLowerCase();
+  if (/promot/.test(p)) return 'Promoteur des ventes';
+  if (/chef|cheffe/.test(p) && /secteur/.test(p)) return 'Chef de secteur';
+  if (/directeur|directrice/.test(p)) return 'Directeur';
+  return undefined;
+}
+
 const DELAI_CONNEXION_MS = 10_000;
 const DELAI_OPERATION_MS = 120_000;
 
@@ -217,9 +234,18 @@ export class LdapService {
       }
 
       const entries: LdapFdvEntry[] = [];
+      // Diagnostic : comptes dont l'attribut `st` est une région reconnue mais qui sont hors des OU lues (ils sont donc
+      // ignorés sans message). On ne journalise que le chemin d'OU et un compte, jamais de nom ni de coordonnées.
+      const horsOu = new Map<string, number>();
       for (const entry of searchEntries) {
-        const ou = OUS_FDV_FR.find((o) => entry.dn.toLowerCase().includes(`ou=${o.toLowerCase()}`));
+        const ou =
+          OUS_FDV_FR.find((o) => entry.dn.toLowerCase().includes(`ou=${o.toLowerCase()}`)) ??
+          ouParPoste(entry.dn, this.first(entry['title'])?.trim() || null);
         const username = this.first(entry['sAMAccountName']);
+        if (!ou && regionFromSt(this.first(entry['st'])?.trim() || null)) {
+          const chemin = entry.dn.split(',').filter((p) => /^ou=/i.test(p.trim())).join(',') || '(racine)';
+          horsOu.set(chemin, (horsOu.get(chemin) ?? 0) + 1);
+        }
         if (!ou || !username) continue;
         entries.push({
           username,
@@ -233,6 +259,10 @@ export class LdapService {
           poste: this.first(entry['title'])?.trim() || null,
           photo: this.buffer(entry['thumbnailPhoto']),
         });
+      }
+      if (horsOu.size) {
+        const detail = [...horsOu].map(([chemin, n]) => `${chemin} (${n})`).join(' ; ').slice(0, 600);
+        this.logger.warn(`Synchro AD : comptes à région reconnue mais hors des OU lues, ignorés : ${detail}`);
       }
       return { entrees: entries, tronque };
     } catch (err) {
