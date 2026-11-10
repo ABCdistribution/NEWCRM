@@ -17,6 +17,13 @@ export class ArticlesController {
     return this.articles.findAll(query);
   }
 
+  // Déclarée avant GET :id pour ne pas être happée par le ParseUUIDPipe.
+  @Get('marques')
+  @ApiOperation({ summary: "Marques ayant au moins un article au catalogue (nom, nombre d'articles)" })
+  marques() {
+    return this.articles.marques();
+  }
+
   @Get(':id')
   @ApiOperation({ summary: "Détail d'un article" })
   findOne(@Param('id', ParseUUIDPipe) id: string) {

@@ -469,15 +469,39 @@ export function listClients(params: { search?: string; page?: number; avecAdress
   ) as Promise<ClientsResult>;
 }
 
-export function listArticles(params: { search?: string; page?: number; rappel?: boolean }) {
+export function listArticles(params: {
+  search?: string;
+  page?: number;
+  rappel?: boolean;
+  /** Produits en promotion en cours ou mis en avant (PEM). */
+  promo?: boolean;
+  marqueId?: string;
+}) {
   return list<ArticleRow>(
     `/articles${qs({
       search: params.search,
       page: params.page,
       rappel: params.rappel ? 'true' : undefined,
+      promo: params.promo ? 'true' : undefined,
+      marqueId: params.marqueId,
       limit: 20,
     })}`,
   );
+}
+
+/** Marque du catalogue avec son nombre d'articles (sélecteur de la page Produits). */
+export type MarqueRow = { id: string; nom: string; nbArticles: number };
+
+/** Marques ayant au moins un article, par ordre alphabétique, ou null en cas d'erreur. */
+export async function listMarques(): Promise<MarqueRow[] | null> {
+  try {
+    const res = await serverFetch('/articles/marques');
+    if (!res.ok) return null;
+    const data: unknown = await res.json();
+    return Array.isArray(data) ? (data as MarqueRow[]) : null;
+  } catch {
+    return null;
+  }
 }
 
 /** Compte les articles correspondant aux filtres (lit `total`, page allégée à 1 ligne). */
