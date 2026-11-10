@@ -66,7 +66,11 @@ function MenuPanel({ sections }: { sections: MenuSection[] }) {
                       href={c.href}
                       aria-current={active ? 'page' : undefined}
                       className={`${FOCUS} group flex items-center gap-2.5 rounded-lg px-3 py-2.5 text-[15px] transition ${
-                        active ? 'bg-brand/10 font-semibold text-brand' : 'text-neutral-700 hover:bg-neutral-100'
+                        c.miseEnAvant
+                          ? `bg-attention text-navy hover:brightness-95 ${active ? 'font-semibold ring-2 ring-navy/30' : 'font-medium'}`
+                          : active
+                            ? 'bg-brand/10 font-semibold text-brand'
+                            : 'text-neutral-700 hover:bg-neutral-100'
                       }`}
                     >
                       <span className="shrink-0">{c.icon}</span>

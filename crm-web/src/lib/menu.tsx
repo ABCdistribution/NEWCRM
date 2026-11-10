@@ -3,7 +3,7 @@ import { routesMenu } from './routes';
 import { espaceDe, type Espace, type Role } from './roles';
 
 /** Entrée de menu sérialisable (l'icône est un élément React, pas une fonction). */
-export type MenuItem = { href: string; label: string; icon: ReactNode };
+export type MenuItem = { href: string; label: string; icon: ReactNode; /** Entrée sur fond jaune (Administration). */ miseEnAvant?: boolean };
 export type MenuSection = { label: string | null; items: MenuItem[] };
 
 /**
@@ -43,6 +43,8 @@ export function construireMenu(role: Role, espace: Espace = espaceDe(role)): Men
       href: r.href,
       label: libelle(r.href, role, r.label),
       icon: createElement(r.icon, { size: 19, 'aria-hidden': true }),
+      // Administration : sur fond jaune pour ressortir dans le menu (ADMIN seul).
+      ...(r.href === '/admin' ? { miseEnAvant: true } : {}),
     };
   };
 

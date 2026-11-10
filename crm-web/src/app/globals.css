@@ -44,25 +44,35 @@
   --color-neutral-400: #737373;
 }
 
-/* Espace par défaut (hors conteneur [data-espace], ex. /login) : bleu ABC Sales. */
+/*
+ * Espace par défaut (hors conteneur [data-espace], ex. /login) et profils promoteur et ADV : palette ABC Sales.
+ *   bleu principal #0866F5 : navigation, boutons                    → brand
+ *   bleu royal     #247CF4 : accents                                → accent
+ *   bleu ciel      #24A8F2 : série secondaire des graphiques        → brand-light
+ *   bleu très clair #EAF4FF : badges et arrière-plans               → badge
+ *   vert succès    #19C98A : indicateurs positifs                   → positif
+ *   orange accent  #FF9D23 : indicateurs à surveiller               → attention
+ *   fond dashboard #F3F8FF · cartes #FFFFFF · texte principal #17253B (→ foreground, navy et ses tons foncés)
+ * Le turquoise #16C7AD de la palette est en réserve (troisième série de graphique) : aucun jeton ne l'emploie encore.
+ */
 :root,
 [data-espace='promoteurs'] {
-  --background: #f6f8fa; /* fond du contenu : gris très clair commun aux deux espaces (menu et cartes en blanc) */
-  --foreground: #0b2545;
-  --espace-brand: #1f7aea; /* bleu ABC Sales — couleur principale */
-  --espace-accent: #1f7aea;
-  --espace-brand-light: #65b8fd; /* série secondaire des graphes */
-  --espace-navy: #0b2545; /* bleu encre */
-  --espace-navy-950: #050f33;
-  --espace-navy-900: #0b1b4f;
-  --espace-navy-800: #14276b;
-  --espace-navy-700: #22367c;
-  --espace-navy-600: #31479c;
-  --espace-badge: color-mix(in srgb, #1f7aea 10%, transparent);
-  --espace-positif: #10b981; /* emerald-500 */
-  --espace-attention: #f59e0b; /* amber-500 */
-  --espace-shadow-card: 0 1px 2px 0 rgb(16 24 40 / 0.04);
-  --espace-card-border: #eceef5;
+  --background: #f3f8ff;
+  --foreground: #17253b;
+  --espace-brand: #0866f5;
+  --espace-accent: #247cf4;
+  --espace-brand-light: #24a8f2;
+  --espace-navy: #17253b;
+  --espace-navy-950: #0a1220;
+  --espace-navy-900: #0f1b2e;
+  --espace-navy-800: #17253b;
+  --espace-navy-700: #243653;
+  --espace-navy-600: #34496c;
+  --espace-badge: #eaf4ff;
+  --espace-positif: #19c98a;
+  --espace-attention: #ff9d23;
+  --espace-shadow-card: 0 1px 2px 0 rgb(23 37 59 / 0.04);
+  --espace-card-border: #e3ecf8;
 }
 
 /*
