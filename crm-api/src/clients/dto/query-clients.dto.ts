@@ -1,6 +1,6 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
-import { IsIn, IsInt, IsOptional, IsString, Max, Min } from 'class-validator';
+import { IsIn, IsInt, IsOptional, IsString, Matches, Max, Min } from 'class-validator';
 
 export class QueryClientsDto {
   @ApiPropertyOptional({ default: 1, minimum: 1 })
@@ -18,7 +18,7 @@ export class QueryClientsDto {
   @Max(100)
   limit?: number = 20;
 
-  @ApiPropertyOptional({ description: 'Recherche sur enseigne / raison sociale / codeAs400' })
+  @ApiPropertyOptional({ description: 'Recherche sur enseigne / raison sociale / codeAs400 / ville / code postal (tous les mots doivent se retrouver)' })
   @IsOptional()
   @IsString()
   search?: string;
@@ -49,6 +49,18 @@ export class QueryClientsDto {
   @IsOptional()
   @IsIn(['true', 'false'])
   actif?: 'true' | 'false';
+
+  @ApiPropertyOptional({
+    description: "mes=1 : uniquement les clients de MON périmètre (promoteur = ses clients, chef de secteur = ceux de ses promoteurs, directeur régional = sa région) ; sans effet pour les rôles sans périmètre (siège, direction, admin)",
+  })
+  @IsOptional()
+  @IsIn(['1'])
+  mes?: '1';
+
+  @ApiPropertyOptional({ description: "Niveau (classe) du client : A à G, ou « aucun » pour les clients sans niveau", example: 'D' })
+  @IsOptional()
+  @Matches(/^([A-Ga-g]|aucun)$/, { message: 'niveau doit valoir A à G ou « aucun »' })
+  niveau?: string;
 
   @ApiPropertyOptional({ description: 'avecAdresse=1 : uniquement les vrais points de vente (CP renseigné — exclut les pseudo-clients PLV)' })
   @IsOptional()

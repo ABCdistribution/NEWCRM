@@ -1,5 +1,5 @@
 import { ConflictException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
-import { Prisma } from '@crm/database';
+import { NiveauClass, Prisma } from '@crm/database';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateClientDto } from './dto/create-client.dto';
 import { UpdateClientDto } from './dto/update-client.dto';
@@ -49,7 +49,10 @@ type EnrichInput = {
 export class ClientsService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async findAll(query: QueryClientsDto, user?: { role: string; idRepr: string | null }) {
+  async findAll(
+    query: QueryClientsDto,
+    user?: { id?: string; role: string; idRepr: string | null; regionId?: string | null },
+  ) {
     const page = query.page ?? 1;
     const limit = query.limit ?? 20;
 
@@ -65,6 +68,40 @@ export class ClientsService {
           ? idReprVariants(query.repr)
           : null;
 
+    // « Mes clients » : périmètre de l'appelant (mêmes codes représentants que la carte). Il ne fait que RESTREINDRE :
+    // codes null (siège, direction, admin) = pas de restriction, [] = aucun client.
+    const conditions: Prisma.ClientWhereInput[] = [];
+    if (query.mes === '1' && user?.id) {
+      const codes = await this.codesDuPerimetre({
+        id: user.id,
+        role: user.role,
+        idRepr: user.idRepr,
+        regionId: user.regionId ?? null,
+      });
+      if (codes !== null) {
+        conditions.push(
+          codes.length === 0
+            ? { id: { in: [] } }
+            : { OR: [{ idCommercial1: { in: codes } }, { idCommercial2: { in: codes } }] },
+        );
+      }
+    }
+    if (query.niveau) {
+      conditions.push(query.niveau.toLowerCase() === 'aucun' ? { niveauClass: null } : { niveauClass: query.niveau.toUpperCase() as NiveauClass });
+    }
+    // Chaque mot doit se retrouver dans l'un des champs (« auchan rouen », « 67000 »).
+    for (const mot of (query.search ?? '').replace(/[%_\\]/g, ' ').split(/\s+/).filter(Boolean).slice(0, 4)) {
+      conditions.push({
+        OR: [
+          { enseigne: { contains: mot, mode: 'insensitive' } },
+          { raisonSociale: { contains: mot, mode: 'insensitive' } },
+          { codeAs400: { contains: mot, mode: 'insensitive' } },
+          { ville: { contains: mot, mode: 'insensitive' } },
+          { codePostal: { contains: mot, mode: 'insensitive' } },
+        ],
+      });
+    }
+
     const where: Prisma.ClientWhereInput = {
       deletedAt: null,
       ...(query.actif !== undefined ? { actif: query.actif === 'true' } : {}),
@@ -74,20 +111,8 @@ export class ClientsService {
       ...(mine
         ? { OR: [{ idCommercial1: { in: mine } }, { idCommercial2: { in: mine } }] }
         : {}),
-      ...(query.search
-        ? {
-            // AND explicite pour ne pas écraser le OR du scoping.
-            AND: [
-              {
-                OR: [
-                  { enseigne: { contains: query.search, mode: 'insensitive' } },
-                  { raisonSociale: { contains: query.search, mode: 'insensitive' } },
-                  { codeAs400: { contains: query.search, mode: 'insensitive' } },
-                ],
-              },
-            ],
-          }
-        : {}),
+      // AND explicite pour ne pas écraser le OR du scoping ci-dessus.
+      ...(conditions.length > 0 ? { AND: conditions } : {}),
     };
 
     const enrich = query.enrich === 'true' || query.enrich === '1';
