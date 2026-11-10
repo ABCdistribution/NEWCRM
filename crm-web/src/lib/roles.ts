@@ -16,6 +16,12 @@ export const TERRAIN: readonly Role[] = ['COMMERCIAL', 'ADV'];
 /** Tous les rôles connus de l'API. */
 export const TOUS_ROLES: readonly Role[] = [...ENCADREMENT, ...TERRAIN, 'MARKETING'];
 
+/**
+ * Rôles qui ont accès aux commandes et aux visites : tous sauf le marketing (décision de l'utilisateur). Même liste que
+ * `ROLES_COMMANDES_VISITES` de l'API, qui reste la vraie protection.
+ */
+export const ROLES_COMMANDES_VISITES: readonly Role[] = [...ENCADREMENT, ...TERRAIN];
+
 /** Espaces de l'application : pilotent le thème (`data-espace`) et le menu. */
 export type Espace = 'promoteurs' | 'direction';
 
@@ -27,8 +33,9 @@ export function estEncadrement(role: Role): boolean {
 export function espaceDe(role: Role): Espace {
   if (estEncadrement(role)) return 'direction';
   if (TERRAIN.includes(role)) return 'promoteurs';
-  // MARKETING : à définir (espace provisoirement « direction »).
-  return 'direction';
+  // MARKETING : thème et menu de l'espace Promoteurs (bleu), sur décision de l'utilisateur ; ses accès restent ceux de
+  // son rôle (aucun écran de pilotage : ils sont réservés à l'encadrement par la table ROUTES).
+  return 'promoteurs';
 }
 
 /**

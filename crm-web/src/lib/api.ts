@@ -134,7 +134,8 @@ export type ClientDetail = {
     auteur: { displayName: string } | null;
   }[];
   periodicites: { id: string; periodicite: { id: string; code: number | null; libelle: string } }[];
-  _count: { visites: number; commandes: number };
+  /** Absent pour le marketing (qui n'a accès ni aux commandes ni aux visites). */
+  _count?: { visites: number; commandes: number };
 };
 
 export type CommandeRow = {
@@ -191,6 +192,10 @@ export function listCommandes(params: {
   annulees?: boolean;
   livraison?: StatutLivraison;
   origine?: 'edi' | 'appli';
+  /** « Mes commandes » : mon périmètre (promoteur, chef de secteur, directeur régional). */
+  mes?: boolean;
+  /** « Toutes » : lève la restriction du promoteur à ses propres commandes. */
+  tous?: boolean;
 }) {
   return list<CommandeRow>(
     `/commandes${qs({
@@ -199,6 +204,8 @@ export function listCommandes(params: {
       annulees: params.annulees ? 'true' : undefined,
       livraison: params.livraison,
       origine: params.origine,
+      mes: params.mes ? '1' : undefined,
+      tous: params.tous ? '1' : undefined,
       limit: 20,
     })}`,
   ) as Promise<CommandesResult>;
@@ -469,15 +476,39 @@ export function listClients(params: { search?: string; page?: number; avecAdress
   ) as Promise<ClientsResult>;
 }
 
-export function listArticles(params: { search?: string; page?: number; rappel?: boolean }) {
+export function listArticles(params: {
+  search?: string;
+  page?: number;
+  rappel?: boolean;
+  /** Produits en promotion en cours ou mis en avant (PEM). */
+  promo?: boolean;
+  marqueId?: string;
+}) {
   return list<ArticleRow>(
     `/articles${qs({
       search: params.search,
       page: params.page,
       rappel: params.rappel ? 'true' : undefined,
+      promo: params.promo ? 'true' : undefined,
+      marqueId: params.marqueId,
       limit: 20,
     })}`,
   );
+}
+
+/** Marque du catalogue avec son nombre d'articles (sélecteur de la page Produits). */
+export type MarqueRow = { id: string; nom: string; nbArticles: number };
+
+/** Marques ayant au moins un article, par ordre alphabétique, ou null en cas d'erreur. */
+export async function listMarques(): Promise<MarqueRow[] | null> {
+  try {
+    const res = await serverFetch('/articles/marques');
+    if (!res.ok) return null;
+    const data: unknown = await res.json();
+    return Array.isArray(data) ? (data as MarqueRow[]) : null;
+  } catch {
+    return null;
+  }
 }
 
 /** Compte les articles correspondant aux filtres (lit `total`, page allégée à 1 ligne). */
@@ -778,6 +809,29 @@ export async function getDashboardDirection(
     const res = await serverFetch(`/dashboard/direction${qs({ annee, mois })}`);
     if (!res.ok) return null;
     return (await res.json()) as DashboardDirection;
+  } catch {
+    return null;
+  }
+}
+
+/** Indicateurs de la page Commandes : la journée en cours ou le mois en cours (périmètre de l'appelant, côté API). */
+export type StatsCommandes = {
+  periode: 'jour' | 'mois';
+  ca: number;
+  caN1: number;
+  deltaPct: number | null;
+  commandes: number;
+  panierMoyen: number;
+  clientsCommandants: number;
+  clientsTotal: number;
+};
+
+/** Indicateurs du jour (défaut) ou du mois pour la page Commandes, ou null en cas d'erreur. */
+export async function getStatsCommandes(periode: 'jour' | 'mois'): Promise<StatsCommandes | null> {
+  try {
+    const res = await serverFetch(`/dashboard/commandes${qs({ periode })}`);
+    if (!res.ok) return null;
+    return (await res.json()) as StatsCommandes;
   } catch {
     return null;
   }
@@ -1432,8 +1486,13 @@ export type VisiteRow = {
 export type VisitesResult = Paginated<VisiteRow> & { scope?: { type: 'mine' | 'global' } };
 
 /** Visites paginées — les siennes pour un commercial, toutes pour les rôles siège. */
-export async function listVisites(params: { search?: string; page?: number }): Promise<VisitesResult> {
-  return (await list<VisiteRow>(`/visites${qs({ ...params })}`)) as VisitesResult;
+export async function listVisites(params: {
+  search?: string;
+  page?: number;
+  /** « Toutes » : lève la restriction du promoteur (ses visites) et du CS / DR (leur équipe). */
+  tous?: boolean;
+}): Promise<VisitesResult> {
+  return (await list<VisiteRow>(`/visites${qs({ search: params.search, page: params.page, tous: params.tous ? '1' : undefined })}`)) as VisitesResult;
 }
 
 export type NotificationItem = {

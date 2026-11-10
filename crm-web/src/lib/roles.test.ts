@@ -157,8 +157,8 @@ describe('espaceDe', () => {
       expect(espaceDe('ADV')).toBe('promoteurs');
     });
 
-    it('MARKETING : « direction » (repli provisoire documenté dans espaceDe)', () => {
-      expect(espaceDe('MARKETING')).toBe('direction');
+    it("MARKETING : « promoteurs » (thème bleu, décision de l'utilisateur ; ce n'est ni encadrement ni terrain)", () => {
+      expect(espaceDe('MARKETING')).toBe('promoteurs');
     });
   });
 });

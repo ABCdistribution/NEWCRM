@@ -1,5 +1,5 @@
 import { PrismaService } from '../prisma/prisma.service';
-import { REGIONS_FR } from './regions.util';
+import { REGIONS_FR, regionFromSt } from './regions.util';
 import { SecteurRef, trouverSecteur } from './secteur-match.util';
 
 /** Les secteurs de référence : une valeur de `st` = un secteur (code et nom = ceux de la région du même nom). */
@@ -9,6 +9,9 @@ const SECTEURS_ST: SecteurRef[] = [
 
 /** Secteur de référence correspondant à un libellé `st` (faute de frappe tolérée), ou null (hors périmètre, ambigu). */
 export function secteurReferenceDepuisSt(label: string | null | undefined): SecteurRef | null {
+  // Les alias de région (« Belgique » = Benelux, « Ile de France » = IDF…) passent d'abord par la table des régions.
+  const region = regionFromSt(label ?? null);
+  if (region) return SECTEURS_ST.find((s) => s.code === region.code) ?? null;
   return trouverSecteur(label, SECTEURS_ST);
 }
 

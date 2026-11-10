@@ -5,7 +5,8 @@
  * posé sur le conteneur de l'espace (layout des groupes de routes) :
  *   - `promoteurs` : bleu ABC Sales
  *   - `direction`  : violet ABC Pilot
- * Les surfaces sombres (menu latéral, cartes en `.dark` local) sont communes.
+ * Fond du contenu : gris très clair (#f6f8fa) commun aux deux espaces ; menu latéral et cartes en blanc. Les surfaces
+ * sombres restent possibles en `.dark` local (panneau de notifications, bandeaux).
  * La variante `dark:` de Tailwind est en mode « classe », posée localement.
  */
 @custom-variant dark (&:where(.dark, .dark *));
@@ -22,7 +23,10 @@
   --color-accent: var(--espace-accent);
   --color-brand-light: var(--espace-brand-light);
   --color-navy: var(--espace-navy);
-  --color-nav: var(--espace-nav);
+  /* Fond des badges et pastilles ; couleurs des indicateurs positif / à surveiller (barres, anneaux, pastilles). */
+  --color-badge: var(--espace-badge);
+  --color-positif: var(--espace-positif);
+  --color-attention: var(--espace-attention);
 
   --color-navy-950: var(--espace-navy-950);
   --color-navy-900: var(--espace-navy-900);
@@ -40,46 +44,78 @@
   --color-neutral-400: #737373;
 }
 
-/* Espace par défaut (hors conteneur [data-espace], ex. /login) : bleu ABC Sales. */
+/*
+ * Espace par défaut (hors conteneur [data-espace], ex. /login) et profils promoteur et ADV : palette ABC Sales.
+ *   bleu principal #0866F5 : navigation, boutons                    → brand
+ *   bleu royal     #247CF4 : accents                                → accent
+ *   bleu ciel      #24A8F2 : série secondaire des graphiques        → brand-light
+ *   bleu très clair #EAF4FF : badges et arrière-plans               → badge
+ *   vert succès    #19C98A : indicateurs positifs                   → positif
+ *   orange accent  #FF9D23 : indicateurs à surveiller               → attention
+ *   fond dashboard #F3F8FF · cartes #FFFFFF · texte principal #17253B (→ foreground, navy et ses tons foncés)
+ * Le turquoise #16C7AD de la palette est en réserve (troisième série de graphique) : aucun jeton ne l'emploie encore.
+ */
 :root,
 [data-espace='promoteurs'] {
-  --background: #eef7ff;
-  --foreground: #0b2545;
-  --espace-brand: #1f7aea; /* bleu ABC Sales — couleur principale */
-  --espace-accent: #1f7aea;
-  --espace-brand-light: #65b8fd; /* série secondaire des graphes */
-  --espace-navy: #0b2545; /* bleu encre */
-  --espace-nav: #0b2545; /* fond du menu latéral */
-  --espace-navy-950: #050f33;
-  --espace-navy-900: #0b1b4f;
-  --espace-navy-800: #14276b;
-  --espace-navy-700: #22367c;
-  --espace-navy-600: #31479c;
-  --espace-shadow-card: 0 1px 2px 0 rgb(16 24 40 / 0.04);
-  --espace-card-border: #eceef5;
+  --background: #f3f8ff;
+  --foreground: #17253b;
+  --espace-brand: #0866f5;
+  --espace-accent: #247cf4;
+  --espace-brand-light: #24a8f2;
+  --espace-navy: #17253b;
+  --espace-navy-950: #0a1220;
+  --espace-navy-900: #0f1b2e;
+  --espace-navy-800: #17253b;
+  --espace-navy-700: #243653;
+  --espace-navy-600: #34496c;
+  --espace-badge: #eaf4ff;
+  --espace-positif: #19c98a;
+  --espace-attention: #ff9d23;
+  --espace-shadow-card: 0 1px 2px 0 rgb(23 37 59 / 0.04);
+  --espace-card-border: #e3ecf8;
 }
 
+/*
+ * Espace Direction (tous les rôles sauf promoteur) : palette ABC Pilot.
+ *   violet foncé  #7656B8 : navigation, boutons, graphiques        → brand
+ *   violet clair  #A98AE9 : cartes et accents                      → accent
+ *   rose principal #E76AA5 : graphiques, boutons et promotions     → brand-light (série secondaire)
+ *   rose pastel   #F8E7F0 : badges et arrière-plans                → badge
+ *   vert menthe   #39C98A : indicateurs positifs                   → positif
+ *   jaune citron  #CFD46B : graphiques et indicateurs              → attention
+ *   bleu nuit     #202B3A : titres et textes importants            → foreground, navy (et ses tons foncés)
+ * Le violet clair et la menthe / le citron ne servent que de remplissage : trop clairs pour du texte sur blanc
+ * (le texte garde brand, ou un ton foncé de la même teinte).
+ */
 [data-espace='direction'] {
-  --background: #f3eeff; /* fond lilas très clair */
-  --foreground: #2e1b56;
-  --espace-brand: #7a56e6; /* violet ABC Pilot */
-  --espace-accent: #b396fb;
-  --espace-brand-light: #d2c3fc; /* lilas — série tertiaire des graphes */
-  --espace-navy: #2e1b56;
-  --espace-nav: #2e1b56; /* fond du menu latéral */
-  --espace-navy-950: #14052b;
-  --espace-navy-900: #200a40;
-  --espace-navy-800: #2e1458;
-  --espace-navy-700: #3f2373;
-  --espace-navy-600: #533391;
-  --espace-shadow-card: 0 1px 2px 0 rgb(60 30 100 / 0.04);
-  --espace-card-border: #eae6f4;
+  --background: #f6f8fa; /* même fond que l'espace Promoteurs : seules les couleurs d'accent changent */
+  --foreground: #202b3a;
+  --espace-brand: #7656b8;
+  --espace-accent: #a98ae9;
+  --espace-brand-light: #e76aa5;
+  --espace-navy: #202b3a;
+  --espace-navy-950: #0f151d;
+  --espace-navy-900: #161e2a;
+  --espace-navy-800: #202b3a;
+  --espace-navy-700: #2d3b50;
+  --espace-navy-600: #3f506a;
+  --espace-badge: #f8e7f0;
+  --espace-positif: #39c98a;
+  --espace-attention: #cfd46b;
+  --espace-shadow-card: 0 1px 2px 0 rgb(32 43 58 / 0.04);
+  --espace-card-border: #e6e9ef;
 }
 
 /* Le conteneur d'espace porte lui-même le fond et le texte de son thème. */
 [data-espace] {
   background: var(--background);
   color: var(--foreground);
+}
+
+/* Réserve la place de la barre de défilement : sans cela, une page qui devient plus courte (carte repliée) la fait
+   disparaître et décale tout le contenu de quelques pixels. */
+html {
+  scrollbar-gutter: stable;
 }
 
 body {

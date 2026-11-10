@@ -1,8 +1,10 @@
 import { redirect } from 'next/navigation';
 import { getNotifications } from '@/lib/api';
+import { getMonActivite } from '@/lib/mon-activite';
 import { espaceDe, lireSession, urlLogin } from '@/lib/roles';
 import { construireMenu } from '@/lib/menu';
 import { SideMenu } from '@/components/side-menu';
+import { Bandeau } from '@/components/bandeau';
 import { ServiceIndisponible } from '@/components/service-indisponible';
 
 /**
@@ -23,18 +25,17 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   // Cloche de notifications : tous les rôles. L'API ne renvoie que les notifications de l'utilisateur connecté
   // (par exemple les relances d'un directeur régional à un chef de secteur).
   const notifications = (await getNotifications()) ?? { nonLues: 0, items: [] };
+  // Chef de secteur et directeur régional : leur activité du mois s'affiche sous leur nom dans le bandeau du haut.
+  const activite = me.role === 'CHEF_SECTEUR' || me.role === 'DIRECTEUR_REGIONAL' ? await getMonActivite() : null;
 
   return (
-    // Mobile : barre hamburger au-dessus du contenu ; ≥ md : sidebar + contenu côte à côte.
+    // Mobile : barre hamburger au-dessus du contenu ; ≥ md : sidebar + (bandeau du haut + contenu) côte à côte.
     <div data-espace={espace} className="min-h-screen md:flex">
-      <SideMenu
-        // Seuls les champs utilisés par le menu partent vers le navigateur (pas l'objet `me` entier).
-        me={{ id: me.id, displayName: me.displayName, poste: me.poste, role: me.role }}
-        espace={espace}
-        sections={construireMenu(me.role, espace)}
-        notifications={notifications}
-      />
+      <SideMenu espace={espace} sections={construireMenu(me.role, espace)} />
       <main className="min-w-0 flex-1">
+        {/* Bandeau : recherche générale, cloche, utilisateur. Seuls les champs utilisés partent vers le navigateur
+            (pas l'objet `me` entier). */}
+        <Bandeau me={{ id: me.id, displayName: me.displayName, poste: me.poste, role: me.role }} notifications={notifications} activite={activite} />
         <div className="mx-auto max-w-[88rem] px-4 py-4 sm:px-6 sm:py-6">{children}</div>
       </main>
     </div>

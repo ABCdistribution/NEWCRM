@@ -2,7 +2,7 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { ArrowLeft, Store, ShoppingCart, Smartphone, Truck } from 'lucide-react';
 import { getCommande } from '@/lib/api';
-import { TOUS_ROLES, requireRole } from '@/lib/roles';
+import { ROLES_COMMANDES_VISITES, requireRole } from '@/lib/roles';
 import { ROLES_LIVRAISON } from '@/lib/commande-roles';
 import { LivraisonBadge } from '@/components/livraison-badge';
 import { LivraisonEditor } from '@/components/livraison-editor';
@@ -15,7 +15,7 @@ const DATE_FMT = new Intl.DateTimeFormat('fr-FR', { weekday: 'long', day: 'numer
 const DATE_COURT = new Intl.DateTimeFormat('fr-FR', { day: '2-digit', month: 'short', year: 'numeric' });
 
 export default async function CommandeDetail({ params }: { params: Promise<{ id: string }> }) {
-  const acces = await requireRole(TOUS_ROLES);
+  const acces = await requireRole(ROLES_COMMANDES_VISITES);
   if (acces.refuse) return acces.refuse;
   const { id } = await params;
   // getCommande valide l'UUID (idSur → 404). Le périmètre est tranché par l'API.

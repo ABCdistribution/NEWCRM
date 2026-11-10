@@ -4,28 +4,22 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { Montserrat } from 'next/font/google';
-import { LogOut, Menu, X } from 'lucide-react';
-import { logout } from '@/lib/auth-actions';
-import { Avatar } from './avatar';
-import { NotificationsBell } from './notifications-bell';
-import type { Me, NotificationItem } from '@/lib/api';
+import { Menu, X } from 'lucide-react';
 import type { MenuSection } from '@/lib/menu';
-
-/** Champs de l'utilisateur utilisés par le menu : seuls ceux-là sont sérialisés vers le navigateur. */
-export type MenuUser = Pick<Me, 'id' | 'displayName' | 'poste' | 'role'>;
 
 /** Police du mot-symbole « ABC » en tête de menu (aspect logo). */
 const policeLogo = Montserrat({ subsets: ['latin'], weight: '800' });
 
 type Espace = 'promoteurs' | 'direction';
-type Notifs = { nonLues: number; items: NotificationItem[] } | null;
 
-const SOUS_TITRE: Record<Espace, string> = {
+/** Sous-titre sous « ABC » (aucun dans l'espace Direction). */
+const SOUS_TITRE: Record<Espace, string | null> = {
   promoteurs: 'Promoteurs',
-  direction: 'Direction commerciale',
+  direction: null,
 };
 
-const FOCUS = 'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent';
+// Menu blanc : l'anneau de focus prend la couleur principale de l'espace (l'accent, pâle en violet, ne contraste pas assez sur blanc).
+const FOCUS = 'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand';
 
 function isActive(pathname: string, href: string) {
   return href === '/' ? pathname === '/' : pathname === href || pathname.startsWith(`${href}/`);
@@ -39,18 +33,18 @@ function Brand({ espace, compact = false }: { espace: Espace; compact?: boolean 
       className={`${FOCUS} ${compact ? 'inline-flex items-center gap-2' : 'flex w-full flex-col items-center justify-center gap-1.5 py-2'}`}
     >
       <span
-        className={`${policeLogo.className} ${compact ? 'text-2xl' : 'text-5xl'} select-none font-extrabold leading-none tracking-[0.18em] text-white`}
+        className={`${policeLogo.className} ${compact ? 'text-2xl' : 'text-5xl'} select-none font-extrabold leading-none tracking-[0.18em] text-brand`}
         aria-label="ABC"
       >
         ABC
       </span>
-      <span className="text-xs font-medium text-white/70">{SOUS_TITRE[espace]}</span>
+      {SOUS_TITRE[espace] ? <span className="text-xs font-medium text-neutral-500">{SOUS_TITRE[espace]}</span> : null}
     </Link>
   );
 }
 
-/** Contenu du menu (navigation + pied utilisateur), partagé sidebar / tiroir mobile. */
-function MenuPanel({ me, sections, notifications }: { me: MenuUser; sections: MenuSection[]; notifications: Notifs }) {
+/** Contenu du menu (navigation), partagé sidebar / tiroir mobile. L'utilisateur, la cloche et la déconnexion sont dans le bandeau du haut. */
+function MenuPanel({ sections }: { sections: MenuSection[] }) {
   const pathname = usePathname();
 
   return (
@@ -59,9 +53,9 @@ function MenuPanel({ me, sections, notifications }: { me: MenuUser; sections: Me
         {sections.map((section, i) => (
           <div key={section.label ?? i} className={i > 0 ? 'mt-5' : ''}>
             {section.label ? (
-              <p className="flex items-center gap-3 px-3 pb-1.5 text-xs font-semibold uppercase tracking-wider text-white/70">
+              <p className="flex items-center gap-3 px-3 pb-1.5 text-xs font-semibold uppercase tracking-wider text-neutral-500">
                 <span>{section.label}</span>
-                <span aria-hidden className="h-px flex-1 bg-white/15" />
+                <span aria-hidden className="h-px flex-1 bg-neutral-200" />
               </p>
             ) : null}
             <ul className="flex flex-col gap-0.5">
@@ -72,8 +66,12 @@ function MenuPanel({ me, sections, notifications }: { me: MenuUser; sections: Me
                     <Link
                       href={c.href}
                       aria-current={active ? 'page' : undefined}
-                      className={`${FOCUS} group flex items-center gap-2.5 rounded-lg px-3 py-2.5 text-[15px] text-white transition ${
-                        active ? 'bg-navy-700 font-semibold' : 'hover:bg-white/10'
+                      className={`${FOCUS} group flex items-center gap-2.5 rounded-lg px-3 py-2.5 text-[15px] transition ${
+                        c.miseEnAvant
+                          ? `bg-attention text-navy hover:brightness-95 ${active ? 'font-semibold ring-2 ring-navy/30' : 'font-medium'}`
+                          : active
+                            ? 'bg-brand/10 font-semibold text-brand'
+                            : 'text-neutral-700 hover:bg-neutral-100'
                       }`}
                     >
                       <span className="shrink-0">{c.icon}</span>
@@ -86,49 +84,14 @@ function MenuPanel({ me, sections, notifications }: { me: MenuUser; sections: Me
           </div>
         ))}
       </nav>
-
-      {/* Utilisateur + déconnexion */}
-      <div className="border-t border-navy-700 p-3">
-        <div className="flex items-center gap-2.5 px-1">
-          <Avatar src={`/avatar/${encodeURIComponent(me.id)}`} initials={initials(me.displayName)} size={36} />
-          <div className="min-w-0 flex-1">
-            <p className="truncate text-sm font-medium">{me.displayName}</p>
-            <p className="truncate text-xs text-white/80">{me.poste ?? ROLE_LABELS[me.role] ?? ''}</p>
-          </div>
-        </div>
-        <div className="mt-2 flex items-center justify-end gap-1 px-1">
-          {notifications ? <NotificationsBell nonLues={notifications.nonLues} items={notifications.items} /> : null}
-          <form action={logout}>
-            <button
-              type="submit"
-              className={`${FOCUS} rounded-lg p-2 text-white transition hover:bg-red-950/40 hover:text-red-300`}
-              aria-label="Déconnexion"
-              title="Déconnexion"
-            >
-              <LogOut size={16} />
-            </button>
-          </form>
-        </div>
-      </div>
     </>
   );
 }
 
 /**
- * Menu latéral unique. Sections et entrées viennent de `construireMenu` (table ROUTES) ;
- * `notifications` : boîte de réception de l'utilisateur (tous les rôles) ; la cloche n'est omise que si `null`.
+ * Menu latéral unique. Sections et entrées viennent de `construireMenu` (table ROUTES).
  */
-export function SideMenu({
-  me,
-  espace,
-  sections,
-  notifications,
-}: {
-  me: MenuUser;
-  espace: Espace;
-  sections: MenuSection[];
-  notifications: Notifs;
-}) {
+export function SideMenu({ espace, sections }: { espace: Espace; sections: MenuSection[] }) {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
 
@@ -149,7 +112,8 @@ export function SideMenu({
     };
   }, [open]);
 
-  const surface = 'dark border-navy-700 bg-nav text-neutral-100';
+  // Menu : fond blanc plein (le fond de la page, lui, est le gris très clair du thème).
+  const surface = 'border-neutral-200 bg-white';
 
   return (
     <>
@@ -158,7 +122,7 @@ export function SideMenu({
         <div className="px-4 py-4">
           <Brand espace={espace} />
         </div>
-        <MenuPanel me={me} sections={sections} notifications={notifications} />
+        <MenuPanel sections={sections} />
       </aside>
 
       {/* < md : barre supérieure avec hamburger. */}
@@ -166,7 +130,7 @@ export function SideMenu({
         <button
           type="button"
           onClick={() => setOpen(true)}
-          className={`${FOCUS} rounded-lg p-2 text-white transition hover:bg-white/10`}
+          className={`${FOCUS} rounded-lg p-2 text-neutral-700 transition hover:bg-neutral-100`}
           aria-label="Ouvrir le menu"
           aria-expanded={open}
         >
@@ -175,7 +139,6 @@ export function SideMenu({
         <div className="flex-1">
           <Brand espace={espace} compact />
         </div>
-        {notifications ? <NotificationsBell nonLues={notifications.nonLues} items={notifications.items} /> : null}
       </header>
 
       {/* < md : tiroir coulissant + voile de fond. */}
@@ -188,36 +151,16 @@ export function SideMenu({
               <button
                 type="button"
                 onClick={() => setOpen(false)}
-                className={`${FOCUS} rounded-lg p-2 text-white transition hover:bg-white/10`}
+                className={`${FOCUS} rounded-lg p-2 text-neutral-700 transition hover:bg-neutral-100`}
                 aria-label="Fermer le menu"
               >
                 <X size={20} />
               </button>
             </div>
-            <MenuPanel me={me} sections={sections} notifications={notifications} />
+            <MenuPanel sections={sections} />
           </div>
         </div>
       ) : null}
     </>
   );
-}
-
-const ROLE_LABELS: Record<string, string> = {
-  ADMIN: 'Administrateur',
-  DIRECTION: 'Direction',
-  DIRECTEUR_REGIONAL: 'Directeur régional',
-  CHEF_SECTEUR: 'Chef de secteur',
-  COMMERCIAL: 'Promoteur des ventes',
-  ADV: 'ADV',
-  MARKETING: 'Marketing',
-};
-
-function initials(displayName: string): string {
-  return displayName
-    .split(/\s+/)
-    .map((s) => s[0])
-    .filter(Boolean)
-    .slice(0, 2)
-    .join('')
-    .toUpperCase();
 }

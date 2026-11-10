@@ -15,7 +15,7 @@ import {
 } from 'lucide-react';
 import { getClient, getClientHistorique, idReprVariants, idSur, listPeriodicites } from '@/lib/api';
 import { EDITEURS_CLIENT } from '@/lib/client-roles';
-import { estEncadrement, requireRole, TOUS_ROLES } from '@/lib/roles';
+import { estEncadrement, requireRole, ROLES_COMMANDES_VISITES, TOUS_ROLES } from '@/lib/roles';
 import { ActiveBadge } from '@/components/badges';
 import { CaChart } from '@/components/ca-chart';
 import { ClassBadge } from '@/components/class-badge';
@@ -65,9 +65,11 @@ export default async function ClientFiche({ params }: { params: Promise<{ id: st
   // Boutons d'édition (périodicité, contacts, notes) : mêmes rôles que les Server Actions (MARKETING en lecture seule).
   const peutEditer = EDITEURS_CLIENT.includes(me.role);
 
+  // Commandes, visites et leurs compteurs : pas pour le marketing (l'API les lui refuse aussi).
+  const voitCommandesVisites = ROLES_COMMANDES_VISITES.includes(me.role);
   const [client, histo, periodicites] = await Promise.all([
     getClient(id),
-    getClientHistorique(id),
+    voitCommandesVisites ? getClientHistorique(id) : Promise.resolve(null),
     listPeriodicites(),
   ]);
   if (!client) notFound();
@@ -107,14 +109,18 @@ export default async function ClientFiche({ params }: { params: Promise<{ id: st
         {/* Actions de l'encadrement + compteurs historique */}
         <div className="flex flex-wrap items-center gap-2">
           {encadrement ? <MagasinTourneeButton clientId={client.id} /> : null}
-          <span className="inline-flex items-center gap-1.5 rounded-lg border border-neutral-200 px-3 py-1.5 text-xs text-neutral-500 dark:border-navy-700">
-            <Footprints size={14} className="text-brand" />
-            {client._count.visites} visite{client._count.visites > 1 ? 's' : ''}
-          </span>
-          <span className="inline-flex items-center gap-1.5 rounded-lg border border-neutral-200 px-3 py-1.5 text-xs text-neutral-500 dark:border-navy-700">
-            <ShoppingCart size={14} className="text-brand" />
-            {client._count.commandes} commande{client._count.commandes > 1 ? 's' : ''}
-          </span>
+          {voitCommandesVisites && client._count ? (
+            <>
+              <span className="inline-flex items-center gap-1.5 rounded-lg border border-neutral-200 px-3 py-1.5 text-xs text-neutral-500 dark:border-navy-700">
+                <Footprints size={14} className="text-brand" />
+                {client._count.visites} visite{client._count.visites > 1 ? 's' : ''}
+              </span>
+              <span className="inline-flex items-center gap-1.5 rounded-lg border border-neutral-200 px-3 py-1.5 text-xs text-neutral-500 dark:border-navy-700">
+                <ShoppingCart size={14} className="text-brand" />
+                {client._count.commandes} commande{client._count.commandes > 1 ? 's' : ''}
+              </span>
+            </>
+          ) : null}
         </div>
       </div>
 

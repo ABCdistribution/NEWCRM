@@ -1,9 +1,11 @@
 import Link from 'next/link';
 import { Camera, Star } from 'lucide-react';
 import { listVisites, type VisitesResult } from '@/lib/api';
-import { requireRole, TOUS_ROLES } from '@/lib/roles';
+import { requireRole, ROLES_COMMANDES_VISITES } from '@/lib/roles';
 import { SearchBar } from '@/components/search-bar';
 import { Pagination } from '@/components/pagination';
+import { MesToggle } from '@/components/mes-toggle';
+import { aUnPerimetre } from '@/lib/clients-liste';
 
 export const metadata = { title: 'Les visites' };
 
@@ -16,37 +18,39 @@ function jours(iso: string): number {
 export default async function VisitesPage({
   searchParams,
 }: {
-  searchParams: Promise<{ search?: string; page?: string }>;
+  searchParams: Promise<{ search?: string; page?: string; tous?: string }>;
 }) {
-  const acces = await requireRole(TOUS_ROLES);
+  const acces = await requireRole(ROLES_COMMANDES_VISITES);
   if (acces.refuse) return acces.refuse;
 
   const sp = await searchParams;
   const search = sp.search ?? '';
   const page = Number(sp.page ?? '1') || 1;
+  // « Mes visites » (promoteur, chef de secteur, directeur régional) : coché par défaut ; décoché (?tous=1), toutes.
+  const avecMes = aUnPerimetre(acces.me.role);
+  const mes = avecMes && sp.tous !== '1';
+  // Un promoteur qui ne regarde que ses visites n'a pas besoin de la colonne « Promoteur » (c'est lui).
+  const seulSesVisites = acces.me.role === 'COMMERCIAL' && mes;
 
   let result: VisitesResult | null = null;
   let error: string | null = null;
   try {
-    result = await listVisites({ search, page });
+    result = await listVisites({ search, page, tous: avecMes && !mes });
   } catch {
     error = "Impossible de charger les visites. L'API est-elle démarrée ?";
   }
 
-  const mine = result?.scope?.type !== 'global';
 
   return (
     <div className="flex flex-col gap-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold">{mine ? 'Historique de visites' : 'Visites'}</h1>
-          <p className="text-sm text-neutral-500">
-            {mine
-              ? 'Tes comptes-rendus terrain passés : relevé DN, PEM, photos — saisis sur l’app mobile.'
-              : 'Les comptes-rendus terrain de toute la force de vente : relevé DN, PEM, photos.'}
-          </p>
+          <h1 className="text-2xl font-bold">{mes ? 'Mes visites' : 'Visites'}</h1>
         </div>
-        <SearchBar placeholder="Client, ville, code…" />
+        <div className="flex flex-wrap items-center gap-2">
+          {avecMes ? <MesToggle libelle="Mes visites" /> : null}
+          <SearchBar placeholder="Client, ville, code…" />
+        </div>
       </div>
 
       {error ? (
@@ -81,7 +85,7 @@ export default async function VisitesPage({
                   ) : null}
                 </div>
                 <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-neutral-500">
-                  {!mine && v.promoteur ? <span className="font-medium">{v.promoteur.displayName}</span> : null}
+                  {!seulSesVisites && v.promoteur ? <span className="font-medium">{v.promoteur.displayName}</span> : null}
                   {v.motif ? <span>{v.motif}</span> : null}
                   <span>
                     DN <span className="font-semibold text-brand dark:text-accent">{v.dnAbc ?? '—'}</span>
@@ -101,7 +105,7 @@ export default async function VisitesPage({
               <thead className="border-b border-neutral-100 text-left text-[11px] uppercase tracking-wider text-neutral-400 dark:border-navy-700">
                 <tr>
                   <th className="px-4 py-2.5 font-medium">Client</th>
-                  {!mine ? <th className="px-4 py-2.5 font-medium">Promoteur</th> : null}
+                  {!seulSesVisites ? <th className="px-4 py-2.5 font-medium">Promoteur</th> : null}
                   <th className="px-4 py-2.5 font-medium">Date</th>
                   <th className="px-4 py-2.5 font-medium">Motif</th>
                   <th className="px-4 py-2.5 text-right font-medium">DN ABC</th>
@@ -120,7 +124,7 @@ export default async function VisitesPage({
                       <div className="font-medium text-brand dark:text-accent">{v.client?.enseigne ?? '—'}</div>
                       <div className="text-[11px] text-neutral-400">{v.client?.ville ?? ''}</div>
                     </td>
-                    {!mine ? (
+                    {!seulSesVisites ? (
                       <td className="px-4 py-3 text-neutral-600 dark:text-neutral-300">
                         {v.promoteur?.displayName ?? '—'}
                       </td>
@@ -157,7 +161,7 @@ export default async function VisitesPage({
               </tbody>
             </table>
           </div>
-          <Pagination total={result!.total} page={result!.page} limit={result!.limit} params={{ search }} />
+          <Pagination total={result!.total} page={result!.page} limit={result!.limit} params={{ search, ...(avecMes && !mes ? { tous: '1' } : {}) }} />
         </>
       )}
     </div>

@@ -1,6 +1,6 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
-import { IsBooleanString, IsInt, IsOptional, IsString, Max, Min } from 'class-validator';
+import { IsBooleanString, IsInt, IsOptional, IsString, IsUUID, Max, Min } from 'class-validator';
 
 export class QueryArticlesDto {
   @ApiPropertyOptional({ default: 1, minimum: 1 })
@@ -32,4 +32,14 @@ export class QueryArticlesDto {
   @IsOptional()
   @IsBooleanString()
   rappel?: string;
+
+  @ApiPropertyOptional({ description: 'Ne renvoyer que les produits en promotion en cours OU mis en avant (PEM) ("true")' })
+  @IsOptional()
+  @IsBooleanString()
+  promo?: string;
+
+  @ApiPropertyOptional({ description: 'Ne renvoyer que les produits de cette marque (identifiant)' })
+  @IsOptional()
+  @IsUUID()
+  marqueId?: string;
 }

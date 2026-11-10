@@ -2,6 +2,19 @@
 // Les droits restent décidés par l'API ; une erreur est renvoyée en message français, jamais avalée.
 import { qs, serverFetch, type MagasinGeoPoint } from './api';
 
+/** Activité d'un collaborateur ou d'une région sur le mois : visites, commandes, CA en euros, objectif mensuel et taux. */
+export type Activite = {
+  visites: number;
+  commandes: number;
+  ca: number;
+  /** Objectif mensuel de CA (somme des objectifs annuels des magasins ÷ 12) ; null si aucun objectif n'est défini. */
+  objectif: number | null;
+  tauxPct: number | null;
+};
+
+/** Collaborateur d'une région, avec son intitulé de poste dans l'AD (ex. « Directrice nationale des ventes »). */
+export type MembreRegion = { id: string; displayName: string; poste: string | null } & Activite;
+
 export type CarteRegion = {
   id: string;
   code: string;
@@ -12,16 +25,26 @@ export type CarteRegion = {
   nbChefsSecteur: number;
   nbPromoteurs: number;
   nbClients: number;
-  chefsSecteur: {
-    id: string;
-    displayName: string;
+  /** Bilan du mois de la région : somme de l'activité de ses directeurs, chefs de secteur et promoteurs. */
+  stats: Activite;
+  directeurs: MembreRegion[];
+  /** Promoteurs de la région dont le chef de secteur est d'une autre région, ou qui n'ont pas de chef (« chef » = son nom). */
+  promoteursHorsChef: (MembreRegion & { nbClients: number; chef: string | null })[];
+  chefsSecteur: (MembreRegion & {
     secteur: { id: string; code: string; nom: string } | null;
     nbClients: number;
-    promoteurs: { id: string; displayName: string; nbClients: number }[];
-  }[];
+    promoteurs: (MembreRegion & { nbClients: number })[];
+  })[];
 };
 
+/** CA réalisé depuis le début de l'année et objectif prévu à cette date (cumul de toute la force de vente). */
+export type CaADate = { ca: number; objectif: number };
+
 export type CarteEquipes = {
+  /** Mois de l'activité affichée (le mois en cours par défaut). */
+  periode: { annee: number; mois: number };
+  /** CA réalisé / objectif à date. PAS encore fourni par l'API : absent ou null, l'écran affiche un état « bientôt disponible ». */
+  caADate?: CaADate | null;
   regions: CarteRegion[];
 };
 
@@ -80,8 +103,9 @@ async function charger<T>(chemin: string, libelle: string): Promise<Resultat<T>>
   }
 }
 
-export function getCarteEquipes(): Promise<Resultat<CarteEquipes>> {
-  return charger<CarteEquipes>('/dashboard/carte-equipes', 'la carte des équipes');
+/** `annee` / `mois` : mois de l'activité affichée (le mois en cours par défaut) ; l'API reborne la saisie. */
+export function getCarteEquipes(p: { annee?: number; mois?: number } = {}): Promise<Resultat<CarteEquipes>> {
+  return charger<CarteEquipes>(`/dashboard/carte-equipes${qs(p)}`, 'la carte des équipes');
 }
 
 export function getCarteSecteur(
