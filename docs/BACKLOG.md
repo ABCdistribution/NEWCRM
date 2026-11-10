@@ -6,7 +6,7 @@ Rien de ce qui touche la production n'est fait sans accord explicite.
 ## Lot 0 — Socle de vérification (prérequis, faible risque)
 | # | Tâche | Agent |
 |---|---|---|
-| 0.1 | Scripts racine `typecheck` / `build` / `lint` / `test` ; config ESLint des 3 projets (le `next lint` actuel est cassé) | tests-qualite |
+| 0.1 | Scripts racine `typecheck` / `build` / `lint` / `test` ; config ESLint des 2 projets (crm-api, crm-web) (le `next lint` actuel est cassé) | tests-qualite |
 | 0.2 | Jest dans `crm-api` + premiers tests : `RolesGuard`, `resolveRole`, échappement LDAP, jeton iCal | tests-qualite |
 | 0.3 | `.env.example` racine et `crm-api` (variables requises, sans secret) | backend-db |
 | 0.4 | CI GitHub Actions minimale (install, db:generate, tsc, build, tests) **[ACCORD : runner interne ou non]** | tests-qualite |
@@ -45,7 +45,8 @@ Rien de ce qui touche la production n'est fait sans accord explicite.
 | 3.4 | 🟡 | N+1 (synchro AD, dashboard), `GET /clients/fiches` sans pagination, `GET /plannings` qui écrit en lecture | backend-db |
 
 ## Lot 4 — Dette technique (après les lots 1 à 3)
-- Package partagé pour les 12 fichiers dupliqués et `api.ts` (ABC Pilot 1086 lignes) ; fronts ajoutés au workspace pnpm.
+- ~~Package partagé pour les 12 fichiers dupliqués~~ : résolu par la fusion en `crm-web` (un seul front, volontairement hors workspace pnpm). Reste `crm-web/src/lib/api.ts` (plus de 1 300 lignes) à découper.
+- `pnpm-lock.yaml` racine : bloc d'importer orphelin `crm-helios` (environ 850 lignes, 160 paquets), présent depuis 2026-09-22. Sans effet avec `--frozen-lockfile` (vérifié avec pnpm 9.15.9 et 10 ; `deploy.sh` n'est pas bloqué), mais il force une nouvelle résolution en mode non gelé (Dockerfile `pnpm install --prod=false`). À retirer par `pnpm install --lockfile-only --ignore-scripts` (pnpm 9.15.9) dans un commit séparé, **après** le premier déploiement de crm-web : toucher `pnpm-lock.yaml` déclenche un rebuild de l'API.
 - Découper `clients.service.ts` (758 lignes), `dashboard.service.ts` (618 lignes), `tournees.controller.ts`.
 - Dockerfile en multi-étapes, utilisateur non-root, healthcheck API ; Dependabot.
 
@@ -59,7 +60,7 @@ Les agents `backend-db` et `frontend-ux` peuvent travailler en parallèle (fichi
 3. OK pour toucher `docker-compose.yml` (1.3) et préparer HTTPS (1.11) ?
 4. CI : runner GitHub interne ou pas de CI pour l'instant (0.4) ?
 
-## Administration (console ADMIN dans ABC Pilot) — `/pilotage/admin`
+## Administration (console ADMIN dans crm-web) — `/admin`
 - **Phase 1 faite** : page à onglets (Vue d'ensemble, Utilisateurs, Organisation, Synchronisations, Contenus) ; routes API `GET /admin/apercu` et `GET /admin/organisation` (ADMIN) ; page Utilisateurs d'ABC Sales supprimée. Indicateurs en lecture seule, sans état d'alerte.
 - **À venir** : Mobile (nécessite que l'application remonte version, modèle, dernière synchro), Configuration (table de paramètres), Journal d'audit (enregistrement des opérations sensibles), « dernière connexion », diagnostic par utilisateur, relance des lignes d'import en erreur.
 - **À trancher** : champs pilotés par l'AD vs modifiables dans le CRM (le rôle des comptes en OU force de vente est écrasé à chaque connexion).
@@ -78,7 +79,14 @@ Rien n'est compensé côté front : les données sont filtrées par rôle ET pé
 
 **Déploiement de crm-web**
 - Définir `TZ=Europe/Paris` dans l'environnement du processus Next. Le code de planning ne dépend plus du fuseau du serveur (`aujourdhuiParis`, `FUSEAU`), mais des formats de date sans fuseau explicite en dépendent encore.
-- Les redirections de `src/lib/redirections.ts` ne servent qu'une fois les anciens hôtes ou ports d'ABC Sales (3000) et d'ABC Pilot (3001) dirigés vers crm-web (3002). `PERMANENT` doit passer à `true` à la mise en production, une fois la table figée.
+- Les redirections de `src/lib/redirections.ts` ne servent qu'une fois l'ancien hôte ou port d'ABC Sales (3000 en développement, 3002 en production) dirigé vers crm-web (3001) ; les anciens favoris d'ABC Pilot, déjà sur 3001, arrivent directement sur crm-web. `PERMANENT` doit passer à `true` à la mise en production, une fois la table figée.
 - Pour 1.11 : HSTS et `COOKIE_SECURE=true` au reverse proxy TLS, puis une CSP stricte avec nonce, à valider écran par écran.
 - Pièces jointes : `serverActions.bodySizeLimit` est à 11 Mo (`next.config.ts`). À tester avec un fichier de 9 à 10 Mo derrière le middleware ; si le corps est tronqué, ajouter `experimental.middlewareClientMaxBodySize: '11mb'`.
-- **`scripts/deploy.sh` à adapter avant toute fusion dans `main`** : il construit et redémarre `/var/www/crm-helios` (port 3001) et `/var/www/crm-promoteur` (port 3002), dossiers supprimés du dépôt le 2026-11-10, et ne déploie pas `crm-web`. Sans adaptation, le premier déploiement depuis `main` échouerait à l'étape des fronts (dossiers absents) et, le marqueur `.deployed-sha` n'étant pas mis à jour, le cron (toutes les 3 minutes) retenterait en boucle, API comprise. À décider : port de `crm-web` en production (3002 est aujourd'hui celui d'ABC Sales), dossier `/var/www/crm-web`, redirection des anciens hôtes/ports vers `crm-web`, arrêt des deux anciens processus `next start`. Le workflow `.github/workflows/deploy.yml` lance ce même script à chaque push sur `main`.
+- **Déploiement de crm-web (`scripts/deploy.sh`)** : adapté sur `dev` le 2026-11-10 : dossier `/var/www/crm-web`, port **3001**, `TZ=Europe/Paris`, `COOKIE_SECURE` normalisé en true/false et à `false` par défaut tant que la prod est en HTTP interne (ligne de journal), attente active de la libération du port, « OK » seulement si le nouveau processus a repris le port. Testé sur un banc (vrais processus sous WSL, `pnpm` factice), **jamais exécuté sur le serveur**. Il ne prend effet qu'au passage dans `main` (cron toutes les 3 minutes + `.github/workflows/deploy.yml`). Avant la fusion dans `main` :
+  1. **Fusionner en deux temps.** Le premier passage après un `git merge` exécute encore l'ANCIEN script (bash garde l'ancien fichier ouvert) : il reconstruit l'API, échoue à l'étape des fronts (`next build` sans pages) et le cron suivant, 3 minutes plus tard, utilise le nouveau ; `.deployed-sha` n'avance pas entre-temps et le workflow GitHub est rouge. Pour l'éviter : faire d'abord arriver sur `main` le seul commit de `scripts/deploy.sh` (commit isolé sur `dev`, à cherry-picker : le script est identique entre `main` et `dev`), l'ancien script voit alors un diff sans front ni API, ne déploie rien et avance le marqueur ; fusionner ensuite le reste.
+  2. Sur le serveur, vérifier `grep '^COOKIE_SECURE=' /var/www/.env` (valeur non secrète) : exactement `true` ou `false`. Les anciens fronts n'activaient `secure` que pour la valeur exacte `true` ; `crm-web` seul traiterait toute autre valeur comme `true` et la session serait perdue en HTTP (le script, lui, ramène ces valeurs à `false` avec un message).
+  3. Le déploiement remplace l'ancien ABC Pilot sur 3001 (le script tue le processus qui l'occupe). L'ancien ABC Sales (3002) n'est **pas** arrêté : comme les dossiers sont supprimés par la fusion, ses images et fichiers `public/` répondent en erreur ; l'arrêter à la main dès que crm-web répond sur 3001.
+  4. Reverse proxy (hors dépôt) : diriger l'ancien hôte d'ABC Sales vers le port 3001.
+  5. `COOKIE_SECURE=true` dans `/var/www/.env` dès que HTTPS est en place (1.11).
+  6. Les anciens dossiers `/var/www/crm-helios` et `/var/www/crm-promoteur` ne restent que par leurs fichiers non versionnés (`node_modules`, `.next`) : à supprimer après vérification.
+  7. Surveiller la première exécution : `/home/admininfo/logs/deploy.log` et `/home/admininfo/logs/crm-web.log`.

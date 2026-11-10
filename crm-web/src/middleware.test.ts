@@ -11,7 +11,7 @@ const entetePourLaPage = (res: Response, nom: string): string | null => res.head
 function requete(adresse: string, init: { cookie?: string; entetes?: Record<string, string> } = {}): NextRequest {
   const entetes = new Headers(init.entetes);
   if (init.cookie) entetes.set('cookie', init.cookie);
-  return new NextRequest(`http://localhost:3002${adresse}`, { headers: entetes });
+  return new NextRequest(`http://localhost:3001${adresse}`, { headers: entetes });
 }
 
 describe('middleware : sans cookie de session', () => {

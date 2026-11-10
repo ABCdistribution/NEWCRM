@@ -1,7 +1,7 @@
 import { cookies } from 'next/headers';
 
-// Cookie de session `crm_session` (JWT), identique à celui des anciens fronts : pendant la
-// migration, une connexion sur :3000/:3001 reste valable sur :3002 (même hôte, ports non isolés).
+// Cookie de session `crm_session` (JWT), identique à celui des anciens fronts (supprimés) : les sessions
+// ouvertes avant la bascule restent valables (le cookie est lié à l'hôte, pas au port).
 const COOKIE = 'crm_session';
 const MAX_AGE = 60 * 60 * 8; // 8h — aligné sur JWT_EXPIRES_IN de l'API
 

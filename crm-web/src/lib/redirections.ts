@@ -21,9 +21,10 @@
  * la cible de /pilotage/clients vient d'être corrigée, MARKETING et ADV n'ont pas d'espace défini et la migration
  * est en cours. Passer PERMANENT à true seulement à la mise en production, une fois la table figée.
  *
- * Hôtes. Ces règles ne s'exécutent que pour les requêtes qui ARRIVENT sur crm-web (port 3002). Les anciens
- * favoris pointent sur les hôtes / ports d'ABC Sales (3000) et d'ABC Pilot (3001) : ils ne servent qu'une fois
- * le déploiement aligné, c'est-à-dire quand ces anciennes adresses d'hôte ou de port sont dirigées vers crm-web.
+ * Hôtes. Ces règles ne s'exécutent que pour les requêtes qui ARRIVENT sur crm-web (port 3001, repris d'ABC Pilot). Les anciens
+ * favoris d'ABC Pilot (port 3001) arrivent donc déjà sur crm-web ; ceux d'ABC Sales (3000 en développement, 3002 en production)
+ * ne servent qu'une fois le déploiement aligné, c'est-à-dire quand ces anciennes adresses d'hôte ou de port sont dirigées
+ * vers crm-web.
  * À reporter dans la fiche de déploiement.
  *
  * Adresses INCHANGÉES, donc sans redirection (une source ici masquerait la vraie page) :

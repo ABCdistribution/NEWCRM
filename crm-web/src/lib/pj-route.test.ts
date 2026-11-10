@@ -13,7 +13,7 @@ vi.mock('@/lib/roles', async (importOriginal) => ({
 }));
 
 const appeler = (id: string, pjId: string) =>
-  GET(new Request(`http://localhost:3002/pj/${id}/${pjId}`), { params: Promise.resolve({ id, pjId }) });
+  GET(new Request(`http://localhost:3001/pj/${id}/${pjId}`), { params: Promise.resolve({ id, pjId }) });
 
 beforeEach(() => {
   mocks.serverFetch.mockReset();

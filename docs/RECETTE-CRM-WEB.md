@@ -1,6 +1,6 @@
 # Fiche de recette manuelle — crm-web
 
-Application unique (Next 15, port 3002) qui a fusionné ABC Sales (ex-`crm-promoteur`) et ABC Pilot (ex-`crm-helios`). Les deux anciens fronts ont été supprimés le 2026-11-10 (code lisible dans l'historique git, commit `4c5e7b6`).
+Application unique (Next 15, port 3001) qui a fusionné ABC Sales (ex-`crm-promoteur`) et ABC Pilot (ex-`crm-helios`). Les deux anciens fronts ont été supprimés le 2026-11-10 (code lisible dans l'historique git, commit `4c5e7b6`).
 Fiche destinée à la personne qui teste avec de **vrais comptes Active Directory**.
 
 - Branche : `refonte/front-unique`. Rédigée le 2026-11-09.
@@ -24,14 +24,14 @@ Légende des tableaux : **OK** = page affichée ; **Refusé** = écran « Accès
    pnpm --filter @crm/database run db:generate
    ```
 4. API sur le port **4000** : `cd crm-api && pnpm start:dev` (Swagger sur `/docs`).
-5. Front crm-web sur le port **3002** :
+5. Front crm-web sur le port **3001** :
    ```
    cd crm-web
    pnpm install --ignore-workspace
    pnpm dev
    ```
-   (`API_URL` vaut `http://localhost:4000` par défaut.) Ouvrir `http://localhost:3002`.
-6. Les anciens fronts (3000 ABC Sales, 3001 ABC Pilot) n'existent plus : aucune comparaison côte à côte n'est possible, voir URL-05.
+   (`API_URL` vaut `http://localhost:4000` par défaut.) Ouvrir `http://localhost:3001`.
+6. Les anciens fronts (ABC Sales sur 3000, ABC Pilot sur 3001) n'existent plus ; crm-web a repris le port 3001. Aucune comparaison côte à côte n'est possible, voir URL-05.
 
 ### 1.2 Comptes de test (un compte AD par rôle)
 
@@ -276,9 +276,9 @@ Pour chaque rôle : se connecter avec le compte du §1.2, faire la série, se d�
 
 ## 4. Anciennes adresses à tester
 
-Source : `crm-web/src/lib/redirections.ts` (table unique lue par `next.config.ts`). Les redirections sont **temporaires (307)** tant que la table n'est pas figée ; elles ne s'exécutent que pour une requête qui **arrive sur crm-web** : taper l'ancienne adresse **sur le port 3002** (les anciens favoris pointant sur 3000 / 3001 ne marchent qu'une fois le déploiement aligné). Elles passent **avant** le middleware : tester avec ET sans session. La chaîne de requête de l'ancienne adresse est conservée.
+Source : `crm-web/src/lib/redirections.ts` (table unique lue par `next.config.ts`). Les redirections sont **temporaires (307)** tant que la table n'est pas figée ; elles ne s'exécutent que pour une requête qui **arrive sur crm-web** : taper l'ancienne adresse **sur le port 3001** (les anciens favoris d'ABC Pilot, déjà sur 3001, arrivent directement sur crm-web ; ceux d'ABC Sales, sur 3000, ne marchent qu'une fois le déploiement aligné). Elles passent **avant** le middleware : tester avec ET sans session. La chaîne de requête de l'ancienne adresse est conservée.
 
-| # | Ancienne adresse (sur `localhost:3002`) | Destination attendue | À vérifier |
+| # | Ancienne adresse (sur `localhost:3001`) | Destination attendue | À vérifier |
 |---|---|---|---|
 | 1 | `/pilotage` | `/` | accueil du rôle |
 | 2 | `/pilotage/magasins` | `/clients` | encadrement : vue « Suivi du secteur » |
@@ -314,7 +314,7 @@ Autres contrôles :
 ### 5.1 Session
 
 - [ ] **ERR-01** **Sans session** : navigateur neuf, ouvrir `/clients?search=abc` → `/login?from=/clients?search=abc` ; après connexion, retour sur cette page avec sa recherche.
-- [ ] **ERR-02** **Cookie supprimé** (outils de développement → Stockage → Cookies → `localhost:3002` → supprimer `crm_session`) puis actualiser : redirection vers `/login` (avec `?from=` de la page).
+- [ ] **ERR-02** **Cookie supprimé** (outils de développement → Stockage → Cookies → `localhost:3001` → supprimer `crm_session`) puis actualiser : redirection vers `/login` (avec `?from=` de la page).
 - [ ] **ERR-03** **Jeton altéré ou expiré** (cookie présent mais refusé par l'API) : modifier quelques caractères de la valeur de `crm_session`, actualiser : redirection vers `/login?from=<page demandée>` (comme une session absente) et **aucune boucle** `/login` ↔ `/` (pas de « trop de redirections »). Variante réaliste : dans `crm-api/.env`, `JWT_EXPIRES_IN` à une valeur courte (2 minutes), redémarrer l'API, se connecter, attendre, actualiser ; **remettre la valeur d'origine ensuite**. La durée normale du cookie est de 8 heures.
 - [ ] **ERR-04** **Action avec session invalide** : sur une page qui écrit (ajouter une note de client, ajouter une visite au planning de l'équipe), altérer le cookie **sans le supprimer**, puis valider l'action : message d'erreur lisible en français (« Accès refusé (rôle insuffisant ou session expirée) » ou équivalent), pas d'écran blanc, aucune écriture.
 - [ ] **ERR-05** `/login?from=//evil.example`, `/login?from=https://evil.example`, `/login?from=/\evil.example`, `/login?from=/login` : après connexion on arrive toujours sur **`/`** (jamais sur un autre site, jamais en boucle).
@@ -369,7 +369,7 @@ Utiliser un id valide (copié d'une liste) puis le modifier. Tester avec un comp
 | 3 | **Éditeur PEM / promos** | Ouvert à ADMIN, DIRECTION et MARKETING (même règle que l'API) | Réservé à l'ADMIN seul, ou conserver les trois rôles | |
 | 4 | **Droits d'édition de l'encadrement** sur contacts, notes, périodicité d'un client | L'encadrement et le terrain éditent (MARKETING exclu) ; côté API, `POST` / `PATCH` / `DELETE /clients` et les routes contacts, notes, périodicité n'ont pas de contrôle de rôle ni de périmètre (BACKLOG 1.1) | Qui peut éditer quoi, et sur quel périmètre | |
 | 5 | **Nom visible de l'application** | Onglet et accueil : « SalesPilot ABC » ; menu : « ABC » avec « Promoteurs » ou « Direction commerciale » ; anciens noms ABC Sales et ABC Pilot supprimés des écrans ; pied de la connexion : « ABC Distribution · CRM · ABcosmétique » | Nom définitif (onglet, menu, connexion) | |
-| 6 | **URL et port de production** | Développement sur le port 3002 ; les anciennes adresses (hôtes ou ports 3000 et 3001) ne redirigent vers crm-web qu'une fois le déploiement aligné ; redirections en 307 tant que la table n'est pas figée (308 à la mise en production) ; `TZ=Europe/Paris` à définir ; HTTPS et `COOKIE_SECURE=true` (BACKLOG 1.11) | Adresse et port définitifs, bascule des anciens hôtes, passage au 308 | |
+| 6 | **URL et port de production** | Développement et production sur le port 3001 (repris d'ABC Pilot) ; les anciennes adresses d'ABC Sales (hôte ou port 3000, 3002 en production) ne redirigent vers crm-web qu'une fois le reverse proxy aligné ; redirections en 307 tant que la table n'est pas figée (308 à la mise en production) ; `TZ=Europe/Paris` à définir ; HTTPS et `COOKIE_SECURE=true` (BACKLOG 1.11) | Adresse et port définitifs, bascule des anciens hôtes, passage au 308 | |
 | 7 | **Logos à conserver** | Connexion : `logo.png` (ABC Group) et un seul logo dans le carrousel (Thelios) ; `logo-ascendo.png` et `logo-goback.png` restent dans `crm-web/public` mais ne sont plus utilisés (retirés à la demande de l'utilisateur) | Fichiers à supprimer ou à garder ; logos du menu | |
 | 8 | **Faille de périmètre API sur commandes et clients** | `GET /commandes`, `GET /commandes/:id`, `GET /clients/:id` et l'historique ne filtrent pas le périmètre pour CS et DR ; non compensé côté front ; autres trous recensés dans `docs/BACKLOG.md` (section crm-web) | Correction côté API (service central de périmètre, BACKLOG 1.1 et 1.8) avant mise en production | |
 | 9 | **Limitation des tentatives de connexion côté API** | `POST /auth/login` sans limite (BACKLOG 1.4) ; le front sait afficher « Trop de tentatives » (429) mais l'API ne le renvoie pas | Mise en place côté API ; en attendant, pas de mots de passe faux répétés pendant la recette | |
@@ -401,6 +401,6 @@ Par rôle, noter le nombre de contrôles conformes et les anomalies :
 | MARKETING (provisoire) | | | / 8 | |
 | Communs, anciennes adresses, erreurs | | | / 7 + 5 + 25 | |
 
-Pour une anomalie, consigner : identifiant du contrôle, rôle et compte, adresse complète (avec la chaîne de requête), étapes, résultat attendu, résultat obtenu, capture d'écran, et si le même écran se comporte pareil sur l'ancien front (3000 ou 3001).
+Pour une anomalie, consigner : identifiant du contrôle, rôle et compte, adresse complète (avec la chaîne de requête), étapes, résultat attendu, résultat obtenu, capture d'écran, et, si utile, le comportement de l'ancien front (code lisible dans l'historique git, commit `4c5e7b6`).
 
 Ce que cette fiche ne couvre pas : l'application mobile, les imports AS400 et Minos de bout en bout, la charge, l'accessibilité détaillée, l'abonnement Outlook (reporté), la mise en production.
