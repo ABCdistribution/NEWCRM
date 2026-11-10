@@ -2,6 +2,8 @@ import { requireRole, TOUS_ROLES } from '@/lib/roles';
 import { Pagination } from '@/components/pagination';
 import { ClientsFiltres } from '@/components/clients-filtres';
 import { ClientsListe } from '@/components/clients-liste';
+import { ClientsInactifs } from '@/components/clients-inactifs';
+import { peutVoirPassesInactifs } from '@/lib/clients-inactifs';
 import { aUnPerimetre, chargerClients, lireFiltresClients, LIMITE_CLIENTS } from '@/lib/clients-liste';
 
 export const metadata = { title: 'Les clients' };
@@ -32,6 +34,7 @@ export default async function ClientsPage({ searchParams }: { searchParams: Prom
     <div className="flex flex-col gap-4">
       <h1 className="sr-only">Les clients</h1>
 
+      <div className="flex flex-wrap items-center justify-between gap-3">
       {r ? (
         <p className="flex flex-wrap items-baseline gap-x-4 gap-y-1" aria-live="polite">
           <span className="text-3xl font-bold tabular-nums">{NB.format(r.compteurs.total)}</span>
@@ -45,7 +48,12 @@ export default async function ClientsPage({ searchParams }: { searchParams: Prom
             {NB.format(r.compteurs.inactifs)} inactifs
           </span>
         </p>
-      ) : null}
+      ) : (
+        <span />
+      )}
+      {/* Historique des passages en inactif (encadrement et ADV) */}
+      {peutVoirPassesInactifs(me.role) ? <ClientsInactifs /> : null}
+      </div>
 
       <ClientsFiltres search={f.search} niveau={f.niveau} statut={f.statut} mes={f.mes} avecMes={avecMes} />
 

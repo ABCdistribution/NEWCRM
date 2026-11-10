@@ -155,6 +155,23 @@ export class ClientsService {
   }
 
   /**
+   * Clients passés inactifs sur un mois (« AAAA-MM »). L'historique n'est PAS encore enregistré : le CRM ne garde que
+   * l'état `actif` du client, sans auteur, date, directeur régional, envoi à l'ADV ni indicateur « retiré de l'AS400 ».
+   * La route existe pour fixer le contrat de l'écran et répond « indisponible » plutôt qu'une liste vide trompeuse.
+   * À construire (migration + audit) : journal des changements d'état d'un client (client, auteur, date), envoi à
+   * l'ADV, présence du client dans le dernier fichier AS400 ; la liste sera alors bornée au périmètre de l'appelant
+   * (DR : sa région, CS : ses promoteurs) via `codesRepresentantsDuPerimetre`.
+   */
+  passesInactifs(mois?: string) {
+    return {
+      disponible: false as const,
+      mois: mois && /^\d{4}-(0[1-9]|1[0-2])$/.test(mois) ? mois : null,
+      depuis: null as string | null,
+      lignes: [] as never[],
+    };
+  }
+
+  /**
    * Codes représentants du périmètre de l'utilisateur : voir `codesRepresentantsDuPerimetre` (règle partagée avec la
    * recherche générale). null = pas de restriction ; [] = périmètre vide.
    */

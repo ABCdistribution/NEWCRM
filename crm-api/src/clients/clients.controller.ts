@@ -12,7 +12,10 @@ import {
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiProperty, ApiPropertyOptional, ApiTags } from '@nestjs/swagger';
 import { IsDateString, IsIn, IsInt, IsNotEmpty, IsOptional, IsString, IsUUID, MaxLength, Min, ValidateIf } from 'class-validator';
+import { Role } from '@crm/database';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { RolesGuard } from '../auth/guards/roles.guard';
+import { Roles } from '../auth/decorators/roles.decorator';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { ClientsService } from './clients.service';
 import { CreateClientDto } from './dto/create-client.dto';
@@ -183,6 +186,18 @@ export class ClientsController {
     @CurrentUser() user: { id: string; role: string; idRepr: string | null; regionId: string | null },
   ) {
     return this.clients.findAll(query, user);
+  }
+
+  // Déclarée avant GET :id pour ne pas être happée par le ParseUUIDPipe.
+  @Get('passes-inactifs')
+  @UseGuards(RolesGuard)
+  @Roles(Role.ADMIN, Role.DIRECTION, Role.DIRECTEUR_REGIONAL, Role.CHEF_SECTEUR, Role.ADV)
+  @ApiOperation({
+    summary:
+      "Clients passés inactifs sur un mois (?mois=AAAA-MM) : enseigne, code, ville, date, auteur, DR, envoi à l'ADV. Historique pas encore enregistré : renvoie disponible=false",
+  })
+  passesInactifs(@Query('mois') mois?: string) {
+    return this.clients.passesInactifs(mois);
   }
 
   // Déclarée avant GET :id pour ne pas être happée par le ParseUUIDPipe.
