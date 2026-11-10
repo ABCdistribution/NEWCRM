@@ -5,7 +5,8 @@
  * posé sur le conteneur de l'espace (layout des groupes de routes) :
  *   - `promoteurs` : bleu ABC Sales
  *   - `direction`  : violet ABC Pilot
- * Les surfaces sombres (menu latéral, cartes en `.dark` local) sont communes.
+ * Fond du contenu : gris très clair (#f6f8fa) commun aux deux espaces ; menu latéral et cartes en blanc. Les surfaces
+ * sombres restent possibles en `.dark` local (panneau de notifications, bandeaux).
  * La variante `dark:` de Tailwind est en mode « classe », posée localement.
  */
 @custom-variant dark (&:where(.dark, .dark *));
@@ -22,7 +23,6 @@
   --color-accent: var(--espace-accent);
   --color-brand-light: var(--espace-brand-light);
   --color-navy: var(--espace-navy);
-  --color-nav: var(--espace-nav);
 
   --color-navy-950: var(--espace-navy-950);
   --color-navy-900: var(--espace-navy-900);
@@ -43,13 +43,12 @@
 /* Espace par défaut (hors conteneur [data-espace], ex. /login) : bleu ABC Sales. */
 :root,
 [data-espace='promoteurs'] {
-  --background: #eef7ff;
+  --background: #f6f8fa; /* fond du contenu : gris très clair commun aux deux espaces (menu et cartes en blanc) */
   --foreground: #0b2545;
   --espace-brand: #1f7aea; /* bleu ABC Sales — couleur principale */
   --espace-accent: #1f7aea;
   --espace-brand-light: #65b8fd; /* série secondaire des graphes */
   --espace-navy: #0b2545; /* bleu encre */
-  --espace-nav: #0b2545; /* fond du menu latéral */
   --espace-navy-950: #050f33;
   --espace-navy-900: #0b1b4f;
   --espace-navy-800: #14276b;
@@ -60,13 +59,12 @@
 }
 
 [data-espace='direction'] {
-  --background: #f3eeff; /* fond lilas très clair */
+  --background: #f6f8fa; /* même fond que l'espace Promoteurs : seules les couleurs d'accent changent */
   --foreground: #2e1b56;
   --espace-brand: #7a56e6; /* violet ABC Pilot */
   --espace-accent: #b396fb;
   --espace-brand-light: #d2c3fc; /* lilas — série tertiaire des graphes */
   --espace-navy: #2e1b56;
-  --espace-nav: #2e1b56; /* fond du menu latéral */
   --espace-navy-950: #14052b;
   --espace-navy-900: #200a40;
   --espace-navy-800: #2e1458;

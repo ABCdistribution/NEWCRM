@@ -139,7 +139,7 @@ Autres adresses :
 
 Pour chaque rôle : se connecter avec le compte du §1.2, faire la série, se déconnecter.
 
-**Repérer le thème** : bleu (ABC Sales, `data-espace="promoteurs"`, accent `#1f7aea`, fond bleu très pâle) ou violet (ABC Pilot, `data-espace="direction"`, accent `#7a56e6`, fond lilas très clair). Moyen sûr et rapide : outils de développement du navigateur, chercher l'attribut `data-espace` (sur le `div` racine de l'application, sur `main` pour `/login`). Le thème suit le **rôle**, pas la page : l'encadrement garde le violet même sur les écrans « terrain ». Aucun dégradé de couleur nulle part (menu, connexion, bandeaux : aplats).
+**Repérer le thème** : bleu (ABC Sales, `data-espace="promoteurs"`, accent `#1f7aea`) ou violet (ABC Pilot, `data-espace="direction"`, accent `#7a56e6`). **Le fond du contenu est le même dans les deux espaces : gris très clair `#f6f8fa`** ; le menu latéral (et la barre du haut sur mobile) est **blanc plein**, avec l'entrée active teintée de la couleur de l'espace ; les cartes sont blanches. Seuls les accents (titres du menu, entrée active, boutons, graphes) distinguent bleu et violet. Moyen sûr et rapide : outils de développement du navigateur, chercher l'attribut `data-espace` (sur le `div` racine de l'application, sur `main` pour `/login`). Le thème suit le **rôle**, pas la page : l'encadrement garde le violet même sur les écrans « terrain ». Aucun dégradé de couleur nulle part (menu, connexion, bandeaux : aplats).
 
 ### 3.0 Contrôles communs (à faire une fois, puis répéter la ligne « menu / thème » pour chaque rôle)
 

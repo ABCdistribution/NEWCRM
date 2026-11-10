@@ -25,7 +25,8 @@ const SOUS_TITRE: Record<Espace, string> = {
   direction: 'Direction commerciale',
 };
 
-const FOCUS = 'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent';
+// Menu blanc : l'anneau de focus prend la couleur principale de l'espace (l'accent, pâle en violet, ne contraste pas assez sur blanc).
+const FOCUS = 'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand';
 
 function isActive(pathname: string, href: string) {
   return href === '/' ? pathname === '/' : pathname === href || pathname.startsWith(`${href}/`);
@@ -39,12 +40,12 @@ function Brand({ espace, compact = false }: { espace: Espace; compact?: boolean 
       className={`${FOCUS} ${compact ? 'inline-flex items-center gap-2' : 'flex w-full flex-col items-center justify-center gap-1.5 py-2'}`}
     >
       <span
-        className={`${policeLogo.className} ${compact ? 'text-2xl' : 'text-5xl'} select-none font-extrabold leading-none tracking-[0.18em] text-white`}
+        className={`${policeLogo.className} ${compact ? 'text-2xl' : 'text-5xl'} select-none font-extrabold leading-none tracking-[0.18em] text-brand`}
         aria-label="ABC"
       >
         ABC
       </span>
-      <span className="text-xs font-medium text-white/70">{SOUS_TITRE[espace]}</span>
+      <span className="text-xs font-medium text-neutral-500">{SOUS_TITRE[espace]}</span>
     </Link>
   );
 }
@@ -59,9 +60,9 @@ function MenuPanel({ me, sections, notifications }: { me: MenuUser; sections: Me
         {sections.map((section, i) => (
           <div key={section.label ?? i} className={i > 0 ? 'mt-5' : ''}>
             {section.label ? (
-              <p className="flex items-center gap-3 px-3 pb-1.5 text-xs font-semibold uppercase tracking-wider text-white/70">
+              <p className="flex items-center gap-3 px-3 pb-1.5 text-xs font-semibold uppercase tracking-wider text-neutral-500">
                 <span>{section.label}</span>
-                <span aria-hidden className="h-px flex-1 bg-white/15" />
+                <span aria-hidden className="h-px flex-1 bg-neutral-200" />
               </p>
             ) : null}
             <ul className="flex flex-col gap-0.5">
@@ -72,8 +73,8 @@ function MenuPanel({ me, sections, notifications }: { me: MenuUser; sections: Me
                     <Link
                       href={c.href}
                       aria-current={active ? 'page' : undefined}
-                      className={`${FOCUS} group flex items-center gap-2.5 rounded-lg px-3 py-2.5 text-[15px] text-white transition ${
-                        active ? 'bg-navy-700 font-semibold' : 'hover:bg-white/10'
+                      className={`${FOCUS} group flex items-center gap-2.5 rounded-lg px-3 py-2.5 text-[15px] transition ${
+                        active ? 'bg-brand/10 font-semibold text-brand' : 'text-neutral-700 hover:bg-neutral-100'
                       }`}
                     >
                       <span className="shrink-0">{c.icon}</span>
@@ -88,12 +89,12 @@ function MenuPanel({ me, sections, notifications }: { me: MenuUser; sections: Me
       </nav>
 
       {/* Utilisateur + déconnexion */}
-      <div className="border-t border-navy-700 p-3">
+      <div className="border-t border-neutral-200 p-3">
         <div className="flex items-center gap-2.5 px-1">
           <Avatar src={`/avatar/${encodeURIComponent(me.id)}`} initials={initials(me.displayName)} size={36} />
           <div className="min-w-0 flex-1">
             <p className="truncate text-sm font-medium">{me.displayName}</p>
-            <p className="truncate text-xs text-white/80">{me.poste ?? ROLE_LABELS[me.role] ?? ''}</p>
+            <p className="truncate text-xs text-neutral-500">{me.poste ?? ROLE_LABELS[me.role] ?? ''}</p>
           </div>
         </div>
         <div className="mt-2 flex items-center justify-end gap-1 px-1">
@@ -101,7 +102,7 @@ function MenuPanel({ me, sections, notifications }: { me: MenuUser; sections: Me
           <form action={logout}>
             <button
               type="submit"
-              className={`${FOCUS} rounded-lg p-2 text-white transition hover:bg-red-950/40 hover:text-red-300`}
+              className={`${FOCUS} rounded-lg p-2 text-neutral-600 transition hover:bg-red-50 hover:text-red-700`}
               aria-label="Déconnexion"
               title="Déconnexion"
             >
@@ -149,7 +150,8 @@ export function SideMenu({
     };
   }, [open]);
 
-  const surface = 'dark border-navy-700 bg-nav text-neutral-100';
+  // Menu : fond blanc plein (le fond de la page, lui, est le gris très clair du thème).
+  const surface = 'border-neutral-200 bg-white';
 
   return (
     <>
@@ -166,7 +168,7 @@ export function SideMenu({
         <button
           type="button"
           onClick={() => setOpen(true)}
-          className={`${FOCUS} rounded-lg p-2 text-white transition hover:bg-white/10`}
+          className={`${FOCUS} rounded-lg p-2 text-neutral-700 transition hover:bg-neutral-100`}
           aria-label="Ouvrir le menu"
           aria-expanded={open}
         >
@@ -188,7 +190,7 @@ export function SideMenu({
               <button
                 type="button"
                 onClick={() => setOpen(false)}
-                className={`${FOCUS} rounded-lg p-2 text-white transition hover:bg-white/10`}
+                className={`${FOCUS} rounded-lg p-2 text-neutral-700 transition hover:bg-neutral-100`}
                 aria-label="Fermer le menu"
               >
                 <X size={20} />

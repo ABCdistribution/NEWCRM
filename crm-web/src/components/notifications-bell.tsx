@@ -59,10 +59,10 @@ export function NotificationsBell({
         onClick={() => setOpen((o) => !o)}
         aria-expanded={open}
         aria-haspopup="true"
-        className="relative rounded-lg p-2 text-white transition hover:bg-white/10 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-accent"
+        className="relative rounded-lg p-2 text-neutral-700 transition hover:bg-neutral-100 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-brand"
         aria-label={`Notifications (${nonLues} non lue${nonLues > 1 ? 's' : ''})`}
       >
-        {nonLues > 0 ? <BellRing size={16} className="text-accent" /> : <Bell size={16} />}
+        {nonLues > 0 ? <BellRing size={16} className="text-brand" /> : <Bell size={16} />}
         {nonLues > 0 ? (
           <span aria-hidden className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-red-500 px-1 text-[9px] font-bold text-white">
             {nonLues > 9 ? '9+' : nonLues}
@@ -71,7 +71,7 @@ export function NotificationsBell({
       </button>
 
       {open ? (
-        <div className="absolute bottom-full left-0 z-50 mb-2 w-80 max-w-[calc(100vw-2rem)] rounded-xl border border-navy-600 bg-navy-900 text-neutral-100 shadow-xl max-md:bottom-auto max-md:left-auto max-md:right-0 max-md:top-full max-md:mb-0 max-md:mt-2">
+        <div className="dark absolute bottom-full left-0 z-50 mb-2 w-80 max-w-[calc(100vw-2rem)] rounded-xl border border-navy-600 bg-navy-900 text-neutral-100 shadow-xl max-md:bottom-auto max-md:left-auto max-md:right-0 max-md:top-full max-md:mb-0 max-md:mt-2">
           <div className="flex items-center justify-between border-b border-navy-700 px-3 py-2">
             <p className="text-xs font-semibold">Notifications</p>
             {nonLues > 0 ? (
