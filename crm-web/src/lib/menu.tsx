@@ -16,9 +16,10 @@ const SECTIONS: { cle: string; label: (role: Role) => string | null; hrefs: stri
   {
     cle: 'terrain',
     label: (role) => (role === 'COMMERCIAL' ? 'Mon terrain' : 'Terrain'),
-    hrefs: ['/planning', '/planning-equipe', '/clients', '/visites', '/commandes'],
+    hrefs: ['/planning', '/planning-equipe', '/visites', '/commandes'],
   },
-  { cle: 'catalogue', label: () => 'Catalogue', hrefs: ['/produits', '/promos', '/qualite'] },
+  // Les clients se rangent dans le catalogue, en tête.
+  { cle: 'catalogue', label: () => 'Catalogue', hrefs: ['/clients', '/produits', '/promos', '/qualite'] },
   { cle: 'pilotage', label: () => 'Pilotage', hrefs: ['/prospects', '/mon-equipe', '/alertes', '/rapports'] },
 ];
 

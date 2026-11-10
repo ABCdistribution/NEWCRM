@@ -155,7 +155,7 @@ Pour chaque rôle : se connecter avec le compte du §1.2, faire la série, se d�
 ### 3.1 COMMERCIAL
 
 - [ ] **COM-01** Thème **bleu** ; sous-titre « Promoteurs ».
-- [ ] **COM-02** Menu exact : (sans titre) Accueil, Les News · **Mon terrain** : Mon planning, Les clients, Les visites, Les commandes · **Catalogue** : Les produits, Les promos / PEM, Qualité & rappels. **Absents** : Planning de l'équipe, Prospection, Mon équipe, Alertes, Rapports d'activité, Administration.
+- [ ] **COM-02** Menu exact : (sans titre) Accueil, Les News · **Mon terrain** : Mon planning, Les visites, Les commandes · **Catalogue** : Les clients, Les produits, Les promos / PEM, Qualité & rappels. **Absents** : Planning de l'équipe, Prospection, Mon équipe, Alertes, Rapports d'activité, Administration.
 - [ ] **COM-03** Accueil « Mes performances » : sélecteur de mois (flèches précédent / suivant, URL `?annee=&mois=`), tuiles « CA du mois vs objectif », « Commandes », « Visites », « Couverture portefeuille », cartes « Top de mes clients » et « À relancer — sans commande ce mois », graphiques (évolution CA / commandes, répartition des visites par région). Chiffres cohérents avec les commandes du compte.
 - [ ] **COM-04** `/?annee=abc&mois=99` : pas d'erreur, retombe sur le mois courant.
 - [ ] **COM-05** Compte sans code représentant (si disponible) : message « Compte non relié à l'ERP » et pas de chiffres. *(Point connu côté API : sans `idRepr`, certaines routes basculent en vue globale ; le noter si vous voyez des chiffres d'autres promoteurs, ce n'est pas un nouveau trou.)*
@@ -180,7 +180,7 @@ Pour chaque rôle : se connecter avec le compte du §1.2, faire la série, se d�
 ### 3.2 CHEF_SECTEUR
 
 - [ ] **CS-01** Thème **violet** ; aucun sous-titre sous « ABC ».
-- [ ] **CS-02** Menu exact : Accueil, Les News · **Terrain** : Mon planning d'activité, Planning de l'équipe, Les clients, Les visites, Les commandes · **Catalogue** : Les produits, Les promos / PEM, Qualité & rappels · **Pilotage** : Prospection, Mon équipe, Alertes. **Absents** : Rapports d'activité, Administration.
+- [ ] **CS-02** Menu exact : Accueil, Les News · **Terrain** : Mon planning d'activité, Planning de l'équipe, Les visites, Les commandes · **Catalogue** : Les clients, Les produits, Les promos / PEM, Qualité & rappels · **Pilotage** : Prospection, Mon équipe, Alertes. **Absents** : Rapports d'activité, Administration.
 - [ ] **CS-03** Accueil « Mon secteur » : sélecteur de mois, CA mensuel N-1 / N, « Couverture du mois », « À relancer — sans commande ce mois », « Promoteurs en baisse vs N-1 », « Objectif vs CA réalisé — par client », « Mon équipe — performance du mois », carte du secteur en points, lien vers Alertes marqué « maquette ». *(Connu côté API : le bloc prospection et le nuage objectif / CA d'un CS couvrent tout le réseau, BACKLOG ; noter, ne pas signaler comme nouveau.)*
 - [ ] **CS-04** `/clients` ouvre par défaut la vue « **Suivi du secteur** » (titre « Suivi des clients ») avec les onglets « Suivi du secteur » / « Portefeuille » ; bascule **Tableau / Carte** ; filtres Classe (Toutes + classes présentes) et « Tous les états / À jour / Attention / Alerte » ; clic sur une ligne ouvre le panneau de suivi du client ; carte avec points clients et prospects non travaillés ; recherche et pagination.
 - [ ] **CS-05** Onglet « Portefeuille » (`/clients?vue=portefeuille`) : liste « Clients » avec filtre État ; la recherche, la pagination et les filtres conservent `vue=portefeuille`. Les clients proposés restent ceux du secteur du compte (périmètre API).
@@ -220,7 +220,7 @@ Pour chaque rôle : se connecter avec le compte du §1.2, faire la série, se d�
 ### 3.4 DIRECTION
 
 - [ ] **DIR-01** Thème **violet** ; aucun sous-titre sous « ABC ».
-- [ ] **DIR-02** Menu exact : Accueil, Les News · Terrain (Mon planning d'activité, Planning de l'équipe, Les clients, Les visites, Les commandes) · Catalogue (3 entrées) · **Pilotage : Prospection, Alertes, Rapports d'activité**. **Absents** : **Mon équipe**, Administration.
+- [ ] **DIR-02** Menu exact : Accueil, Les News · Terrain (Mon planning d'activité, Planning de l'équipe, Les visites, Les commandes) · Catalogue (Les clients en tête, puis 3 entrées) · **Pilotage : Prospection, Alertes, Rapports d'activité**. **Absents** : **Mon équipe**, Administration.
 - [ ] **DIR-03** Accueil « Pilotage force de vente » (toute la force de vente), carte des équipes (accueil **sans titre ni phrase de bienvenue** ; la **barre de recherche** de la carte ouvre le bloc ; à sa droite, la tuile **« CA réalisé / Objectif à date »** affiche « — / — bientôt disponible » tant que l'API ne fournit pas la donnée ; les **pastilles de filtre** sont en toutes lettres et dans l'ordre de l'annuaire : Toutes, Île-de-France, Nord-Ouest, Nord-Est, Sud-Est, Sud-Ouest, Benelux, Corse, la liste des secteurs suit le même ordre) : **même carte que l'annuaire intranet** (7 formes : IDF, NORD OUEST, NORD EST, SUD EST, SUD OUEST, BENELUX avec « Belgique », CORSE annotée par un trait), mêmes teintes, chaque région avec son effectif (directeurs régionaux + chefs de secteur + promoteurs : mêmes chiffres que l'annuaire). Survol d'une région : halo. Clic sur une région (carte, pastille ou liste) : **la carte et la liste des secteurs se replient avec une animation** (fondu et réduction), l'équipe prend la place, un bouton « Retour à la carte » la rouvre (avec « Toutes » ou en recliquant la pastille) ; avec « réduire les animations » activé dans le système, le repli est immédiat. Le détail : **bilan du mois** (visites, commandes, CA, et CA comparé à l'objectif avec sa barre : vert à 90 % et plus, orange de 70 à 89 %, rouge en dessous, « objectif non défini » sans objectif), la **direction**, les **chefs de secteur avec leurs promoteurs** et les « autres promoteurs de la région » (chef d'une autre région ou sans chef), chacun avec sa **photo AD** (initiales si l'AD n'en a pas), son poste AD et ses visites, commandes, CA et objectif du mois (le total de la région est la somme de ses membres ; les effectifs sont ceux de l'annuaire) ; une région sans effectif est estompée et inactive ; sous 640 px, étiquettes compactes. À droite de la carte, la liste des secteurs (sans titre ni texte explicatif) avec, pour chacun, le **CA du mois sur son objectif** (barre et pourcentage ; « objectif non défini » sans objectif), et non le nombre de collaborateurs (celui-ci reste sur la carte et dans les pastilles) ; aucune phrase d'explication sur l'écran. Sous la carte, **plus rien** : l'accueil Direction ne montre ni tuiles, ni graphiques, ni classement. Le Benelux n'apparaît avec son effectif qu'après une synchro AD qui l'a créé.
 - [ ] **DIR-04** `/clients` (Suivi / Portefeuille), `/commandes` (bandeau d'indicateurs, filtres Origine EDI / Appli), `/visites`, `/produits`, `/qualite` : comme DR.
 - [ ] **DIR-05** Fiche commande : **éditeur de livraison présent** (DIRECTION, ADV et ADMIN seulement) ; modifier le statut, recharger, vérifier la persistance.
@@ -235,7 +235,7 @@ Pour chaque rôle : se connecter avec le compte du §1.2, faire la série, se d�
 ### 3.5 ADMIN
 
 - [ ] **ADM-01** Thème **violet** ; aucun sous-titre sous « ABC ».
-- [ ] **ADM-02** Menu exact : **Accueil, Administration, Les News** (Administration au-dessus de Les News, sans section propre, **sur fond jaune** pour ressortir ; marquée d'un anneau quand on est sur la page) · Terrain (5) · Catalogue (3) · **Pilotage : Prospection, Mon équipe, Alertes, Rapports d'activité**. Pas d'entrée « Paramètres ».
+- [ ] **ADM-02** Menu exact : **Accueil, Administration, Les News** (Administration au-dessus de Les News, sans section propre, **sur fond jaune** pour ressortir ; marquée d'un anneau quand on est sur la page) · Terrain (4 : planning d'activité, planning de l'équipe, visites, commandes) · Catalogue (4, Les clients en tête) · **Pilotage : Prospection, Mon équipe, Alertes, Rapports d'activité**. Pas d'entrée « Paramètres ».
 - [ ] **ADM-03** Accueil « Pilotage force de vente » : comme DIR-03 (carte des équipes seule).
 - [ ] **ADM-04** `/admin` : bandeau « Accès administrateur » ; colonne d'onglets : Vue d'ensemble, Utilisateurs, Organisation, Synchronisations, Mobile (« bientôt »), Contenus, Configuration (« bientôt »), Journal d'audit (« bientôt »). L'onglet actif est porté par `?onglet=` ; un onglet inconnu (`?onglet=xyz`) ouvre « Vue d'ensemble ».
 - [ ] **ADM-05** Onglet **Utilisateurs** : recherche, filtres rôle / secteur / statut, pagination (paramètres d'URL conservés) ; changer un rôle, activer ou désactiver, rattacher un secteur **sur un compte de test**. Rappel : le rôle est réécrit par l'OU AD à la connexion suivante.
@@ -254,7 +254,7 @@ Pour chaque rôle : se connecter avec le compte du §1.2, faire la série, se d�
 ### 3.6 ADV (provisoire : rien n'est défini, on observe seulement)
 
 - [ ] **ADV-01** Thème **bleu** (ADV est classé « terrain ») ; sous-titre « Promoteurs ».
-- [ ] **ADV-02** Menu : Accueil, Les News · Terrain : Les clients, Les visites, Les commandes · Catalogue (3). **Pas** de « Mon planning » (écart a du §2).
+- [ ] **ADV-02** Menu : Accueil, Les News · Terrain : Les visites, Les commandes · Catalogue : Les clients, puis 3 entrées. **Pas** de « Mon planning » (écart a du §2).
 - [ ] **ADV-03** Accueil « Mes performances » : message neutre « Pas de chiffres personnels pour ce rôle » (pas de code représentant).
 - [ ] **ADV-04** Fiche commande : éditeur de livraison **présent** ; vérifier la persistance.
 - [ ] **ADV-05** Fiche client : boutons d'édition présents (ADV traité comme terrain, décision en attente) ; **pas** de « Visite commerciale ».
@@ -265,7 +265,7 @@ Pour chaque rôle : se connecter avec le compte du §1.2, faire la série, se d�
 ### 3.7 MARKETING (provisoire : rien n'est défini, on observe seulement)
 
 - [ ] **MKT-01** Thème **violet** (espace « direction » par défaut en attendant la décision).
-- [ ] **MKT-02** Menu : Accueil, Les News · Terrain : Les clients, Les visites, Les commandes · Catalogue (3). Aucune autre entrée.
+- [ ] **MKT-02** Menu : Accueil, Les News · Terrain : Les visites, Les commandes · Catalogue : Les clients, puis 3 entrées. Aucune autre entrée.
 - [ ] **MKT-03** Accueil : « Bonjour <prénom> » et une seule carte « Les News » (accueil provisoire) qui mène à `/news`.
 - [ ] **MKT-04** `/news` : **gestion complète** (comme ADM-11) ; `/promos` : **mode édition**.
 - [ ] **MKT-05** Fiche client : **lecture seule** (aucun bouton d'édition de périodicité, contacts, notes) ; fiche commande : pas d'éditeur de livraison.
