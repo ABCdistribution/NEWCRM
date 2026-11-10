@@ -25,9 +25,12 @@ export async function CarteAccueil({
   role,
   annee,
   mois,
+  moiId,
 }: {
   mode: 'equipes' | 'secteur';
   role: Role;
+  /** Identifiant de l'utilisateur connecté (non relisté dans la direction de sa région). */
+  moiId?: string;
   /** Mois de l'activité de la carte des équipes (sélecteur de mois de l'accueil). */
   annee?: number;
   mois?: number;
@@ -43,6 +46,7 @@ export async function CarteAccueil({
         fichePromoteur={peutOuvrirFichePromoteur(role)}
         // Directeur régional : une ou deux régions, pas de carte de France ; ses équipes s'affichent directement.
         sansCarte={role === 'DIRECTEUR_REGIONAL'}
+        moiId={moiId}
       />
     );
   }

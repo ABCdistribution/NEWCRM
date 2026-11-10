@@ -1,5 +1,6 @@
 import { redirect } from 'next/navigation';
 import { getNotifications } from '@/lib/api';
+import { getMonActivite } from '@/lib/mon-activite';
 import { espaceDe, lireSession, urlLogin } from '@/lib/roles';
 import { construireMenu } from '@/lib/menu';
 import { SideMenu } from '@/components/side-menu';
@@ -24,6 +25,8 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   // Cloche de notifications : tous les rôles. L'API ne renvoie que les notifications de l'utilisateur connecté
   // (par exemple les relances d'un directeur régional à un chef de secteur).
   const notifications = (await getNotifications()) ?? { nonLues: 0, items: [] };
+  // Chef de secteur et directeur régional : leur activité du mois s'affiche sous leur nom dans le bandeau du haut.
+  const activite = me.role === 'CHEF_SECTEUR' || me.role === 'DIRECTEUR_REGIONAL' ? await getMonActivite() : null;
 
   return (
     // Mobile : barre hamburger au-dessus du contenu ; ≥ md : sidebar + (bandeau du haut + contenu) côte à côte.
@@ -32,7 +35,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       <main className="min-w-0 flex-1">
         {/* Bandeau : recherche générale, cloche, utilisateur. Seuls les champs utilisés partent vers le navigateur
             (pas l'objet `me` entier). */}
-        <Bandeau me={{ id: me.id, displayName: me.displayName, poste: me.poste, role: me.role }} notifications={notifications} />
+        <Bandeau me={{ id: me.id, displayName: me.displayName, poste: me.poste, role: me.role }} notifications={notifications} activite={activite} />
         <div className="mx-auto max-w-[88rem] px-4 py-4 sm:px-6 sm:py-6">{children}</div>
       </main>
     </div>

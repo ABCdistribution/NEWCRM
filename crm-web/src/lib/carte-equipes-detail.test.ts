@@ -231,6 +231,21 @@ describe('détail d’une région sélectionnée', () => {
     expect(html).toContain('Filtrer par région');
   });
 
+  it('l’utilisateur connecté n’est pas relisté dans « Direction » (son activité est dans le bandeau du haut)', () => {
+    const rendreMoi = (moiId: string) =>
+      nbsp(renderToStaticMarkup(createElement(CarteEquipes, { data: DONNEES, ficheChefSecteur: true, fichePromoteur: true, regionInitiale: 'r1', moiId })));
+    // Je suis la directrice régionale : ni ma ligne ni l'intertitre « Direction » (elle était seule), mais mon équipe reste.
+    const moi = rendreMoi('d1');
+    expect(moi).not.toContain('Cindy RENARD');
+    expect(moi).not.toContain('>Direction<');
+    expect(moi).toContain('Nadia HAMEL');
+    expect(moi).toContain('Julien MARTIN');
+    // Quelqu'un d'autre : la direction reste affichée.
+    const autre = rendreMoi('un-autre-id');
+    expect(autre).toContain('Cindy RENARD');
+    expect(autre).toContain('>Direction<');
+  });
+
   it('une région sans membre l’annonce', () => {
     const html = rendre('r2');
     expect(html).toContain('Aucun chef de secteur ni promoteur dans cette région.');

@@ -102,7 +102,7 @@ export async function DashboardDirection({
       {/* Carte en haut de l'accueil ; ne bloque pas le reste de la page (Suspense + erreurs localisées). */}
       {carteMode ? (
         <Suspense fallback={<CarteAccueilSquelette />}>
-          <CarteAccueil mode={carteMode} role={me.role} annee={annee} mois={mois} />
+          <CarteAccueil mode={carteMode} role={me.role} annee={annee} mois={mois} moiId={me.id} />
         </Suspense>
       ) : null}
 

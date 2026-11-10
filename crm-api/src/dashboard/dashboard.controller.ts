@@ -73,6 +73,19 @@ export class DashboardController {
     return this.dashboard.statsCommandes(user, periodeQ === 'mois' ? 'mois' : 'jour');
   }
 
+  @Get('mon-activite')
+  @Roles(Role.ADMIN, Role.DIRECTION, Role.DIRECTEUR_REGIONAL, Role.CHEF_SECTEUR)
+  @ApiOperation({
+    summary:
+      "Activité du mois de l'appelant lui-même (bandeau du haut) : visites, commandes, CA et objectif mensuel de son code représentant ; ne lit que ses propres données",
+  })
+  @ApiQuery({ name: 'annee', required: false, example: 2026 })
+  @ApiQuery({ name: 'mois', required: false, example: 11 })
+  monActivite(@CurrentUser() user: User, @Query('annee') anneeQ?: string, @Query('mois') moisQ?: string) {
+    const { annee, mois } = this.periode(anneeQ, moisQ);
+    return this.carte.monActivite(user, annee, mois);
+  }
+
   @Get('carte-equipes')
   @Roles(Role.ADMIN, Role.DIRECTION, Role.DIRECTEUR_REGIONAL, Role.CHEF_SECTEUR)
   @ApiOperation({

@@ -2,7 +2,7 @@ import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
 import { BilanRegion, LigneActivite } from '@/components/activite-equipe';
-import { euros, libellePeriode, libelleRole, niveauObjectif, phraseObjectif } from './activite';
+import { euros, libelleCompteurs, libellePeriode, libelleRole, niveauObjectif, phraseObjectif } from './activite';
 import type { Activite } from './carte';
 
 // Aucun mock : fonctions pures et rendu par react-dom/server (pas de navigateur).
@@ -43,6 +43,14 @@ describe('formats de l’activité', () => {
   it('phrase d’objectif lisible, avec ou sans objectif', () => {
     expect(nbsp(phraseObjectif(A()))).toBe("CA de 8 450 € sur 10 000 € d'objectif (85 %)");
     expect(nbsp(phraseObjectif(A({ objectif: null, tauxPct: null })))).toBe('CA de 8 450 €, objectif non défini');
+  });
+});
+
+describe('compteurs du bandeau', () => {
+  it('visites, commandes, CA et objectif en quelques mots, zéro au singulier', () => {
+    expect(libelleCompteurs(A({ visites: 0, commandes: 0, ca: 0, objectif: null, tauxPct: null })).map(nbsp)).toEqual(['0 visite', '0 commande', 'CA 0 €', 'objectif non défini']);
+    expect(libelleCompteurs(A({ visites: 1, commandes: 2 })).map(nbsp)).toEqual(['1 visite', '2 commandes', 'CA 8 450 €', 'objectif 10 000 € (85 %)']);
+    expect(nbsp(libelleCompteurs(A({ objectif: 5000, tauxPct: null }))[3])).toBe('objectif 5 000 €');
   });
 });
 

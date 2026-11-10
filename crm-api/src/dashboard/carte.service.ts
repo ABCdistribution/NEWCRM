@@ -65,6 +65,49 @@ export class CarteService {
     });
   }
 
+  // --- GET /dashboard/mon-activite -----------------------------------------------------------------------------------
+
+  /**
+   * Activité du mois de l'appelant lui-même (bandeau du haut) : ses visites, les commandes et le CA de son code
+   * représentant, et son objectif mensuel (objectifs annuels de ses magasins divisés par 12). Mêmes règles que la carte
+   * des équipes. Ne lit que ses propres données : aucun périmètre à borner. Sans code représentant (cas courant d'un
+   * directeur régional), commandes, CA et objectif restent à zéro / non défini.
+   */
+  async monActivite(me: { id: string; idRepr: string | null }, annee: number, mois: number): Promise<Activite> {
+    const debut = new Date(annee, mois - 1, 1);
+    const fin = new Date(annee, mois, 1);
+    const codes = me.idRepr?.trim() ? idReprVariants(me.idRepr.trim()) : [];
+    const [cmd, obj, visites] = await Promise.all([
+      codes.length
+        ? this.prisma.commande.aggregate({
+            where: { dateAnnulation: null, dateCommande: { gte: debut, lt: fin }, idRepr: { in: codes } },
+            _sum: { montantTotal: true },
+            _count: { _all: true },
+          })
+        : null,
+      codes.length
+        ? this.prisma.objectif.aggregate({
+            where: {
+              annee,
+              client: { deletedAt: null, OR: [{ idCommercial1: { in: codes } }, { idCommercial2: { in: codes } }] },
+            },
+            _sum: { cibleCa: true },
+            _count: { _all: true },
+          })
+        : null,
+      this.prisma.visite.count({ where: { deletedAt: null, createdAt: { gte: debut, lt: fin }, promoteurId: me.id } }),
+    ]);
+    const ca = Math.round(Number(cmd?._sum.montantTotal ?? 0));
+    const objectif = obj && obj._count._all > 0 ? Math.round(Number(obj._sum.cibleCa ?? 0) / 12) : null;
+    return {
+      visites,
+      commandes: cmd?._count._all ?? 0,
+      ca,
+      objectif,
+      tauxPct: objectif ? Math.round((ca / objectif) * 100) : null,
+    };
+  }
+
   // --- GET /dashboard/carte-equipes ----------------------------------------------------------------------------------
 
   /**

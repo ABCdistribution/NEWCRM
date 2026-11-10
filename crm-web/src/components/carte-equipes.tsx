@@ -64,6 +64,7 @@ export function CarteEquipes({
   fichePromoteur,
   regionInitiale = null,
   sansCarte = false,
+  moiId,
 }: {
   data: CarteEquipes;
   ficheChefSecteur: boolean;
@@ -75,6 +76,8 @@ export function CarteEquipes({
    * directement, l'une sous l'autre. Pour le directeur régional, qui n'a qu'une ou deux régions.
    */
   sansCarte?: boolean;
+  /** Identifiant de l'utilisateur connecté : il n'est pas relisté dans « Direction » (son activité est dans le bandeau du haut). */
+  moiId?: string;
 }) {
   const [regionId, setRegionId] = useState<string | null>(regionInitiale);
   const [recherche, setRecherche] = useState('');
@@ -124,14 +127,15 @@ export function CarteEquipes({
             return promos.length > 0 ? { ...c, promoteurs: promos } : null;
           })
           .filter((c): c is NonNullable<typeof c> => c !== null);
-        const directeurs = r.directeurs.filter((d) => !aRecherche || normaliser(d.displayName).includes(q));
+        // Je ne me liste pas moi-même : mon activité du mois est sous mon nom dans le bandeau du haut.
+        const directeurs = r.directeurs.filter((d) => d.id !== moiId && (!aRecherche || normaliser(d.displayName).includes(q)));
         const horsChef = r.promoteursHorsChef.filter((p) => !aRecherche || normaliser(p.displayName).includes(q));
         return { r, directeurs, chefs, horsChef };
       })
       .filter(
         (x) => x.chefs.length > 0 || x.directeurs.length > 0 || x.horsChef.length > 0 || (!aRecherche && (regionId === x.r.id || sansCarte)),
       );
-  }, [regions, regionId, aRecherche, q, sansCarte]);
+  }, [regions, regionId, aRecherche, q, sansCarte, moiId]);
 
   return (
     // `reducedMotion="user"` : les animations de déplacement sont coupées pour qui a demandé moins de mouvement.
