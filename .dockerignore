@@ -5,6 +5,5 @@
 **/.env
 **/.env.*
 packages/database/generated
-crm-helios
-crm-promoteur
+crm-web
 helios-auth-api

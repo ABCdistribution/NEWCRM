@@ -1,0 +1,195 @@
+@import 'tailwindcss';
+
+/*
+ * Thème unique de crm-web. Deux espaces, portés par l'attribut `data-espace`
+ * posé sur le conteneur de l'espace (layout des groupes de routes) :
+ *   - `promoteurs` : bleu ABC Sales
+ *   - `direction`  : violet ABC Pilot
+ * Les surfaces sombres (menu latéral, cartes en `.dark` local) sont communes.
+ * La variante `dark:` de Tailwind est en mode « classe », posée localement.
+ */
+@custom-variant dark (&:where(.dark, .dark *));
+
+/*
+ * `@theme inline` : les utilitaires (bg-brand, text-accent…) référencent directement
+ * `var(--espace-*)` au lieu de `var(--color-*)` résolu une fois sur :root. Sans `inline`,
+ * l'override par `[data-espace]` ne serait pas pris en compte (la valeur serait figée à la racine).
+ */
+@theme inline {
+  --font-sans: 'Inter Variable', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+
+  --color-brand: var(--espace-brand);
+  --color-accent: var(--espace-accent);
+  --color-brand-light: var(--espace-brand-light);
+  --color-navy: var(--espace-navy);
+  --color-nav: var(--espace-nav);
+
+  --color-navy-950: var(--espace-navy-950);
+  --color-navy-900: var(--espace-navy-900);
+  --color-navy-800: var(--espace-navy-800);
+  --color-navy-700: var(--espace-navy-700);
+  --color-navy-600: var(--espace-navy-600);
+
+  --shadow-card: var(--espace-shadow-card);
+
+  /*
+   * Gris neutre « atténué » : le #a3a3a3 de Tailwind n'atteint que 2,5:1 sur blanc. #737373 donne 4,7:1 (AA) pour
+   * text-neutral-400, fill-neutral-400 et les placeholders. Sur les surfaces sombres, les règles
+   * `.dark :where(.text-neutral-400)` ci-dessous continuent de s'appliquer.
+   */
+  --color-neutral-400: #737373;
+}
+
+/* Espace par défaut (hors conteneur [data-espace], ex. /login) : bleu ABC Sales. */
+:root,
+[data-espace='promoteurs'] {
+  --background: #eef7ff;
+  --foreground: #0b2545;
+  --espace-brand: #1f7aea; /* bleu ABC Sales — couleur principale */
+  --espace-accent: #1f7aea;
+  --espace-brand-light: #65b8fd; /* série secondaire des graphes */
+  --espace-navy: #0b2545; /* bleu encre */
+  --espace-nav: #0b2545; /* fond du menu latéral */
+  --espace-navy-950: #050f33;
+  --espace-navy-900: #0b1b4f;
+  --espace-navy-800: #14276b;
+  --espace-navy-700: #22367c;
+  --espace-navy-600: #31479c;
+  --espace-shadow-card: 0 1px 2px 0 rgb(16 24 40 / 0.04);
+  --espace-card-border: #eceef5;
+}
+
+[data-espace='direction'] {
+  --background: #f3eeff; /* fond lilas très clair */
+  --foreground: #2e1b56;
+  --espace-brand: #7a56e6; /* violet ABC Pilot */
+  --espace-accent: #b396fb;
+  --espace-brand-light: #d2c3fc; /* lilas — série tertiaire des graphes */
+  --espace-navy: #2e1b56;
+  --espace-nav: #2e1b56; /* fond du menu latéral */
+  --espace-navy-950: #14052b;
+  --espace-navy-900: #200a40;
+  --espace-navy-800: #2e1458;
+  --espace-navy-700: #3f2373;
+  --espace-navy-600: #533391;
+  --espace-shadow-card: 0 1px 2px 0 rgb(60 30 100 / 0.04);
+  --espace-card-border: #eae6f4;
+}
+
+/* Le conteneur d'espace porte lui-même le fond et le texte de son thème. */
+[data-espace] {
+  background: var(--background);
+  color: var(--foreground);
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: 'Inter Variable', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+}
+
+/*
+ * Dark mode global : `.dark` sur <html> (non utilisé aujourd'hui, conservé des fronts).
+ * Surfaces noir bleuté communes aux deux espaces.
+ */
+:root.dark {
+  --background: #0b0e14; /* fond du contenu — noir bleuté */
+  --espace-navy-950: #000000; /* fond du menu — noir pur, comme le fond des logos */
+  --espace-navy-900: #12151f; /* modales */
+  --espace-navy-800: #1a1f2c; /* survols, puces */
+  --espace-navy-700: #252b3a; /* bordures */
+  --espace-navy-600: #37405a;
+}
+.dark .shadow-card {
+  background-color: #12151f; /* carte, un cran au-dessus du fond */
+  border: 1px solid #232938;
+}
+
+/*
+ * `.dark` est posé LOCALEMENT sur les surfaces sombres (menu, cartes) :
+ * le texte y bascule en clair par défaut, le reste du site reste blanc.
+ */
+.dark {
+  --foreground: #e4e7ec;
+  color: var(--foreground);
+  color-scheme: dark;
+}
+
+/* Boutons/pastilles à fond d'accent en sombre : texte blanc pour rester lisible. */
+.dark .bg-accent,
+.dark .bg-brand,
+.dark .dark\:bg-accent {
+  color: #ffffff;
+}
+
+/* Cartes : liseré très clair à la place de l'ombre (teinte selon l'espace). */
+.shadow-card {
+  border: 1px solid var(--espace-card-border);
+}
+
+/*
+ * Lisibilité sur les surfaces sombres : les gris neutres y sont trop sombres,
+ * on les remonte en tons clairs. Hors des cartes, ils restent gris.
+ */
+.dark :where(.text-neutral-300) {
+  color: #b6bcca;
+}
+.dark :where(.text-neutral-400) {
+  color: #8b92a5;
+}
+.dark :where(.text-neutral-500) {
+  color: #767d90;
+}
+.dark :where(.text-neutral-600, .text-neutral-700) {
+  color: #c9cdd8;
+}
+
+/*
+ * Tables dans les cartes — look CRM épuré (repris d'ABC Pilot).
+ * Ciblage global : s'applique à toutes les tables sans toucher chaque page.
+ * On ne touche NI l'alignement NI le padding (laissés aux classes des colonnes).
+ * Teintes calculées sur les jetons de l'espace (bleu ou violet), jamais en dur : le texte d'en-tête
+ * (navy éclairci à 70 %) garde un contraste d'au moins 5:1 sur son fond dans les deux espaces (AA : 4,5:1).
+ */
+.shadow-card thead th {
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: color-mix(in srgb, var(--espace-navy) 70%, white);
+  background: color-mix(in srgb, var(--espace-brand) 6%, white); /* opaque : sûr pour les en-têtes collants (sticky) */
+  border-bottom: 1px solid color-mix(in srgb, var(--espace-brand) 14%, transparent);
+}
+.shadow-card tbody tr {
+  transition: background-color 0.12s ease;
+}
+.shadow-card tbody tr:hover td {
+  background: color-mix(in srgb, var(--espace-brand) 5%, transparent);
+}
+.dark .shadow-card thead th {
+  color: #8b92a5;
+  background: #1b2230; /* opaque, un cran au-dessus de la carte */
+  border-bottom: 1px solid #262f42;
+}
+.dark .shadow-card tbody tr:hover td {
+  background: rgb(255 255 255 / 0.03);
+}
+
+/* Transition légère entre les pages (désactivée si l'utilisateur réduit les animations). */
+@keyframes page-in {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: none; }
+}
+.page-in { animation: page-in 0.2s ease-out both; }
+@media (prefers-reduced-motion: reduce) { .page-in { animation: none; } }
+
+/*
+ * Blanc explicite sur surface sombre : les règles `.dark :where(.text-neutral-*)` ci-dessus
+ * sont hors couche Tailwind et écraseraient sinon les utilitaires `dark:text-white`.
+ */
+.dark .dark\:text-white {
+  color: #fff;
+}
+.dark .dark\:text-white\/60 {
+  color: rgb(255 255 255 / 0.6);
+}
