@@ -1,7 +1,7 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
-import { serverFetch, listFichiersDepot } from './api';
+import { ApiIndisponibleError, serverFetch, listFichiersDepot } from './api';
 import { exigerRole, messageRefus } from './roles';
 import { messageErreurApi } from './erreurs-api';
 import { TYPES_MINOS, typeMinos } from './minos';
@@ -14,6 +14,12 @@ const ROLES_VALIDES = ['COMMERCIAL', 'CHEF_SECTEUR', 'ADMIN', 'DIRECTEUR_REGIONA
 
 const REFUSE = 'Accès refusé : action réservée aux administrateurs.';
 const INJOIGNABLE = "Impossible de joindre l'API.";
+/** Délai de /sync/ad dépassé (180 s, voir api.ts) : l'API a pu mener la synchro à terme sans que l'écran le sache. */
+const SYNCHRO_SANS_REPONSE =
+  "La synchronisation n'a pas répondu en 3 minutes. Elle a pu aboutir malgré tout : vérifiez la liste des utilisateurs avant de la relancer.";
+/** 503 de /sync/ad : seule la lecture de l'annuaire peut le produire, avant toute écriture en base. */
+const ANNUAIRE_INJOIGNABLE =
+  "L'annuaire Active Directory est injoignable depuis le serveur (réseau ou VPN ?). Rien n'a été modifié : réessayez dans un instant.";
 
 /** Contrôle de rôle d'une action : renvoie un message d'erreur si l'accès est refusé. */
 async function refus(): Promise<string | null> {
@@ -126,6 +132,8 @@ export type AdSyncState = {
     sansRegion: string[];
     sansManager: string[];
     conflitsIdRepr: string[];
+    /** Lecture de l'AD plafonnée à sa limite : des comptes ont pu être ignorés (absent des anciennes versions de l'API). */
+    tronque?: boolean;
   };
 };
 
@@ -136,9 +144,11 @@ export async function syncAd(_prev: AdSyncState, _formData: FormData): Promise<A
   let res: Response;
   try {
     res = await serverFetch('/sync/ad', { method: 'POST' });
-  } catch {
-    return { error: INJOIGNABLE, ok: false };
+  } catch (e) {
+    const delaiDepasse = e instanceof ApiIndisponibleError && (e.cause as { name?: unknown } | undefined)?.name === 'TimeoutError';
+    return { error: delaiDepasse ? SYNCHRO_SANS_REPONSE : INJOIGNABLE, ok: false };
   }
+  if (res.status === 503) return { error: ANNUAIRE_INJOIGNABLE, ok: false };
   if (!res.ok) return { error: await messageErreur(res, 'synchronisation AD'), ok: false };
   // Corps illisible malgré un statut 2xx (proxy, coupure en cours de réponse) : la synchro a pu avoir lieu,
   // on le dit au lieu de laisser l'exception remonter à l'écran d'erreur.

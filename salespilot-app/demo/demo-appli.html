@@ -195,6 +195,13 @@ body{margin:0;font-family:Inter,Segoe UI,Roboto,system-ui,sans-serif;background:
 .barre-rech{display:flex;gap:10px;align-items:center;margin-top:14px}.barre-rech .recherche{flex:1;margin:0}
 .btn-filtre{position:relative;flex:none;width:48px;height:48px;border-radius:16px;border:0;background:#fff;color:var(--acc,#1F7AEA);display:flex;align-items:center;justify-content:center;cursor:pointer;box-shadow:0 6px 16px var(--halo,rgba(0,0,0,.12))}
 .btn-filtre i{position:absolute;top:-5px;right:-5px;min-width:18px;height:18px;border-radius:9px;background:var(--acc,#1F7AEA);color:#fff;font-size:11px;font-style:normal;font-weight:800;display:flex;align-items:center;justify-content:center;padding:0 4px}
+.scan-vue{position:relative;height:190px;border-radius:18px;background:#111827;overflow:hidden}
+.scan-vue .c{position:absolute;width:34px;height:34px;border:4px solid #fff;border-radius:6px}
+.scan-vue .hg{top:18px;left:18px;border-right:0;border-bottom:0}.scan-vue .hd{top:18px;right:18px;border-left:0;border-bottom:0}
+.scan-vue .bg{bottom:18px;left:18px;border-right:0;border-top:0}.scan-vue .bd{bottom:18px;right:18px;border-left:0;border-top:0}
+.scan-ligne{position:absolute;left:30px;right:30px;top:32px;height:2px;background:var(--alert,#ef4444);box-shadow:0 0 10px var(--alert,#ef4444);animation:scan-ligne 1.8s ease-in-out infinite alternate}
+@keyframes scan-ligne{from{top:32px}to{top:156px}}
+@media (prefers-reduced-motion:reduce){.scan-ligne{animation:none;top:50%}}
 .titre-filtre{font-size:12px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;color:var(--muted);margin:14px 0 4px}
 .opt{display:flex;justify-content:space-between;align-items:center;padding:12px 2px;border-bottom:1px solid var(--ligne);font-size:15px;cursor:pointer}
 .radio{width:20px;height:20px;border-radius:50%;border:2px solid #c7cad6;position:relative;flex:none}.radio.on{border-color:var(--bleu)}.radio.on:after{content:"";position:absolute;inset:3px;border-radius:50%;background:var(--bleu)}
@@ -326,6 +333,7 @@ const MOIS = ['janv.', 'févr.', 'mars', 'avr.', 'mai', 'juin', 'juil.', 'août'
 
 const ICONES = {
   mail: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 7l9 6 9-6"/></svg>',
+  scan: '<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8V6a2 2 0 012-2h2M16 4h2a2 2 0 012 2v2M20 16v2a2 2 0 01-2 2h-2M8 20H6a2 2 0 01-2-2v-2"/><path d="M8 9v6M11 9v6M13.5 9v6M16 9v6"/></svg>',
   filtre: '<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 5h18l-7 8.5V20l-4-2v-4.5z"/></svg>',
   equipe: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c0-3.5 3-6 6.5-6s6.5 2.5 6.5 6"/><circle cx="17" cy="9" r="2.5"/><path d="M17 14c2.5 0 4.5 1.8 4.5 4.5"/></svg>',
   accueil: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M3 11l9-8 9 8v10H3z"/></svg>',
@@ -1399,6 +1407,12 @@ function modaleSales() {
       <div class="titre-filtre">Autres</div><div class="qrow"><span>En promotion</span><button class="sw ${f.promo ? 'on' : ''}" data-act="p-promo"><i></i></button></div><div class="qrow"><span>Mis en avant</span><button class="sw ${f.avant ? 'on' : ''}" data-act="p-avant"><i></i></button></div><div class="qrow"><span>Kits</span><button class="sw ${f.kit ? 'on' : ''}" data-act="p-kit"><i></i></button></div><div class="qrow"><span>Produits PEM</span><button class="sw ${f.pem ? 'on' : ''}" data-act="p-pem"><i></i></button></div>
       <div class="rangee" style="margin-top:14px"><button class="btn sm" data-act="p-reset">Réinitialiser</button><button class="btn sm plein sales" data-act="fermer">Voir ${nb} produit${nb > 1 ? 's' : ''}</button></div></div></div>`;
   }
+  if (m.type === 'cmd-scan') {
+    return `<div class="voile" data-act="fermer"><div class="feuille" data-stop="1"><div class="poignee"></div><h3>Scanner un produit</h3>
+      <div class="scan-vue" role="img" aria-label="Aperçu de la caméra"><i class="c hg"></i><i class="c hd"></i><i class="c bg"></i><i class="c bd"></i><span class="scan-ligne"></span></div>
+      <div style="font-size:13px;color:var(--muted);margin:10px 0 14px;text-align:center">Pointez la caméra vers le code-barres (EAN) du produit : il est ajouté à la commande.</div>
+      <div class="rangee"><button class="btn sm" data-act="fermer">Annuler</button><button class="btn sm plein sales" data-act="cmd-scan-ok">Simuler un scan</button></div></div></div>`;
+  }
   if (m.type === 'cmd-filtres') {
     const d = S.cmd, nb = PRODUITS.filter((p) => (!d.cat || p.cat === d.cat) && !(d.masquer && p.stock === 'Rupture')).length;
     const opt = (act, attr, lib, on) => `<div class="opt" data-act="${act}" ${attr}><span>${lib}</span><i class="radio ${on ? 'on' : ''}"></i></div>`;
@@ -1566,6 +1580,7 @@ SA['s-filtre'] = (d) => { S.sFiltre = d.f; render(); };
 
 // ----- Prise de commande : stock affiché, remplacement d'un produit en rupture ou insuffisant -----
 const eurD = (n) => euros(n).replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
+let scanSuiv = 0; // démo : rang du prochain produit « scanné »
 const prodDe = (id) => PRODUITS.find((p) => p.id === id);
 const ligneCmd = (id) => S.cmd.l.find((x) => x.id === id);
 const nbArticles = () => S.cmd.l.reduce((a, l) => a + l.qty, 0);
@@ -1587,7 +1602,7 @@ function cmdEcran() {
       <div class="corps">${S.magasins.filter((m) => m.actif !== false).map((m) => `<div class="carte" data-act="cmd-magasin" data-id="${m.id}"><div class="ligne" style="align-items:center"><div style="flex:1"><h4>${esc(m.nom)}</h4><p>${esc(m.adresse)}</p></div><span style="color:var(--muted)">›</span></div></div>`).join('')}</div>` };
   }
   const q = d.q.toLowerCase();
-  const liste = PRODUITS.filter((p) => (!q || (p.nom + p.marque + p.code).toLowerCase().includes(q)) && (!d.cat || p.cat === d.cat) && !(d.masquer && p.stock === 'Rupture'));
+  const liste = PRODUITS.filter((p) => (!q || (p.nom + p.marque + p.code + p.ean).toLowerCase().includes(q)) && (!d.cat || p.cat === d.cat) && !(d.masquer && p.stock === 'Rupture'));
   const row = (p) => {
     const info = stockInfo(p), l = ligneCmd(p.id), rupture = p.stock === 'Rupture', trop = l && l.qty > p.qte;
     const action = rupture ? `<button class="btn sm" style="width:auto;padding:0 12px;border-color:var(--alert);color:var(--alert)" data-act="cmd-remp" data-id="${p.id}">Remplacer ›</button>`
@@ -1600,7 +1615,7 @@ function cmdEcran() {
   };
   return {
     page: `<div class="topbar" style="background:#fff;border-bottom:1px solid var(--ligne)"><button class="retour sombre" data-act="retour">←</button><div style="flex:1;min-width:0"><b>Nouvelle commande</b><small>${esc(getM(d.m).nom)}</small></div></div>
-      <div class="corps"><div class="barre-rech" style="margin-bottom:12px"><input class="recherche" style="margin:0" placeholder="Nom, marque ou référence" value="${esc(d.q)}" data-input="cmdQ"><button class="btn-filtre" data-act="cmd-filtres" aria-label="Filtres">${ICONES.filtre}${(d.cat ? 1 : 0) + (d.masquer ? 1 : 0) ? `<i>${(d.cat ? 1 : 0) + (d.masquer ? 1 : 0)}</i>` : ''}</button></div>
+      <div class="corps"><div class="barre-rech" style="margin-bottom:12px"><input class="recherche" style="margin:0" placeholder="Nom, marque, réf. ou EAN" value="${esc(d.q)}" data-input="cmdQ"><button class="btn-filtre" data-act="cmd-scan" aria-label="Scanner un code-barres">${ICONES.scan}</button><button class="btn-filtre" data-act="cmd-filtres" aria-label="Filtres">${ICONES.filtre}${(d.cat ? 1 : 0) + (d.masquer ? 1 : 0) ? `<i>${(d.cat ? 1 : 0) + (d.masquer ? 1 : 0)}</i>` : ''}</button></div>
       ${liste.map(row).join('') || '<div class="vide">Aucun produit.</div>'}</div>`,
     bas: `<div class="bas" style="background:#fff;align-items:center"><div style="flex:1"><b>${nbArticles()} article${nbArticles() > 1 ? 's' : ''}</b><div style="font-size:12px;color:var(--muted)">${eurD(totalCmd())} HT</div></div><button class="btn plein sales" style="flex:none;width:auto;padding:0 20px" data-act="cmd-panier">Voir le panier ›</button></div>`,
   };
@@ -1657,6 +1672,12 @@ Object.assign(SA, {
   'visite-ro'(d) { S.pile.push({ type: 'cr', id: d.id }); render(); },
   'cmd-cat'(d) { S.cmd.cat = d.c || null; render(); },
   'cmd-filtres'() { S.modale = { type: 'cmd-filtres' }; render(); },
+  'cmd-scan'() { S.modale = { type: 'cmd-scan' }; render(); },
+  'cmd-scan-ok'() { // démo : le scan est simulé, il « lit » le produit disponible suivant du catalogue
+    const dispo = PRODUITS.filter((p) => p.stock !== 'Rupture'), p = dispo[scanSuiv++ % dispo.length], l = ligneCmd(p.id);
+    if (l) l.qty += 1; else S.cmd.l.push({ id: p.id, qty: p.pcb, remplace: null });
+    S.modale = null; toast(`✓ ${p.nom} ajouté · EAN ${p.ean}`);
+  },
   'cmd-masquer'() { S.cmd.masquer = !S.cmd.masquer; render(); },
   'cmd-reset'() { S.cmd.cat = null; S.cmd.masquer = false; render(); },
   'cmd-plus'(d) { const p = prodDe(d.id), l = ligneCmd(d.id); if (l) l.qty += 1; else S.cmd.l.push({ id: p.id, qty: p.pcb, remplace: null }); render(); },
@@ -1805,7 +1826,7 @@ function ficheMag(m) {
 // ---------- Fenêtres ----------
 function modale() {
   const m = S.modale;
-  if (['km', 'kit-detail', 'kits', 'svalider', 'sfiltres', 'cmd-filtres', 'cmd-pas', 'mfiltres', 'cfiltres', 'vfiltres', 'sproduit', 'slivraison', 'cmd-remp'].includes(m.type)) return modaleSales();
+  if (['km', 'kit-detail', 'kits', 'svalider', 'sfiltres', 'cmd-filtres', 'cmd-scan', 'cmd-pas', 'mfiltres', 'cfiltres', 'vfiltres', 'sproduit', 'slivraison', 'cmd-remp'].includes(m.type)) return modaleSales();
   if (m.type === 'feuille-etape') {
     return `<div class="voile" data-act="fermer"><div class="feuille" data-stop="1"><div class="poignee"></div><h3>Changer d'étape</h3>${['NOUVEAU', 'CONTACTE', 'VISITE', 'PROPOSITION', 'NEGOCIATION', 'PERDU'].map((s) => `<div class="ch" data-act="etape-vers" data-s="${s}"><span>${LIB_STATUT[s]}</span>${getP(m.id).statut === s ? '✓' : ''}</div>`).join('')}</div></div>`;
   }

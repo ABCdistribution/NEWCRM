@@ -1,7 +1,10 @@
 /**
- * Régions commerciales FRANÇAISES reconnues dans l'attribut AD `st`.
+ * Régions commerciales de la force de vente reconnues dans l'attribut AD `st` : les mêmes que dans l'annuaire
+ * intranet (Sud-Est, Nord-Est, Nord-Ouest, Sud-Ouest, Île-de-France, Corse, Benelux).
  * Clé = libellé normalisé (minuscules, sans accents/espaces/tirets) ;
- * tout le reste (Piemonte, Belgique, vide…) est ignoré — pas de région.
+ * tout le reste (Piemonte, vide…) est ignoré — pas de région.
+ * Ces codes sont aussi ceux de la carte des équipes de crm-web (crm-web/src/lib/carte-regions-fdv.ts) : ne pas les
+ * renommer sans mettre la carte à jour.
  */
 export const REGIONS_FR: Record<string, { code: string; nom: string }> = {
   sudest: { code: 'SE', nom: 'Sud-Est' },
@@ -11,6 +14,7 @@ export const REGIONS_FR: Record<string, { code: string; nom: string }> = {
   idf: { code: 'IDF', nom: 'Île-de-France' },
   iledefrance: { code: 'IDF', nom: 'Île-de-France' },
   corse: { code: 'COR', nom: 'Corse' },
+  benelux: { code: 'BENELUX', nom: 'Benelux' },
 };
 
 /** « Ile de France » / « Sud Est » / « IDF » → clé de REGIONS_FR. */

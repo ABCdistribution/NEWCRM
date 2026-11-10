@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { ConflictException, Injectable, Logger } from '@nestjs/common';
 import { Role } from '@crm/database';
 import { PrismaService } from '../prisma/prisma.service';
 import { LdapService, LdapFdvEntry } from './ldap.service';
@@ -41,6 +41,7 @@ export interface AdSyncResult {
   secteursChefsLies: number; // secteurs sans chef dont le chef de secteur AD a été posé
   sansManager: string[]; // logins sans manager résolu (hors directeurs eux-mêmes)
   conflitsIdRepr: string[]; // codes déjà portés par un autre compte
+  tronque: boolean; // lecture de l'AD plafonnée à la limite : des comptes de la force de vente ont pu être ignorés
 }
 
 /**
@@ -59,8 +60,42 @@ export class AdSyncService {
     private readonly prisma: PrismaService,
   ) {}
 
+  /** Une synchro à la fois : un second lancement (second clic, deuxième onglet) se heurterait aux contraintes d'unicité. */
+  private enCours = false;
+
+  /**
+   * Lance la synchro avec verrou et journal (début, fin et durée, ou cause de l'échec). Le verrou est local à ce
+   * processus : l'API tourne en une seule instance.
+   */
   async syncForceDeVente(): Promise<AdSyncResult> {
-    const entries = await this.ldap.listForceDeVente();
+    if (this.enCours) {
+      throw new ConflictException('Une synchronisation AD est déjà en cours : attendez sa fin avant de la relancer.');
+    }
+    this.enCours = true;
+    const debut = Date.now();
+    const secondes = () => Math.round((Date.now() - debut) / 1000);
+    this.logger.log('Synchro AD force de vente : démarrage');
+    try {
+      const result = await this.executer();
+      this.logger.log(
+        `Synchro AD force de vente terminée en ${secondes()} s : ${result.lus} lus, ${result.crees} créés, ${result.maj} mis à jour, ${result.directeursLies} rattachés à un directeur` +
+          (result.tronque ? ' (lecture tronquée à la limite)' : ''),
+      );
+      return result;
+    } catch (err) {
+      const e = err as { message?: unknown; stack?: unknown };
+      this.logger.error(
+        `Synchro AD force de vente : échec après ${secondes()} s (${typeof e?.message === 'string' ? e.message : String(err)})`,
+        typeof e?.stack === 'string' ? e.stack : undefined,
+      );
+      throw err;
+    } finally {
+      this.enCours = false;
+    }
+  }
+
+  private async executer(): Promise<AdSyncResult> {
+    const { entrees: entries, tronque } = await this.ldap.listForceDeVente();
     const result: AdSyncResult = {
       lus: entries.length,
       crees: 0,
@@ -72,6 +107,7 @@ export class AdSyncService {
       secteursChefsLies: 0,
       sansManager: [],
       conflitsIdRepr: [],
+      tronque,
     };
 
     // Secteurs connus en base : `st` s'y rattache ; un secteur de référence manquant est créé (un secteur = une valeur de `st`).
@@ -220,9 +256,6 @@ export class AdSyncService {
       await this.prisma.user.update({ where: { id: userId }, data: { directeurId } });
     }
 
-    this.logger.log(
-      `Synchro AD force de vente : ${result.lus} lus, ${result.crees} créés, ${result.maj} mis à jour, ${result.directeursLies} rattachés à un directeur`,
-    );
     return result;
   }
 }

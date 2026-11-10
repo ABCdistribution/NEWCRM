@@ -1,4 +1,4 @@
-import { Injectable, ServiceUnavailableException, UnauthorizedException } from '@nestjs/common';
+import { Injectable, Logger, ServiceUnavailableException, UnauthorizedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Client } from 'ldapts';
 
@@ -42,13 +42,50 @@ export interface LdapFdvEntry {
 const OUS_FDV_FR = ['Promoteur des ventes', 'Chef de secteur', 'Directeur', 'Responsable Merchandising'] as const;
 
 /**
+ * Nombre maximal de comptes lus par la synchro en masse. L'AD plafonne de toute façon une requête non paginée à 1000 ;
+ * ldapts ne lève PAS d'erreur à la limite (il rend les 1000 premiers) : atteindre ce nombre signale donc une lecture
+ * probablement tronquée, que la synchro remonte à l'administrateur.
+ */
+export const LIMITE_LECTURE_AD = 1000;
+
+/** Délais par défaut (ms) des échanges avec l'AD ; sans eux, un annuaire muet laisse la requête suspendue sans fin. */
+const DELAI_CONNEXION_MS = 10_000;
+const DELAI_OPERATION_MS = 120_000;
+
+/** Cause d'une erreur LDAP pour le journal du serveur (nom et message tronqués ; jamais de mot de passe dedans). */
+function detailErreur(err: unknown): string {
+  const e = err as { name?: unknown; message?: unknown } | null;
+  const nom = typeof e?.name === 'string' ? e.name : 'Erreur';
+  const message = typeof e?.message === 'string' ? e.message : String(err);
+  return `${nom} : ${message}`.replace(/\s+/g, ' ').slice(0, 300);
+}
+
+/**
  * Authentification "search-then-bind" contre l'AD on-premise :
  *  1. bind avec un compte de service, recherche de l'utilisateur ;
  *  2. re-bind avec le mot de passe fourni pour valider les identifiants.
  */
 @Injectable()
 export class LdapService {
+  private readonly logger = new Logger(LdapService.name);
+
   constructor(private readonly config: ConfigService) {}
+
+  /**
+   * Délais des échanges avec l'AD, surchargeables par `LDAP_CONNECT_TIMEOUT_MS` et `LDAP_TIMEOUT_MS` (entiers > 0).
+   * Les DEUX sont nécessaires : `connectTimeout` ne couvre que l'établissement de la connexion, `timeout` chaque
+   * opération (bind, recherche) ; ldapts les laisse tous deux à « illimité » par défaut.
+   */
+  private delais(): { connectTimeout: number; timeout: number } {
+    const lire = (cle: string, defaut: number) => {
+      const n = Number(this.config.get<string>(cle));
+      return Number.isInteger(n) && n > 0 ? n : defaut;
+    };
+    return {
+      connectTimeout: lire('LDAP_CONNECT_TIMEOUT_MS', DELAI_CONNEXION_MS),
+      timeout: lire('LDAP_TIMEOUT_MS', DELAI_OPERATION_MS),
+    };
+  }
 
   async authenticate(username: string, password: string): Promise<LdapProfile> {
     const url = this.config.getOrThrow<string>('LDAP_URL');
@@ -151,15 +188,17 @@ export class LdapService {
    * Liste les comptes actifs de la force de vente française (OUs Promoteur des ventes,
    * Chef de secteur, Directeur, Responsable Merchandising), via le compte de service.
    * Sert à la synchronisation en masse déclenchée par un admin.
+   * `tronque` : la lecture a atteint la limite (LIMITE_LECTURE_AD) ; des comptes de la force de vente ont pu être
+   * ignorés, l'annuaire contenant plus de comptes actifs que la limite (le filtre d'OU se fait après la lecture).
    */
-  async listForceDeVente(): Promise<LdapFdvEntry[]> {
+  async listForceDeVente(): Promise<{ entrees: LdapFdvEntry[]; tronque: boolean }> {
     const url = this.config.getOrThrow<string>('LDAP_URL');
     const searchBase = this.config.getOrThrow<string>('LDAP_SEARCH_BASE');
     const bindDn = this.config.getOrThrow<string>('LDAP_BIND_DN');
     const bindPassword = this.config.getOrThrow<string>('LDAP_BIND_PASSWORD');
     const idReprAttr = this.config.get<string>('LDAP_ATTR_ID_REPR') ?? 'facsimileTelephoneNumber';
 
-    const client = new Client({ url });
+    const client = new Client({ url, ...this.delais() });
     try {
       await client.bind(bindDn, bindPassword);
       // Comptes utilisateurs actifs uniquement (bit 2 = ACCOUNTDISABLE).
@@ -168,8 +207,14 @@ export class LdapService {
         filter: '(&(objectClass=user)(objectCategory=person)(!(userAccountControl:1.2.840.113556.1.4.803:=2)))',
         attributes: ['sAMAccountName', 'displayName', 'cn', 'mail', 'st', 'manager', 'title', 'thumbnailPhoto', idReprAttr],
         explicitBufferAttributes: ['thumbnailPhoto'], // sinon renvoyé en string (corrompu)
-        sizeLimit: 1000,
+        sizeLimit: LIMITE_LECTURE_AD,
       });
+      const tronque = searchEntries.length >= LIMITE_LECTURE_AD;
+      if (tronque) {
+        this.logger.warn(
+          `Synchro AD : ${searchEntries.length} comptes lus, limite atteinte (${LIMITE_LECTURE_AD}) : des comptes de la force de vente ont pu être ignorés.`,
+        );
+      }
 
       const entries: LdapFdvEntry[] = [];
       for (const entry of searchEntries) {
@@ -189,8 +234,11 @@ export class LdapService {
           photo: this.buffer(entry['thumbnailPhoto']),
         });
       }
-      return entries;
-    } catch {
+      return { entrees: entries, tronque };
+    } catch (err) {
+      // La cause (délai dépassé, connexion refusée, compte de service refusé…) n'est jamais montrée au navigateur,
+      // mais elle est journalisée : sans cela, rien ne distingue les pannes.
+      this.logger.error(`Synchro AD : lecture de l'annuaire impossible (${detailErreur(err)})`);
       throw new ServiceUnavailableException('Annuaire Active Directory (LDAP) injoignable');
     } finally {
       await client.unbind().catch(() => undefined);

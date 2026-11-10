@@ -21,22 +21,22 @@ function Erreur({ message }: { message: string }) {
  * Les données viennent de /dashboard/carte-equipes et /dashboard/carte-secteur, que l'API filtre par rôle et périmètre.
  */
 export async function CarteAccueil({ mode, role }: { mode: 'equipes' | 'secteur'; role: Role }) {
-  const { deps, erreur: erreurFond } = fondDepartements();
-  if (!deps) return <Erreur message={erreurFond ?? 'Fond de carte indisponible.'} />;
-
+  // Carte des équipes : formes des régions embarquées (même carte que l'annuaire), aucun fond de départements.
   if (mode === 'equipes') {
     const r = await getCarteEquipes();
     if (r.erreur !== undefined) return <Erreur message={r.erreur} />;
     return (
       <CarteEquipes
         data={r.data}
-        fond={deps}
         ficheChefSecteur={peutOuvrirFicheChefSecteur(role)}
         fichePromoteur={peutOuvrirFichePromoteur(role)}
       />
     );
   }
 
+  // Carte du secteur : points sur le fond de départements.
+  const { deps, erreur: erreurFond } = fondDepartements();
+  if (!deps) return <Erreur message={erreurFond ?? 'Fond de carte indisponible.'} />;
   const r = await getCarteSecteur();
   if (r.erreur !== undefined) return <Erreur message={r.erreur} />;
   const vide = r.data.clients.length === 0 && r.data.prospects.length === 0;
