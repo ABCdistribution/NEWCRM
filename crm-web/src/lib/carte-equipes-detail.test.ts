@@ -137,6 +137,15 @@ describe('détail d’une région sélectionnée', () => {
     expect(html).toContain('aria-label="Filtrer par région"');
   });
 
+  it('les pastilles de filtre portent le nom complet de la région, jamais son code abrégé', () => {
+    const html = rendre(null);
+    expect(html).toContain('Île-de-France (7)');
+    expect(html).toContain('Nord-Est (6)');
+    expect(html).toContain('Benelux (3)');
+    expect(html).not.toContain('IDF (7)');
+    expect(html).not.toContain('NE (6)');
+  });
+
   it('la recherche remplace le titre visible (déjà en haut de page), qui reste pour les lecteurs d’écran', () => {
     const html = rendre(null);
     expect(html).toMatch(/<h2[^>]*class="sr-only"[^>]*>Les équipes Force de Vente<\/h2>/);

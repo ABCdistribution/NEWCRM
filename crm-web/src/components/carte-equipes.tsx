@@ -26,9 +26,6 @@ const Photo = ({ id, nom, taille }: { id: string; nom: string; taille: number })
   <Avatar src={`/avatar/${encodeURIComponent(id)}`} initials={initiales(nom)} size={taille} />
 );
 
-/** Libellé court d'une pastille de filtre : le code s'il est court, sinon le nom. */
-const courtLibelle = (r: CarteRegion) => (r.code.length <= 5 ? r.code : r.nom);
-
 /**
  * Titre et sous-titre d'une région : « BENELUX Belgique » donne « BENELUX » et « Belgique ».
  * Seul un nom commençant par des MAJUSCULES suivies d'un mot capitalisé est scindé ; les autres noms
@@ -181,7 +178,7 @@ export function CarteEquipes({
             }`}
           >
             <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: r.couleur }} aria-hidden />
-            {courtLibelle(r)} ({r.nbCollaborateurs})
+            {r.nom} ({r.nbCollaborateurs})
           </button>
         ))}
       </div>
