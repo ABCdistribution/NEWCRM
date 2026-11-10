@@ -13,6 +13,8 @@ export type MenuSection = { label: string | null; items: MenuItem[] };
 const SECTIONS: { cle: string; label: (role: Role) => string | null; hrefs: string[] }[] = [
   // « Administration » (ADMIN seul : la table ROUTES ne la propose qu'à lui) se place entre l'accueil et Les News.
   { cle: 'general', label: () => null, hrefs: ['/', '/admin', '/news'] },
+  // Pilotage en premier, juste après le bloc général (rôles d'encadrement seulement : la table ROUTES filtre).
+  { cle: 'pilotage', label: () => 'Pilotage', hrefs: ['/prospects', '/mon-equipe', '/alertes', '/rapports'] },
   {
     cle: 'terrain',
     label: (role) => (role === 'COMMERCIAL' ? 'Mon terrain' : 'Terrain'),
@@ -20,7 +22,6 @@ const SECTIONS: { cle: string; label: (role: Role) => string | null; hrefs: stri
   },
   // Les clients se rangent dans le catalogue, en tête.
   { cle: 'catalogue', label: () => 'Catalogue', hrefs: ['/clients', '/produits', '/promos', '/qualite'] },
-  { cle: 'pilotage', label: () => 'Pilotage', hrefs: ['/prospects', '/mon-equipe', '/alertes', '/rapports'] },
 ];
 
 /** Libellés propres à un rôle (sinon celui de la table ROUTES). */
