@@ -8,7 +8,7 @@ import { libelleRole } from '@/lib/activite';
 import { teinteRegion } from '@/lib/carte-palette';
 import { FORMES_REGIONS_FDV, formeRegionFdv } from '@/lib/carte-regions-fdv';
 import type { CarteEquipes, CarteRegion } from '@/lib/carte';
-import { BilanRegion, CaObjectifADate, LigneActivite } from './activite-equipe';
+import { BilanRegion, CaObjectifADate, LigneActivite, LigneCa } from './activite-equipe';
 import { Avatar } from './avatar';
 import { CarteRegionsSvg } from './carte-regions-svg';
 import { initiales } from './equipe-ui';
@@ -74,7 +74,8 @@ export function CarteEquipes({
   const [recherche, setRecherche] = useState('');
 
   // La carte se replie dès qu'une région est choisie : le focus passe alors sur « Retour à la carte » (le bouton
-  // cliqué disparaît), et revient sur le titre quand on la rouvre. Rien au premier rendu.
+  // cliqué disparaît), et revient sur le titre quand on la rouvre. Rien au premier rendu. `preventScroll` : le focus
+  // ne doit JAMAIS faire défiler la page (sinon elle remonte à chaque clic sur un filtre).
   const retourRef = useRef<HTMLButtonElement>(null);
   const titreRef = useRef<HTMLHeadingElement>(null);
   const premierRendu = useRef(true);
@@ -83,7 +84,7 @@ export function CarteEquipes({
       premierRendu.current = false;
       return;
     }
-    (regionId ? retourRef.current : titreRef.current)?.focus();
+    (regionId ? retourRef.current : titreRef.current)?.focus({ preventScroll: true });
   }, [regionId === null]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Teinte de chaque région : celle de l'annuaire (par code de région), neutre pour une région sans tracé.
@@ -158,12 +159,6 @@ export function CarteEquipes({
       <CaObjectifADate donnee={data.caADate ?? null} />
       </div>
 
-      {regions.length > 0 ? (
-        <p className="mt-2 text-sm text-neutral-500">
-          {`${pluriel(total, 'collaborateur')} ${total > 1 ? 'répartis' : 'réparti'} sur ${pluriel(regions.length, 'secteur')}. Cliquez sur la carte ou sur un secteur ci-dessous pour afficher ses équipes.`}
-        </p>
-      ) : null}
-
       {/* Pastilles de filtre par région */}
       <div className="mt-3 flex flex-wrap gap-2" role="group" aria-label="Filtrer par région">
         <button
@@ -209,7 +204,9 @@ export function CarteEquipes({
         exit={{ opacity: 0, height: 0, scale: 0.94 }}
         transition={{ duration: 0.4, ease: [0.4, 0, 0.2, 1] }}
       >
-        <div className="mx-auto max-w-2xl">
+        {/* Carte à gauche, panneau des secteurs à droite (empilés sous 1024 px) */}
+        <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_24rem]">
+        <div className="min-w-0 max-w-2xl">
           <CarteRegionsSvg
             titre="Carte des secteurs commerciaux et de leur nombre de collaborateurs"
             regions={regions.map((r) => ({
@@ -224,14 +221,14 @@ export function CarteEquipes({
           />
         </div>
 
-        {/* Secteurs commerciaux : un appui sélectionne le secteur, comme un appui sur la carte */}
-        <h3 id="secteurs-titre" className="sr-only">
-          Secteurs commerciaux
-        </h3>
+        {/* Secteurs commerciaux : un appui sélectionne le secteur, comme un appui sur la carte. Chaque secteur montre son
+            CA du mois comparé à son objectif (le nombre de collaborateurs est sur la carte et dans les pastilles).
+            Aucun titre visible : la liste se comprend seule (nom accessible « Secteurs commerciaux »). */}
+        <div className="min-w-0">
         {regions.length === 0 ? (
           <p className="mt-4 text-sm text-neutral-400">Aucune région définie pour le moment.</p>
         ) : (
-          <ul aria-labelledby="secteurs-titre" className="mt-5 grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-4">
+          <ul aria-label="Secteurs commerciaux" className="flex flex-col gap-2">
             {regions.map((r) => {
               const { titre, sousTitre } = scinderNom(r);
               return (
@@ -241,28 +238,31 @@ export function CarteEquipes({
                     onClick={() => basculer(r.id)}
                     aria-pressed={regionId === r.id}
                     title={r.nom}
-                    className={`flex w-full items-center gap-3 rounded-xl border px-3 py-3 text-left transition ${focus} ${
+                    className={`block w-full rounded-xl border px-3 py-3 text-left transition ${focus} ${
                       regionId === r.id
                         ? 'border-brand bg-brand/10 dark:border-accent'
                         : 'border-neutral-100 hover:bg-neutral-50 dark:border-navy-700 dark:hover:bg-navy-800'
                     }`}
                   >
-                    <span className="h-3.5 w-3.5 shrink-0 rounded-full" style={{ backgroundColor: r.couleur }} aria-hidden />
-                    <span className="min-w-0 flex-1">
-                      <span className="block truncate text-sm font-semibold uppercase tracking-wide">{titre}</span>
-                      {sousTitre ? <span className="block truncate text-xs text-neutral-500">{sousTitre}</span> : null}
+                    <span className="flex items-center gap-3">
+                      <span className="h-3.5 w-3.5 shrink-0 rounded-full" style={{ backgroundColor: r.couleur }} aria-hidden />
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate text-sm font-semibold uppercase tracking-wide">{titre}</span>
+                        {sousTitre ? <span className="block truncate text-xs text-neutral-500">{sousTitre}</span> : null}
+                      </span>
+                      <ArrowRight size={16} className="shrink-0 text-neutral-400" aria-hidden />
                     </span>
-                    <span className="shrink-0 text-xl font-bold tabular-nums">
-                      {r.nbCollaborateurs}
-                      <span className="sr-only"> {r.nbCollaborateurs > 1 ? 'collaborateurs' : 'collaborateur'}</span>
+                    <span className="mt-2 block pl-[1.625rem]">
+                      <LigneCa a={r.stats} />
                     </span>
-                    <ArrowRight size={16} className="shrink-0 text-neutral-400" aria-hidden />
                   </button>
                 </li>
               );
             })}
           </ul>
         )}
+        </div>
+        </div>
       </motion.div>
         ) : null}
       </AnimatePresence>

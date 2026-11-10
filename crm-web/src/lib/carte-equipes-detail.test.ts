@@ -183,6 +183,22 @@ describe('détail d’une région sélectionnée', () => {
     expect([...pos].sort((a, b) => a - b)).toEqual(pos);
   });
 
+  it('liste des secteurs : le CA du mois de chaque secteur sur son objectif, pas le nombre de collaborateurs, ni titre ni phrase d’explication', () => {
+    const html = rendre(null);
+    expect(html).not.toContain('Choisissez un secteur');
+    expect(html).not.toContain('>Secteurs commerciaux<'); // aucun titre visible, seulement le nom accessible de la liste
+    expect(html).toContain('aria-label="Secteurs commerciaux"');
+    const panneau = html.slice(html.indexOf('aria-label="Secteurs commerciaux"'));
+    // Nord-Est : CA 31 200 € sur 36 000 € (87 %) ; Île-de-France sans objectif : le dit.
+    expect(panneau).toContain('CA <b class="font-semibold">31 200 €</b> sur 36 000 €');
+    expect(panneau).toContain('objectif non défini');
+    expect(panneau).not.toContain('collaborateurs');
+    expect(html).not.toContain('répartis');
+    expect(html).not.toContain('Cliquez sur');
+    // La liste des secteurs est repliée avec la carte quand une région est ouverte.
+    expect(rendre('r1')).not.toContain('aria-label="Secteurs commerciaux"');
+  });
+
   it('la recherche remplace le titre visible (déjà en haut de page), qui reste pour les lecteurs d’écran', () => {
     const html = rendre(null);
     expect(html).toMatch(/<h2[^>]*class="sr-only"[^>]*>Les équipes Force de Vente<\/h2>/);

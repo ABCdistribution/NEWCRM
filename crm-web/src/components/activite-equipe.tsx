@@ -23,13 +23,14 @@ const pluriel = (n: number, mot: string) => `${n} ${mot}${n > 1 ? 's' : ''}`;
 function BarreObjectif({ a }: { a: Pick<Activite, 'ca' | 'objectif' | 'tauxPct'> }) {
   const niveau = niveauObjectif(a.tauxPct);
   return (
-    <div
+    // <span> en bloc : la barre peut aussi se trouver dans un <button> (liste des secteurs).
+    <span
       role="img"
       aria-label={phraseObjectif(a)}
-      className="h-1.5 w-full overflow-hidden rounded-full bg-neutral-100 dark:bg-navy-800"
+      className="block h-1.5 w-full overflow-hidden rounded-full bg-neutral-100 dark:bg-navy-800"
     >
-      <div className={`h-full rounded-full ${COULEUR_BARRE[niveau]}`} style={{ width: `${Math.min(100, a.tauxPct ?? 0)}%` }} />
-    </div>
+      <span className={`block h-full rounded-full ${COULEUR_BARRE[niveau]}`} style={{ width: `${Math.min(100, a.tauxPct ?? 0)}%` }} />
+    </span>
   );
 }
 
@@ -89,6 +90,23 @@ export function CaObjectifADate({ donnee = null }: { donnee?: CaADate | null }) 
         )}
       </div>
     </div>
+  );
+}
+
+/**
+ * CA du mois d'un secteur comparé à son objectif, sans visites ni commandes : « CA 12 400 € sur 36 000 € · 34 % » et sa
+ * barre. Que des <span> : se place dans le bouton de la liste des secteurs.
+ */
+export function LigneCa({ a }: { a: Pick<Activite, 'ca' | 'objectif' | 'tauxPct'> }) {
+  return (
+    <span className="block">
+      <span className="block text-xs text-neutral-600 dark:text-neutral-300">
+        <TexteObjectif a={a} />
+      </span>
+      <span className="mt-1 block">
+        <BarreObjectif a={a} />
+      </span>
+    </span>
   );
 }
 

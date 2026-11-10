@@ -103,8 +103,9 @@ async function charger<T>(chemin: string, libelle: string): Promise<Resultat<T>>
   }
 }
 
-export function getCarteEquipes(): Promise<Resultat<CarteEquipes>> {
-  return charger<CarteEquipes>('/dashboard/carte-equipes', 'la carte des équipes');
+/** `annee` / `mois` : mois de l'activité affichée (le mois en cours par défaut) ; l'API reborne la saisie. */
+export function getCarteEquipes(p: { annee?: number; mois?: number } = {}): Promise<Resultat<CarteEquipes>> {
+  return charger<CarteEquipes>(`/dashboard/carte-equipes${qs(p)}`, 'la carte des équipes');
 }
 
 export function getCarteSecteur(

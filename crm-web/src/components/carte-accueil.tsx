@@ -20,10 +20,21 @@ function Erreur({ message }: { message: string }) {
  * liens vers une fiche (DIRECTION n'en ouvre aucune), jamais à filtrer des données.
  * Les données viennent de /dashboard/carte-equipes et /dashboard/carte-secteur, que l'API filtre par rôle et périmètre.
  */
-export async function CarteAccueil({ mode, role }: { mode: 'equipes' | 'secteur'; role: Role }) {
+export async function CarteAccueil({
+  mode,
+  role,
+  annee,
+  mois,
+}: {
+  mode: 'equipes' | 'secteur';
+  role: Role;
+  /** Mois de l'activité de la carte des équipes (sélecteur de mois de l'accueil). */
+  annee?: number;
+  mois?: number;
+}) {
   // Carte des équipes : formes des régions embarquées (même carte que l'annuaire), aucun fond de départements.
   if (mode === 'equipes') {
-    const r = await getCarteEquipes();
+    const r = await getCarteEquipes({ annee, mois });
     if (r.erreur !== undefined) return <Erreur message={r.erreur} />;
     return (
       <CarteEquipes
