@@ -3,10 +3,10 @@
 import { useMemo, useState } from 'react';
 import Link from 'next/link';
 import { ArrowRight, Search, Users } from 'lucide-react';
-import { centroideRegion, type FondDepartement } from '@/lib/carte-geo';
-import { couleurRegion } from '@/lib/carte-palette';
+import { teinteRegion } from '@/lib/carte-palette';
+import { formeRegionFdv } from '@/lib/carte-regions-fdv';
 import type { CarteEquipes, CarteRegion } from '@/lib/carte';
-import { CarteFranceSvg } from './carte-france-svg';
+import { CarteRegionsSvg } from './carte-regions-svg';
 
 const normaliser = (s: string) =>
   s
@@ -20,13 +20,16 @@ const pluriel = (n: number, mot: string) => `${n} ${mot}${n > 1 ? 's' : ''}`;
 const courtLibelle = (r: CarteRegion) => (r.code.length <= 5 ? r.code : r.nom);
 
 /**
- * Titre et sous-titre d'une carte de secteur : « BENELUX Belgique » donne « BENELUX » et « Belgique ».
+ * Titre et sous-titre d'une région : « BENELUX Belgique » donne « BENELUX » et « Belgique ».
  * Seul un nom commençant par des MAJUSCULES suivies d'un mot capitalisé est scindé ; les autres noms
- * (« NORD OUEST », « Île-de-France », « Sud Est », « IDF ») restent entiers.
+ * (« NORD OUEST », « Île-de-France », « Sud Est », « IDF ») restent entiers. À défaut, le sous-titre est celui de la
+ * carte (« Belgique » sous « Benelux »).
  */
-function scinderNom(nom: string): { titre: string; sousTitre: string | null } {
-  const m = /^([A-ZÀ-ÖØ-Þ][A-ZÀ-ÖØ-Þ0-9'’ -]*?)\s+([A-ZÀ-ÖØ-Þ][a-zà-öø-ÿ].*)$/.exec(nom.trim());
-  return m ? { titre: m[1], sousTitre: m[2] } : { titre: nom.trim(), sousTitre: null };
+function scinderNom(r: CarteRegion): { titre: string; sousTitre: string | null } {
+  const nom = r.nom.trim();
+  const m = /^([A-ZÀ-ÖØ-Þ][A-ZÀ-ÖØ-Þ0-9'’ -]*?)\s+([A-ZÀ-ÖØ-Þ][a-zà-öø-ÿ].*)$/.exec(nom);
+  if (m) return { titre: m[1], sousTitre: m[2] };
+  return { titre: nom, sousTitre: formeRegionFdv(r.code)?.sousTitre ?? null };
 }
 
 const focus =
@@ -44,43 +47,22 @@ const focus =
  */
 export function CarteEquipes({
   data,
-  fond,
   ficheChefSecteur,
   fichePromoteur,
 }: {
   data: CarteEquipes;
-  fond: FondDepartement[];
   ficheChefSecteur: boolean;
   fichePromoteur: boolean;
 }) {
   const [regionId, setRegionId] = useState<string | null>(null);
   const [recherche, setRecherche] = useState('');
 
+  // Teinte de chaque région : celle de l'annuaire (par code de région), neutre pour une région sans tracé.
   const regions = useMemo(
-    () => data.regions.map((r, i) => ({ ...r, couleur: couleurRegion(i) })),
+    () => data.regions.map((r) => ({ ...r, couleur: teinteRegion(r.code).point })),
     [data.regions],
   );
   const total = regions.reduce((s, r) => s + r.nbCollaborateurs, 0);
-
-  const svgRegions = useMemo(() => {
-    const parRegion = new Map<string, string[]>();
-    for (const d of data.departements) {
-      const l = parRegion.get(d.regionId) ?? [];
-      l.push(d.code);
-      parRegion.set(d.regionId, l);
-    }
-    const parCode = new Map(fond.map((d) => [d.code, d]));
-    return regions.map((r) => {
-      const codes = parRegion.get(r.id) ?? [];
-      const deps = codes.map((c) => parCode.get(c)).filter((d): d is FondDepartement => !!d);
-      return { r, codes, centre: centroideRegion(deps) };
-    });
-  }, [regions, data.departements, fond]);
-
-  // Régions sans tracé et hors de France (ex. Benelux) : bulle en haut de la carte.
-  const bulles = svgRegions
-    .filter((x) => x.codes.length === 0 && /benelux|belgique/i.test(x.r.nom))
-    .map((x) => ({ id: x.r.id, nom: x.r.nom, valeur: x.r.nbCollaborateurs, couleur: x.r.couleur }));
 
   const basculer = (id: string) => setRegionId((cur) => (cur === id ? null : id));
 
@@ -173,28 +155,19 @@ export function CarteEquipes({
       </div>
 
       <div className="mt-4">
-        <div className="mx-auto max-w-xl">
-          <CarteFranceSvg
-            departements={fond}
-            titre="Carte de France des régions commerciales et de leur nombre de collaborateurs"
-            regions={svgRegions.map(({ r, codes, centre }) => ({
+        <div className="mx-auto max-w-2xl">
+          <CarteRegionsSvg
+            titre="Carte des secteurs commerciaux et de leur nombre de collaborateurs"
+            regions={regions.map((r) => ({
               id: r.id,
+              code: r.code,
               nom: r.nom,
-              couleur: r.couleur,
               valeur: r.nbCollaborateurs,
-              codes,
-              centre,
               selectionnee: regionId === r.id,
               attenuee: regionId !== null && regionId !== r.id,
             }))}
             onRegion={basculer}
-            bulles={bulles}
           />
-          {data.departements.length === 0 ? (
-            <p className="mt-2 text-center text-xs text-neutral-500">
-              Aucun client n&apos;est encore rattaché à un département : les régions sont listées ci-dessous avec leur effectif.
-            </p>
-          ) : null}
         </div>
 
         {/* Secteurs commerciaux : un appui sélectionne le secteur, comme un appui sur la carte */}
@@ -206,7 +179,7 @@ export function CarteEquipes({
         ) : (
           <ul aria-labelledby="secteurs-titre" className="mt-5 grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-4">
             {regions.map((r) => {
-              const { titre, sousTitre } = scinderNom(r.nom);
+              const { titre, sousTitre } = scinderNom(r);
               return (
                 <li key={r.id}>
                   <button
@@ -249,7 +222,8 @@ export function CarteEquipes({
               <span className="h-3 w-3 rounded-full" style={{ backgroundColor: r.couleur }} aria-hidden />
               {r.nom}
               <span className="font-normal text-neutral-500">
-                — {pluriel(r.nbChefsSecteur, 'chef')} de secteur, {pluriel(r.nbPromoteurs, 'promoteur')}
+                — {r.nbDirecteurs > 0 ? `${pluriel(r.nbDirecteurs, 'directeur')}, ` : ''}
+                {pluriel(r.nbChefsSecteur, 'chef')} de secteur, {pluriel(r.nbPromoteurs, 'promoteur')}
               </span>
             </h3>
             {chefs.length === 0 ? (

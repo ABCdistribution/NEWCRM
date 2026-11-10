@@ -18,8 +18,8 @@ const estP2002 = (err: unknown) => (err as { code?: string })?.code === 'P2002';
  * Secteur d'un compte d'après l'attribut AD `st` : un secteur = une valeur de `st`.
  *  1. un secteur déjà en base qui correspond (nom ou code, faute de frappe tolérée) est réutilisé ;
  *  2. sinon, si `st` correspond à un secteur de référence (Sud-Est, Nord-Est, Nord-Ouest, Sud-Ouest, Île-de-France,
- *     Corse), il est créé (rattaché à la région du même code) et ajouté à `connus` ;
- *  3. libellé vide, étranger (Piemonte, Belgique…) ou ambigu → null : le compte est signalé, rien n'est inventé.
+ *     Corse, Benelux), il est créé (rattaché à la région du même code) et ajouté à `connus` ;
+ *  3. libellé vide, étranger (Piemonte…) ou ambigu → null : le compte est signalé, rien n'est inventé.
  * `connus` est la liste des secteurs en base ; elle est complétée au fil des créations.
  */
 export async function secteurDepuisSt(

@@ -202,7 +202,7 @@ Pour chaque rôle : se connecter avec le compte du §1.2, faire la série, se d�
 
 - [ ] **DR-01** Thème **violet** ; sous-titre « Direction commerciale ».
 - [ ] **DR-02** Menu exact : comme le CS, plus **Rapports d'activité** : Pilotage = Prospection, Mon équipe, Alertes, Rapports d'activité. **Absent** : Administration.
-- [ ] **DR-03** Accueil « Pilotage force de vente » : sélecteur de mois, tuiles de CA et de commandes, « Classement des promoteurs », « CA par secteur », « Sans commande ce mois », « Objectif vs CA réalisé — par client », carte des équipes. *(Connu côté API : `/dashboard/direction` n'est pas borné à la région du DR, il reçoit toute la force de vente ; noter, ne pas signaler comme nouveau.)*
+- [ ] **DR-03** Accueil « Pilotage force de vente » : sélecteur de mois, tuiles de CA et de commandes, « Classement des promoteurs », « CA par secteur », « Sans commande ce mois », « Objectif vs CA réalisé — par client », carte des équipes (les régions hors de mon périmètre restent dessinées en gris, sans effectif). *(Connu côté API : `/dashboard/direction` n'est pas borné à la région du DR, il reçoit toute la force de vente ; noter, ne pas signaler comme nouveau.)*
 - [ ] **DR-04** `/clients` : même comportement que CS-04 / CS-05 (vue Suivi par défaut, vue Portefeuille).
 - [ ] **DR-05** `/commandes`, `/visites`, `/produits`, `/qualite`, `/promos` (lecture), `/news` (lecture) : comme CS (bandeau d'indicateurs du mois sur les commandes ; écart de périmètre connu sur les commandes).
 - [ ] **DR-06** `/planning` éditable ; `/planning-equipe` : promoteurs de la **région** ; mêmes actions qu'en CS-11 et CS-12.
@@ -220,7 +220,7 @@ Pour chaque rôle : se connecter avec le compte du §1.2, faire la série, se d�
 
 - [ ] **DIR-01** Thème **violet** ; sous-titre « Direction commerciale ».
 - [ ] **DIR-02** Menu exact : Accueil, Les News · Terrain (Mon planning d'activité, Planning de l'équipe, Les clients, Les visites, Les commandes) · Catalogue (3 entrées) · **Pilotage : Prospection, Alertes, Rapports d'activité**. **Absents** : **Mon équipe**, Administration.
-- [ ] **DIR-03** Accueil « Pilotage force de vente » (toute la force de vente), carte des équipes.
+- [ ] **DIR-03** Accueil « Pilotage force de vente » (toute la force de vente), carte des équipes : **même carte que l'annuaire intranet** (7 formes : IDF, NORD OUEST, NORD EST, SUD EST, SUD OUEST, BENELUX avec « Belgique », CORSE annotée par un trait), mêmes teintes, chaque région avec son effectif (directeurs régionaux + chefs de secteur + promoteurs : mêmes chiffres que l'annuaire). Survol ou clic sur une région : halo et détail des chefs de secteur ; une région sans effectif est estompée et inactive ; sous 640 px, étiquettes compactes. Le Benelux n'apparaît avec son effectif qu'après une synchro AD qui l'a créé.
 - [ ] **DIR-04** `/clients` (Suivi / Portefeuille), `/commandes` (bandeau d'indicateurs, filtres Origine EDI / Appli), `/visites`, `/produits`, `/qualite` : comme DR.
 - [ ] **DIR-05** Fiche commande : **éditeur de livraison présent** (DIRECTION, ADV et ADMIN seulement) ; modifier le statut, recharger, vérifier la persistance.
 - [ ] **DIR-06** `/promos` : **mode édition** (ajout, modification, retrait de promos et de PEM) ; changement visible ensuite chez un COMMERCIAL en lecture.

@@ -2,7 +2,7 @@ import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/commo
 import { Prisma, Role, User } from '@crm/database';
 import { PrismaService } from '../prisma/prisma.service';
 import { idReprVariants } from '../common/id-repr.util';
-import { CARTE_LIMITE_POINTS, canonRepr, departementsParRegion } from './carte.util';
+import { CARTE_LIMITE_POINTS, canonRepr } from './carte.util';
 import { QueryCarteSecteurDto } from './dto/query-carte-secteur.dto';
 
 type Appelant = Pick<User, 'id' | 'role' | 'regionId'>;
@@ -58,10 +58,9 @@ export class CarteService {
   async carteEquipes(me: Appelant) {
     const secteurs = await this.secteursVisibles(me);
     const secteurIds = secteurs.map((s) => s.id);
-    const regionParSecteur = new Map(secteurs.map((s) => [s.id, s.regionId]));
     const managerIds = [...new Set(secteurs.map((s) => s.managerId).filter((x): x is string => !!x))];
 
-    // Collaborateurs du périmètre (actifs, chefs de secteur et promoteurs).
+    // Collaborateurs du périmètre (actifs : directeurs régionaux, chefs de secteur et promoteurs).
     const scopeUsers: Prisma.UserWhereInput[] = [];
     if (me.role === Role.DIRECTEUR_REGIONAL) {
       scopeUsers.push({ directeurId: me.id });
@@ -78,7 +77,7 @@ export class CarteService {
       this.prisma.user.findMany({
         where: {
           isActive: true,
-          role: { in: [Role.COMMERCIAL, Role.CHEF_SECTEUR] },
+          role: { in: [Role.COMMERCIAL, Role.CHEF_SECTEUR, Role.DIRECTEUR_REGIONAL] },
           ...(scopeUsers.length ? { OR: scopeUsers } : {}),
         },
         orderBy: { displayName: 'asc' },
@@ -160,6 +159,15 @@ export class CarteService {
       });
     }
 
+    // Directeurs régionaux : comptés dans la région de leur compte AD, comme dans l'annuaire (leurs équipes restent
+    // détaillées par chef de secteur).
+    const directeursRegion = new Map<string, number>(); // regionId -> nb de directeurs régionaux
+    for (const u of users) {
+      if (u.role === Role.DIRECTEUR_REGIONAL && u.regionId) {
+        directeursRegion.set(u.regionId, (directeursRegion.get(u.regionId) ?? 0) + 1);
+      }
+    }
+
     // Régions à renvoyer : toutes pour ADMIN/DIRECTION ; sinon celles du périmètre.
     const regionIds = new Set<string>();
     for (const s of secteurs) if (s.regionId) regionIds.add(s.regionId);
@@ -174,11 +182,13 @@ export class CarteService {
     const regions = regionsDb.map((r) => {
       const chefsRegion = chefs.filter((c) => c.regionId === r.id);
       const nbPromoteurs = promoteursRegion.get(r.id) ?? 0;
+      const nbDirecteurs = directeursRegion.get(r.id) ?? 0;
       return {
         id: r.id,
         code: r.code,
         nom: r.nom,
-        nbCollaborateurs: chefsRegion.length + nbPromoteurs,
+        nbCollaborateurs: nbDirecteurs + chefsRegion.length + nbPromoteurs,
+        nbDirecteurs,
         nbChefsSecteur: chefsRegion.length,
         nbPromoteurs,
         nbClients: secteurs
@@ -194,31 +204,8 @@ export class CarteService {
       };
     });
 
-    // Départements : clients français ayant un secteur rattaché à une région.
-    const parCp = secteurIds.length
-      ? await this.prisma.client.groupBy({
-          by: ['secteurId', 'codePostal'],
-          where: {
-            ...CLIENTS_ACTIFS,
-            secteurId: { in: secteurIds },
-            codePostal: { not: null },
-            // Hors France (Belgique, Luxembourg…) : codes postaux à 4 chiffres, jamais assimilés à un département.
-            OR: [
-              { pays: null },
-              { pays: { equals: 'France', mode: 'insensitive' } },
-              { pays: { equals: 'FR', mode: 'insensitive' } },
-              { pays: '' },
-            ],
-          },
-          _count: { _all: true },
-        })
-      : [];
-    const departements = departementsParRegion(
-      parCp.map((c) => ({ codePostal: c.codePostal, secteurId: c.secteurId, nb: c._count._all })),
-      regionParSecteur,
-    );
-
-    return { regions, departements };
+    // La carte (formes des régions) est portée par le front : plus aucun calcul de départements ici.
+    return { regions };
   }
 
   // --- GET /dashboard/carte-secteur ----------------------------------------------------------------------------------

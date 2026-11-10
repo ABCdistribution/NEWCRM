@@ -6,7 +6,9 @@ export type CarteRegion = {
   id: string;
   code: string;
   nom: string;
+  /** Effectif de la région : directeurs régionaux + chefs de secteur + promoteurs (même décompte que l'annuaire). */
   nbCollaborateurs: number;
+  nbDirecteurs: number;
   nbChefsSecteur: number;
   nbPromoteurs: number;
   nbClients: number;
@@ -21,7 +23,6 @@ export type CarteRegion = {
 
 export type CarteEquipes = {
   regions: CarteRegion[];
-  departements: { code: string; regionId: string; nbClients: number }[];
 };
 
 export type CarteClient = {
