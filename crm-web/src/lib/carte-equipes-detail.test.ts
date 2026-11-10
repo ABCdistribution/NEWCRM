@@ -205,6 +205,32 @@ describe('détail d’une région sélectionnée', () => {
     expect(html).toContain('type="search"');
   });
 
+  it('sans carte (directeur régional) : ni carte, ni liste des secteurs, ni pastilles, mais les équipes de chaque région directement', () => {
+    const html = nbsp(
+      renderToStaticMarkup(createElement(CarteEquipes, { data: DONNEES, ficheChefSecteur: true, fichePromoteur: true, sansCarte: true })),
+    );
+    expect(html).not.toContain('Carte des secteurs commerciaux');
+    expect(html).not.toContain('aria-label="Secteurs commerciaux"');
+    expect(html).not.toContain('Filtrer par région');
+    expect(html).not.toContain('Retour à la carte');
+    // Les équipes sont là : bilan du mois, direction, chefs de secteur et promoteurs de Nord-Est, et les autres régions reçues.
+    expect(html).toContain('Activité · Novembre 2026');
+    expect(html).toContain('Cindy RENARD');
+    expect(html).toContain('Nadia HAMEL');
+    expect(html).toContain('Julien MARTIN');
+    expect(html).toContain('Île-de-France');
+    expect(html).toContain('Benelux');
+    // La recherche et la tuile de CA restent.
+    expect(html).toContain('type="search"');
+    expect(html).toContain('CA réalisé / Objectif à date');
+  });
+
+  it('avec carte (par défaut) : la carte et les pastilles sont bien là', () => {
+    const html = rendre(null);
+    expect(html).toContain('Carte des secteurs commerciaux');
+    expect(html).toContain('Filtrer par région');
+  });
+
   it('une région sans membre l’annonce', () => {
     const html = rendre('r2');
     expect(html).toContain('Aucun chef de secteur ni promoteur dans cette région.');

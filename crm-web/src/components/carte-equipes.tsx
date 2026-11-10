@@ -63,12 +63,18 @@ export function CarteEquipes({
   ficheChefSecteur,
   fichePromoteur,
   regionInitiale = null,
+  sansCarte = false,
 }: {
   data: CarteEquipes;
   ficheChefSecteur: boolean;
   fichePromoteur: boolean;
   /** Région sélectionnée à l'ouverture (aucune par défaut) : sert aux tests et à ouvrir la carte sur une région. */
   regionInitiale?: string | null;
+  /**
+   * Sans carte de France ni liste des secteurs ni pastilles : les équipes de toutes les régions reçues sont affichées
+   * directement, l'une sous l'autre. Pour le directeur régional, qui n'a qu'une ou deux régions.
+   */
+  sansCarte?: boolean;
 }) {
   const [regionId, setRegionId] = useState<string | null>(regionInitiale);
   const [recherche, setRecherche] = useState('');
@@ -106,7 +112,7 @@ export function CarteEquipes({
 
   // Détail : région sélectionnée, ou toutes les régions si une recherche est en cours.
   const detail = useMemo(() => {
-    const sources = regionId ? regions.filter((r) => r.id === regionId) : aRecherche ? regions : [];
+    const sources = regionId ? regions.filter((r) => r.id === regionId) : aRecherche || sansCarte ? regions : [];
     return sources
       .map((r) => {
         const chefs = r.chefsSecteur
@@ -123,7 +129,7 @@ export function CarteEquipes({
         return { r, directeurs, chefs, horsChef };
       })
       .filter(
-        (x) => x.chefs.length > 0 || x.directeurs.length > 0 || x.horsChef.length > 0 || (!aRecherche && regionId === x.r.id),
+        (x) => x.chefs.length > 0 || x.directeurs.length > 0 || x.horsChef.length > 0 || (!aRecherche && (regionId === x.r.id || sansCarte)),
       );
   }, [regions, regionId, aRecherche, q]);
 
@@ -159,7 +165,8 @@ export function CarteEquipes({
       <CaObjectifADate donnee={data.caADate ?? null} />
       </div>
 
-      {/* Pastilles de filtre par région */}
+      {/* Pastilles de filtre par région (sans carte : toutes les régions sont déjà affichées, rien à filtrer) */}
+      {!sansCarte ? (
       <div className="mt-3 flex flex-wrap gap-2" role="group" aria-label="Filtrer par région">
         <button
           type="button"
@@ -191,11 +198,12 @@ export function CarteEquipes({
           </button>
         ))}
       </div>
+      ) : null}
 
       {/* Carte + liste des secteurs : repliées (fondu, réduction, hauteur → 0) dès qu'une région est choisie.
           `initial={false}` : ouvrir la page sur une région n'anime rien. La marge interne laisse la place au halo de la région. */}
       <AnimatePresence initial={false}>
-        {regionId === null ? (
+        {regionId === null && !sansCarte ? (
       <motion.div
         key="carte"
         className="-mx-3 mt-1 overflow-hidden px-3 pb-3 pt-3"
@@ -268,7 +276,7 @@ export function CarteEquipes({
       </AnimatePresence>
 
       {/* Retour à la carte : visible seulement quand elle est repliée */}
-      {regionId !== null ? (
+      {regionId !== null && !sansCarte ? (
         <button
           ref={retourRef}
           type="button"

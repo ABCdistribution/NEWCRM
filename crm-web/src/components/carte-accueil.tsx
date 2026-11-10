@@ -41,6 +41,8 @@ export async function CarteAccueil({
         data={r.data}
         ficheChefSecteur={peutOuvrirFicheChefSecteur(role)}
         fichePromoteur={peutOuvrirFichePromoteur(role)}
+        // Directeur régional : une ou deux régions, pas de carte de France ; ses équipes s'affichent directement.
+        sansCarte={role === 'DIRECTEUR_REGIONAL'}
       />
     );
   }
