@@ -55,7 +55,7 @@ export async function DashboardDirection({
   const isCS = me.role === 'CHEF_SECTEUR';
   // Seul « Mon secteur » a besoin de /dashboard/direction ; la carte des équipes a ses propres données.
   const data = isCS ? await getDashboardDirection(annee, mois) : null;
-  const prenom = me.displayName.split(/s+/)[0] ?? '';
+  const prenom = me.displayName.split(/\s+/)[0] ?? '';
   const carteMode: 'equipes' | 'secteur' | null = isCS
     ? 'secteur'
     : me.role === 'ADMIN' || me.role === 'DIRECTION' || me.role === 'DIRECTEUR_REGIONAL'
@@ -64,11 +64,15 @@ export async function DashboardDirection({
 
   return (
     <div className="flex flex-col gap-5">
+      {/* Accueil de l'encadrement hors chef de secteur : aucun en-tête (ni titre, ni bienvenue, ni mois) ; le titre reste
+          pour les lecteurs d'écran. Le chef de secteur garde « Mon secteur » et son sélecteur de mois. */}
+      {!isCS ? <h1 className="sr-only">Pilotage force de vente</h1> : null}
+      {isCS ? (
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold">{isCS ? 'Mon secteur' : 'Pilotage force de vente'}</h1>
+          <h1 className="text-2xl font-bold">Mon secteur</h1>
           <p className="text-sm text-neutral-500">
-            Bonjour {prenom} — {isCS ? (data?.scope.label.toLowerCase() ?? 'vue globale') : 'toute la force de vente'}.
+            Bonjour {prenom} — {data?.scope.label.toLowerCase() ?? 'vue globale'}.
           </p>
         </div>
 
@@ -93,6 +97,7 @@ export async function DashboardDirection({
           </Link>
         </nav>
       </div>
+      ) : null}
 
       {/* Carte en haut de l'accueil ; ne bloque pas le reste de la page (Suspense + erreurs localisées). */}
       {carteMode ? (

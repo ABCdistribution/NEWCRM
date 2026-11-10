@@ -12,9 +12,10 @@ const policeLogo = Montserrat({ subsets: ['latin'], weight: '800' });
 
 type Espace = 'promoteurs' | 'direction';
 
-const SOUS_TITRE: Record<Espace, string> = {
+/** Sous-titre sous « ABC » (aucun dans l'espace Direction). */
+const SOUS_TITRE: Record<Espace, string | null> = {
   promoteurs: 'Promoteurs',
-  direction: 'Direction commerciale',
+  direction: null,
 };
 
 // Menu blanc : l'anneau de focus prend la couleur principale de l'espace (l'accent, pâle en violet, ne contraste pas assez sur blanc).
@@ -37,7 +38,7 @@ function Brand({ espace, compact = false }: { espace: Espace; compact?: boolean 
       >
         ABC
       </span>
-      <span className="text-xs font-medium text-neutral-500">{SOUS_TITRE[espace]}</span>
+      {SOUS_TITRE[espace] ? <span className="text-xs font-medium text-neutral-500">{SOUS_TITRE[espace]}</span> : null}
     </Link>
   );
 }
