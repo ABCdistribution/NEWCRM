@@ -1,6 +1,5 @@
 import type { Metadata } from 'next';
 import { LoginForm } from './login-form';
-import { LoginSlider } from './login-slider';
 import { cheminInterneSur } from '@/lib/chemin';
 
 export const metadata: Metadata = {
@@ -19,7 +18,7 @@ export default async function LoginPage({
   return (
     // Thème violet (comme ABC Pilot) pour la page de connexion, commune aux deux espaces.
     <main data-espace="direction" className="flex min-h-screen w-full bg-white">
-      <div className="flex min-h-screen w-full flex-col bg-white px-6 py-8 sm:px-12 lg:w-[55%] lg:px-20">
+      <div className="flex min-h-screen w-full flex-col bg-white px-6 py-8 sm:px-12 lg:px-20">
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src="/logo.png" alt="ABC Group" className="h-16 w-16 rounded-xl object-contain" />
 
@@ -33,10 +32,6 @@ export default async function LoginPage({
         <p className="text-center text-[11px] text-neutral-500 lg:text-left">
           © {year} ABC Distribution · CRM · ABcosmétique
         </p>
-      </div>
-
-      <div className="hidden lg:block lg:w-[45%]">
-        <LoginSlider />
       </div>
     </main>
   );
