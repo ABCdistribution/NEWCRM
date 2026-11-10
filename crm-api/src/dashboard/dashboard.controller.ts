@@ -62,6 +62,17 @@ export class DashboardController {
     return this.dashboard.direction(user, annee, mois);
   }
 
+  @Get('commandes')
+  @Roles(Role.ADMIN, Role.DIRECTION, Role.DIRECTEUR_REGIONAL, Role.CHEF_SECTEUR)
+  @ApiOperation({
+    summary:
+      "Indicateurs de la page Commandes sur la journée (défaut) ou le mois en cours : CA, commandes, panier moyen, clients commandants — bornés au périmètre de l'appelant",
+  })
+  @ApiQuery({ name: 'periode', required: false, enum: ['jour', 'mois'], example: 'jour' })
+  statsCommandes(@CurrentUser() user: User, @Query('periode') periodeQ?: string) {
+    return this.dashboard.statsCommandes(user, periodeQ === 'mois' ? 'mois' : 'jour');
+  }
+
   @Get('carte-equipes')
   @Roles(Role.ADMIN, Role.DIRECTION, Role.DIRECTEUR_REGIONAL, Role.CHEF_SECTEUR)
   @ApiOperation({

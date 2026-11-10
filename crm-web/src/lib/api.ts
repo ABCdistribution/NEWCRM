@@ -783,6 +783,29 @@ export async function getDashboardDirection(
   }
 }
 
+/** Indicateurs de la page Commandes : la journée en cours ou le mois en cours (périmètre de l'appelant, côté API). */
+export type StatsCommandes = {
+  periode: 'jour' | 'mois';
+  ca: number;
+  caN1: number;
+  deltaPct: number | null;
+  commandes: number;
+  panierMoyen: number;
+  clientsCommandants: number;
+  clientsTotal: number;
+};
+
+/** Indicateurs du jour (défaut) ou du mois pour la page Commandes, ou null en cas d'erreur. */
+export async function getStatsCommandes(periode: 'jour' | 'mois'): Promise<StatsCommandes | null> {
+  try {
+    const res = await serverFetch(`/dashboard/commandes${qs({ periode })}`);
+    if (!res.ok) return null;
+    return (await res.json()) as StatsCommandes;
+  } catch {
+    return null;
+  }
+}
+
 export type PromoArticle = {
   id: string;
   codeAs400: string;
