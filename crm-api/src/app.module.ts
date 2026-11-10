@@ -21,6 +21,7 @@ import { ImportModule } from './import/import.module';
 import { ProspectionModule } from './prospection/prospection.module';
 import { HealthModule } from './health/health.module';
 import { NewsModule } from './news/news.module';
+import { SearchModule } from './search/search.module';
 
 @Module({
   imports: [
@@ -53,6 +54,7 @@ import { NewsModule } from './news/news.module';
     ProspectionModule,
     ImportModule,
     NewsModule,
+    SearchModule,
     HealthModule,
   ],
 })

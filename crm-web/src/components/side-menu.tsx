@@ -4,21 +4,13 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { Montserrat } from 'next/font/google';
-import { LogOut, Menu, X } from 'lucide-react';
-import { logout } from '@/lib/auth-actions';
-import { Avatar } from './avatar';
-import { NotificationsBell } from './notifications-bell';
-import type { Me, NotificationItem } from '@/lib/api';
+import { Menu, X } from 'lucide-react';
 import type { MenuSection } from '@/lib/menu';
-
-/** Champs de l'utilisateur utilisés par le menu : seuls ceux-là sont sérialisés vers le navigateur. */
-export type MenuUser = Pick<Me, 'id' | 'displayName' | 'poste' | 'role'>;
 
 /** Police du mot-symbole « ABC » en tête de menu (aspect logo). */
 const policeLogo = Montserrat({ subsets: ['latin'], weight: '800' });
 
 type Espace = 'promoteurs' | 'direction';
-type Notifs = { nonLues: number; items: NotificationItem[] } | null;
 
 const SOUS_TITRE: Record<Espace, string> = {
   promoteurs: 'Promoteurs',
@@ -50,8 +42,8 @@ function Brand({ espace, compact = false }: { espace: Espace; compact?: boolean 
   );
 }
 
-/** Contenu du menu (navigation + pied utilisateur), partagé sidebar / tiroir mobile. */
-function MenuPanel({ me, sections, notifications }: { me: MenuUser; sections: MenuSection[]; notifications: Notifs }) {
+/** Contenu du menu (navigation), partagé sidebar / tiroir mobile. L'utilisateur, la cloche et la déconnexion sont dans le bandeau du haut. */
+function MenuPanel({ sections }: { sections: MenuSection[] }) {
   const pathname = usePathname();
 
   return (
@@ -87,49 +79,14 @@ function MenuPanel({ me, sections, notifications }: { me: MenuUser; sections: Me
           </div>
         ))}
       </nav>
-
-      {/* Utilisateur + déconnexion */}
-      <div className="border-t border-neutral-200 p-3">
-        <div className="flex items-center gap-2.5 px-1">
-          <Avatar src={`/avatar/${encodeURIComponent(me.id)}`} initials={initials(me.displayName)} size={36} />
-          <div className="min-w-0 flex-1">
-            <p className="truncate text-sm font-medium">{me.displayName}</p>
-            <p className="truncate text-xs text-neutral-500">{me.poste ?? ROLE_LABELS[me.role] ?? ''}</p>
-          </div>
-        </div>
-        <div className="mt-2 flex items-center justify-end gap-1 px-1">
-          {notifications ? <NotificationsBell nonLues={notifications.nonLues} items={notifications.items} /> : null}
-          <form action={logout}>
-            <button
-              type="submit"
-              className={`${FOCUS} rounded-lg p-2 text-neutral-600 transition hover:bg-red-50 hover:text-red-700`}
-              aria-label="Déconnexion"
-              title="Déconnexion"
-            >
-              <LogOut size={16} />
-            </button>
-          </form>
-        </div>
-      </div>
     </>
   );
 }
 
 /**
- * Menu latéral unique. Sections et entrées viennent de `construireMenu` (table ROUTES) ;
- * `notifications` : boîte de réception de l'utilisateur (tous les rôles) ; la cloche n'est omise que si `null`.
+ * Menu latéral unique. Sections et entrées viennent de `construireMenu` (table ROUTES).
  */
-export function SideMenu({
-  me,
-  espace,
-  sections,
-  notifications,
-}: {
-  me: MenuUser;
-  espace: Espace;
-  sections: MenuSection[];
-  notifications: Notifs;
-}) {
+export function SideMenu({ espace, sections }: { espace: Espace; sections: MenuSection[] }) {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
 
@@ -160,7 +117,7 @@ export function SideMenu({
         <div className="px-4 py-4">
           <Brand espace={espace} />
         </div>
-        <MenuPanel me={me} sections={sections} notifications={notifications} />
+        <MenuPanel sections={sections} />
       </aside>
 
       {/* < md : barre supérieure avec hamburger. */}
@@ -177,7 +134,6 @@ export function SideMenu({
         <div className="flex-1">
           <Brand espace={espace} compact />
         </div>
-        {notifications ? <NotificationsBell nonLues={notifications.nonLues} items={notifications.items} /> : null}
       </header>
 
       {/* < md : tiroir coulissant + voile de fond. */}
@@ -196,30 +152,10 @@ export function SideMenu({
                 <X size={20} />
               </button>
             </div>
-            <MenuPanel me={me} sections={sections} notifications={notifications} />
+            <MenuPanel sections={sections} />
           </div>
         </div>
       ) : null}
     </>
   );
-}
-
-const ROLE_LABELS: Record<string, string> = {
-  ADMIN: 'Administrateur',
-  DIRECTION: 'Direction',
-  DIRECTEUR_REGIONAL: 'Directeur régional',
-  CHEF_SECTEUR: 'Chef de secteur',
-  COMMERCIAL: 'Promoteur des ventes',
-  ADV: 'ADV',
-  MARKETING: 'Marketing',
-};
-
-function initials(displayName: string): string {
-  return displayName
-    .split(/\s+/)
-    .map((s) => s[0])
-    .filter(Boolean)
-    .slice(0, 2)
-    .join('')
-    .toUpperCase();
 }

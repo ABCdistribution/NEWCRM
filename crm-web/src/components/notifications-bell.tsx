@@ -71,7 +71,7 @@ export function NotificationsBell({
       </button>
 
       {open ? (
-        <div className="dark absolute bottom-full left-0 z-50 mb-2 w-80 max-w-[calc(100vw-2rem)] rounded-xl border border-navy-600 bg-navy-900 text-neutral-100 shadow-xl max-md:bottom-auto max-md:left-auto max-md:right-0 max-md:top-full max-md:mb-0 max-md:mt-2">
+        <div className="dark absolute right-0 top-full z-50 mt-2 w-80 max-w-[calc(100vw-2rem)] rounded-xl border border-navy-600 bg-navy-900 text-neutral-100 shadow-xl">
           <div className="flex items-center justify-between border-b border-navy-700 px-3 py-2">
             <p className="text-xs font-semibold">Notifications</p>
             {nonLues > 0 ? (

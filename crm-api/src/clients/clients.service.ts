@@ -6,6 +6,7 @@ import { UpdateClientDto } from './dto/update-client.dto';
 import { QueryClientsDto } from './dto/query-clients.dto';
 import { CreateContactDto, UpdateContactDto } from './dto/contact.dto';
 import { idReprVariants } from '../common/id-repr.util';
+import { codesRepresentantsDuPerimetre } from '../common/perimetre-codes.util';
 
 /** Intervalle en jours déduit du libellé de périodicité (référentiel legacy 1..6). */
 function joursPeriodicite(libelle?: string | null): number | null {
@@ -129,38 +130,16 @@ export class ClientsService {
   }
 
   /**
-   * Codes représentants du périmètre de l'utilisateur (variantes « 68 » ↔ « 068 » incluses).
-   * null = pas de restriction (ADMIN / DIRECTION) ; [] = périmètre vide.
+   * Codes représentants du périmètre de l'utilisateur : voir `codesRepresentantsDuPerimetre` (règle partagée avec la
+   * recherche générale). null = pas de restriction ; [] = périmètre vide.
    */
-  private async codesDuPerimetre(user: {
+  private codesDuPerimetre(user: {
     id: string;
     role: string;
     idRepr: string | null;
     regionId: string | null;
   }): Promise<string[] | null> {
-    if (user.role === 'ADMIN' || user.role === 'DIRECTION' || user.role === 'ADV' || user.role === 'MARKETING') {
-      return null;
-    }
-    if (user.role === 'COMMERCIAL') {
-      return user.idRepr ? idReprVariants(user.idRepr) : [];
-    }
-    // Chef de secteur : les promoteurs dont il est le manager (hiérarchie AD) ;
-    // repli sur sa région si son équipe n'est pas renseignée dans l'annuaire.
-    let membres: { idRepr: string | null }[] = [];
-    if (user.role === 'CHEF_SECTEUR') {
-      membres = await this.prisma.user.findMany({
-        where: { role: 'COMMERCIAL', directeurId: user.id, idRepr: { not: null } },
-        select: { idRepr: true },
-      });
-    }
-    if (membres.length === 0 && user.regionId) {
-      // DR (cas nominal) et CS sans équipe : tous les promoteurs de la région.
-      membres = await this.prisma.user.findMany({
-        where: { role: 'COMMERCIAL', regionId: user.regionId, idRepr: { not: null } },
-        select: { idRepr: true },
-      });
-    }
-    return membres.flatMap((m) => (m.idRepr ? idReprVariants(m.idRepr) : []));
+    return codesRepresentantsDuPerimetre(this.prisma, user);
   }
 
   /**
