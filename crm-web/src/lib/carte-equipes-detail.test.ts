@@ -113,6 +113,14 @@ describe('détail d’une région sélectionnée', () => {
     expect(sans).toContain('Nadia HAMEL');
   });
 
+  it('chaque personne a sa photo AD (proxy /avatar) avec ses initiales en repli', () => {
+    const html = rendre('r1');
+    for (const id of ['d1', 'c1', 'p1', 'p2', 'p4']) expect(html).toContain(`src="/avatar/${id}"`);
+    expect(html).toContain('>CR<'); // Cindy RENARD
+    expect(html).toContain('>NH<'); // Nadia HAMEL
+    expect(html).toContain('>IG<'); // Inès GARCIA
+  });
+
   it('une région sans membre l’annonce', () => {
     const html = rendre('r2');
     expect(html).toContain('Aucun chef de secteur ni promoteur dans cette région.');

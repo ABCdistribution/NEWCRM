@@ -8,7 +8,9 @@ import { teinteRegion } from '@/lib/carte-palette';
 import { formeRegionFdv } from '@/lib/carte-regions-fdv';
 import type { CarteEquipes, CarteRegion } from '@/lib/carte';
 import { BilanRegion, LigneActivite } from './activite-equipe';
+import { Avatar } from './avatar';
 import { CarteRegionsSvg } from './carte-regions-svg';
+import { initiales } from './equipe-ui';
 
 const normaliser = (s: string) =>
   s
@@ -17,6 +19,11 @@ const normaliser = (s: string) =>
     .replace(/[̀-ͯ]/g, '');
 
 const pluriel = (n: number, mot: string) => `${n} ${mot}${n > 1 ? 's' : ''}`;
+
+/** Photo AD du collaborateur (proxy `/avatar/[id]`) ; ses initiales restent affichées tant qu'il n'y en a pas. */
+const Photo = ({ id, nom, taille }: { id: string; nom: string; taille: number }) => (
+  <Avatar src={`/avatar/${encodeURIComponent(id)}`} initials={initiales(nom)} size={taille} />
+);
 
 /** Libellé court d'une pastille de filtre : le code s'il est court, sinon le nom. */
 const courtLibelle = (r: CarteRegion) => (r.code.length <= 5 ? r.code : r.nom);
@@ -245,8 +252,13 @@ export function CarteEquipes({
                 <ul className="mt-2 grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
                   {directeurs.map((d) => (
                     <li key={d.id} className="rounded-xl border border-neutral-100 p-3 dark:border-navy-700">
-                      <p className="text-sm font-semibold">{d.displayName}</p>
-                      <p className="text-xs text-neutral-500">{libelleRole(d.poste, 'Directeur régional')}</p>
+                      <div className="flex items-center gap-3">
+                        <Photo id={d.id} nom={d.displayName} taille={44} />
+                        <div className="min-w-0">
+                          <p className="text-sm font-semibold">{d.displayName}</p>
+                          <p className="text-xs text-neutral-500">{libelleRole(d.poste, 'Directeur régional')}</p>
+                        </div>
+                      </div>
                       <LigneActivite a={d} />
                     </li>
                   ))}
@@ -263,20 +275,25 @@ export function CarteEquipes({
               <ul className="mt-2 grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
                 {chefs.map((c) => (
                   <li key={c.id} className="rounded-xl border border-neutral-100 p-3 dark:border-navy-700">
-                    {ficheChefSecteur ? (
-                      <Link
-                        href={`/mon-equipe/${encodeURIComponent(c.id)}`}
-                        className={`block rounded-md text-sm font-semibold text-brand hover:underline dark:text-accent ${focus}`}
-                      >
-                        {c.displayName}
-                      </Link>
-                    ) : (
-                      <p className="text-sm font-semibold">{c.displayName}</p>
-                    )}
-                    <p className="text-xs text-neutral-500">
-                      {libelleRole(c.poste, 'Chef de secteur')} · {c.secteur ? `${c.secteur.nom} · ` : ''}
-                      {pluriel(c.nbClients, 'client')}
-                    </p>
+                    <div className="flex items-center gap-3">
+                      <Photo id={c.id} nom={c.displayName} taille={44} />
+                      <div className="min-w-0">
+                        {ficheChefSecteur ? (
+                          <Link
+                            href={`/mon-equipe/${encodeURIComponent(c.id)}`}
+                            className={`block rounded-md text-sm font-semibold text-brand hover:underline dark:text-accent ${focus}`}
+                          >
+                            {c.displayName}
+                          </Link>
+                        ) : (
+                          <p className="text-sm font-semibold">{c.displayName}</p>
+                        )}
+                        <p className="text-xs text-neutral-500">
+                          {libelleRole(c.poste, 'Chef de secteur')} · {c.secteur ? `${c.secteur.nom} · ` : ''}
+                          {pluriel(c.nbClients, 'client')}
+                        </p>
+                      </div>
+                    </div>
                     <LigneActivite a={c} />
                     {c.promoteurs.length === 0 ? (
                       <p className="mt-2 text-xs text-neutral-400">Aucun promoteur.</p>
@@ -284,20 +301,25 @@ export function CarteEquipes({
                       <ul className="mt-3 flex flex-col gap-3 border-t border-neutral-100 pt-3 dark:border-navy-700">
                         {c.promoteurs.map((p) => (
                           <li key={p.id} className="text-xs">
-                            <div className="flex items-baseline justify-between gap-2">
-                              {fichePromoteur ? (
-                                <Link
-                                  href={`/mon-equipe/promoteur/${encodeURIComponent(p.id)}`}
-                                  className={`min-w-0 truncate rounded-md text-sm font-medium hover:underline ${focus}`}
-                                >
-                                  {p.displayName}
-                                </Link>
-                              ) : (
-                                <span className="min-w-0 truncate text-sm font-medium">{p.displayName}</span>
-                              )}
-                              <span className="shrink-0 text-neutral-500">{pluriel(p.nbClients, 'client')}</span>
+                            <div className="flex items-center gap-2.5">
+                              <Photo id={p.id} nom={p.displayName} taille={32} />
+                              <div className="min-w-0 flex-1">
+                                <div className="flex items-baseline justify-between gap-2">
+                                  {fichePromoteur ? (
+                                    <Link
+                                      href={`/mon-equipe/promoteur/${encodeURIComponent(p.id)}`}
+                                      className={`min-w-0 truncate rounded-md text-sm font-medium hover:underline ${focus}`}
+                                    >
+                                      {p.displayName}
+                                    </Link>
+                                  ) : (
+                                    <span className="min-w-0 truncate text-sm font-medium">{p.displayName}</span>
+                                  )}
+                                  <span className="shrink-0 text-neutral-500">{pluriel(p.nbClients, 'client')}</span>
+                                </div>
+                                <p className="text-neutral-500">{libelleRole(p.poste, 'Promoteur')}</p>
+                              </div>
                             </div>
-                            <p className="text-neutral-500">{libelleRole(p.poste, 'Promoteur')}</p>
                             <LigneActivite a={p} />
                           </li>
                         ))}
@@ -316,22 +338,27 @@ export function CarteEquipes({
                 <ul className="mt-2 grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
                   {horsChef.map((p) => (
                     <li key={p.id} className="rounded-xl border border-neutral-100 p-3 text-xs dark:border-navy-700">
-                      <div className="flex items-baseline justify-between gap-2">
-                        {fichePromoteur ? (
-                          <Link
-                            href={`/mon-equipe/promoteur/${encodeURIComponent(p.id)}`}
-                            className={`min-w-0 truncate rounded-md text-sm font-medium hover:underline ${focus}`}
-                          >
-                            {p.displayName}
-                          </Link>
-                        ) : (
-                          <span className="min-w-0 truncate text-sm font-medium">{p.displayName}</span>
-                        )}
-                        <span className="shrink-0 text-neutral-500">{pluriel(p.nbClients, 'client')}</span>
+                      <div className="flex items-center gap-2.5">
+                        <Photo id={p.id} nom={p.displayName} taille={32} />
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-baseline justify-between gap-2">
+                            {fichePromoteur ? (
+                              <Link
+                                href={`/mon-equipe/promoteur/${encodeURIComponent(p.id)}`}
+                                className={`min-w-0 truncate rounded-md text-sm font-medium hover:underline ${focus}`}
+                              >
+                                {p.displayName}
+                              </Link>
+                            ) : (
+                              <span className="min-w-0 truncate text-sm font-medium">{p.displayName}</span>
+                            )}
+                            <span className="shrink-0 text-neutral-500">{pluriel(p.nbClients, 'client')}</span>
+                          </div>
+                          <p className="text-neutral-500">
+                            {libelleRole(p.poste, 'Promoteur')} · {p.chef ? `chef de secteur : ${p.chef}` : 'sans chef de secteur'}
+                          </p>
+                        </div>
                       </div>
-                      <p className="text-neutral-500">
-                        {libelleRole(p.poste, 'Promoteur')} · {p.chef ? `chef de secteur : ${p.chef}` : 'sans chef de secteur'}
-                      </p>
                       <LigneActivite a={p} />
                     </li>
                   ))}
