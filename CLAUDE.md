@@ -25,7 +25,7 @@ Le front n'est **pas** dans le workspace pnpm (`pnpm-workspace.yaml` = `crm-api`
 ## Environnement local
 - `.env` (racine, lu par docker compose) et `crm-api/.env` (lu par l'API) : jamais versionnés, jamais recopiés dans le chat ou le code.
 - La connexion passe **toujours** par l'Active Directory, y compris en local : il n'existe volontairement aucun login de contournement. Il faut un accès réseau/VPN à l'AD et les variables `LDAP_*` dans `crm-api/.env`.
-- Sans `crm-api/.env`, l'API ne démarre pas. Variables lues : `DATABASE_URL`, `JWT_SECRET`, `JWT_EXPIRES_IN`, `PORT`, `LDAP_*`, `ADMIN_USERNAMES`, `IMPORT_DIR`, `REDIS_*`, `RAPPORT_CLOTURE_DEPUIS` (lundi `yyyy-mm-dd` à partir duquel la clôture automatique des rapports d'activité s'applique ; absente = clôture désactivée, aucune semaine n'est verrouillée).
+- Sans `crm-api/.env`, l'API ne démarre pas. Variables lues : `ANNUAIRE_URL` (facultative : annuaire intranet d'où la synchro AD reprend les photos manquantes, adresse interne par défaut), `DATABASE_URL`, `JWT_SECRET`, `JWT_EXPIRES_IN`, `PORT`, `LDAP_*`, `ADMIN_USERNAMES`, `IMPORT_DIR`, `REDIS_*`, `RAPPORT_CLOTURE_DEPUIS` (lundi `yyyy-mm-dd` à partir duquel la clôture automatique des rapports d'activité s'applique ; absente = clôture désactivée, aucune semaine n'est verrouillée).
 - `crm-web` lit `API_URL` (défaut `http://localhost:4000`) et `COOKIE_SECURE` ; en production, définir aussi `TZ=Europe/Paris`.
 
 ## Conventions

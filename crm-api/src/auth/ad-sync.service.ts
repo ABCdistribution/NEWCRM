@@ -1,6 +1,7 @@
 import { ConflictException, Injectable, Logger } from '@nestjs/common';
 import { Role } from '@crm/database';
 import { PrismaService } from '../prisma/prisma.service';
+import { AnnuairePhotosService } from './annuaire-photos.service';
 import { LdapService, LdapFdvEntry } from './ldap.service';
 import { regionFromSt } from '../common/regions.util';
 import { secteurDepuisSt } from '../common/secteur-st';
@@ -35,6 +36,7 @@ export interface AdSyncResult {
   crees: number;
   maj: number;
   photos: number; // comptes dont la photo AD a été rapatriée
+  photosAnnuaire: number; // photos manquantes reprises de l'annuaire intranet (jamais d'écrasement d'une photo AD)
   directeursLies: number;
   sansRegion: string[]; // logins sans région française reconnue
   sansSecteur: string[]; // « login (valeur de st) » : `st` vide, inconnu ou ambigu — à corriger dans l'AD
@@ -58,6 +60,7 @@ export class AdSyncService {
   constructor(
     private readonly ldap: LdapService,
     private readonly prisma: PrismaService,
+    private readonly annuairePhotos: AnnuairePhotosService,
   ) {}
 
   /** Une synchro à la fois : un second lancement (second clic, deuxième onglet) se heurterait aux contraintes d'unicité. */
@@ -101,6 +104,7 @@ export class AdSyncService {
       crees: 0,
       maj: 0,
       photos: 0,
+      photosAnnuaire: 0,
       directeursLies: 0,
       sansRegion: [],
       sansSecteur: [],
@@ -255,6 +259,9 @@ export class AdSyncService {
 
       await this.prisma.user.update({ where: { id: userId }, data: { directeurId } });
     }
+
+    // --- Passe 3 : photos manquantes, reprises de l'annuaire (ne lève jamais : la synchro réussit sans elles) ----
+    result.photosAnnuaire = (await this.annuairePhotos.completerPhotos()).reprises;
 
     return result;
   }

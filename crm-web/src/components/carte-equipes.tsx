@@ -131,7 +131,7 @@ export function CarteEquipes({
       .filter(
         (x) => x.chefs.length > 0 || x.directeurs.length > 0 || x.horsChef.length > 0 || (!aRecherche && (regionId === x.r.id || sansCarte)),
       );
-  }, [regions, regionId, aRecherche, q]);
+  }, [regions, regionId, aRecherche, q, sansCarte]);
 
   return (
     // `reducedMotion="user"` : les animations de déplacement sont coupées pour qui a demandé moins de mouvement.
