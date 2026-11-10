@@ -1,8 +1,9 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
-import { ArrowRight, Search, Users } from 'lucide-react';
+import { AnimatePresence, MotionConfig, motion } from 'framer-motion';
+import { ArrowLeft, ArrowRight, Search } from 'lucide-react';
 import { libelleRole } from '@/lib/activite';
 import { teinteRegion } from '@/lib/carte-palette';
 import { formeRegionFdv } from '@/lib/carte-regions-fdv';
@@ -69,6 +70,19 @@ export function CarteEquipes({
   const [regionId, setRegionId] = useState<string | null>(regionInitiale);
   const [recherche, setRecherche] = useState('');
 
+  // La carte se replie dès qu'une région est choisie : le focus passe alors sur « Retour à la carte » (le bouton
+  // cliqué disparaît), et revient sur le titre quand on la rouvre. Rien au premier rendu.
+  const retourRef = useRef<HTMLButtonElement>(null);
+  const titreRef = useRef<HTMLHeadingElement>(null);
+  const premierRendu = useRef(true);
+  useEffect(() => {
+    if (premierRendu.current) {
+      premierRendu.current = false;
+      return;
+    }
+    (regionId ? retourRef.current : titreRef.current)?.focus();
+  }, [regionId === null]); // eslint-disable-line react-hooks/exhaustive-deps
+
   // Teinte de chaque région : celle de l'annuaire (par code de région), neutre pour une région sans tracé.
   const regions = useMemo(
     () => data.regions.map((r) => ({ ...r, couleur: teinteRegion(r.code).point })),
@@ -105,30 +119,32 @@ export function CarteEquipes({
   }, [regions, regionId, aRecherche, q]);
 
   return (
+    // `reducedMotion="user"` : les animations de déplacement sont coupées pour qui a demandé moins de mouvement.
+    <MotionConfig reducedMotion="user">
     <section className="rounded-2xl bg-white p-5 shadow-card" aria-labelledby="carte-equipes-titre">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <h2 id="carte-equipes-titre" className="flex items-center gap-2 text-lg font-semibold">
-          <Users size={18} className="text-brand dark:text-accent" aria-hidden />
-          Les équipes Force de Vente
-        </h2>
-        <div className="relative w-full sm:w-72">
-          <label htmlFor="carte-recherche" className="sr-only">
-            Rechercher un collaborateur
-          </label>
-          <Search
-            size={15}
-            className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400"
-            aria-hidden
-          />
-          <input
-            id="carte-recherche"
-            type="search"
-            value={recherche}
-            onChange={(e) => setRecherche(e.target.value)}
-            placeholder="Rechercher un collaborateur…"
-            className={`w-full rounded-xl border border-neutral-200 bg-transparent py-2 pl-9 pr-3 text-sm dark:border-navy-700 ${focus}`}
-          />
-        </div>
+      {/* Le titre de la page est déjà au-dessus : la recherche prend sa place ; le titre reste pour les lecteurs d'écran
+          (nom de la section, et cible du focus quand on rouvre la carte). */}
+      <h2 id="carte-equipes-titre" ref={titreRef} tabIndex={-1} className="sr-only">
+        Les équipes Force de Vente
+      </h2>
+      {/* Barre de recherche pleine largeur, haute (comme celle de l'annuaire) */}
+      <div className="relative w-full">
+        <label htmlFor="carte-recherche" className="sr-only">
+          Rechercher un collaborateur
+        </label>
+        <Search
+          size={18}
+          className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-neutral-400"
+          aria-hidden
+        />
+        <input
+          id="carte-recherche"
+          type="search"
+          value={recherche}
+          onChange={(e) => setRecherche(e.target.value)}
+          placeholder="Rechercher un collaborateur par son nom…"
+          className={`w-full rounded-2xl border border-neutral-200 bg-neutral-50 py-3.5 pl-12 pr-4 text-sm dark:border-navy-700 dark:bg-navy-900 ${focus}`}
+        />
       </div>
 
       {regions.length > 0 ? (
@@ -170,7 +186,18 @@ export function CarteEquipes({
         ))}
       </div>
 
-      <div className="mt-4">
+      {/* Carte + liste des secteurs : repliées (fondu, réduction, hauteur → 0) dès qu'une région est choisie.
+          `initial={false}` : ouvrir la page sur une région n'anime rien. La marge interne laisse la place au halo de la région. */}
+      <AnimatePresence initial={false}>
+        {regionId === null ? (
+      <motion.div
+        key="carte"
+        className="-mx-3 mt-1 overflow-hidden px-3 pb-3 pt-3"
+        initial={{ opacity: 0, height: 0, scale: 0.94 }}
+        animate={{ opacity: 1, height: 'auto', scale: 1 }}
+        exit={{ opacity: 0, height: 0, scale: 0.94 }}
+        transition={{ duration: 0.4, ease: [0.4, 0, 0.2, 1] }}
+      >
         <div className="mx-auto max-w-2xl">
           <CarteRegionsSvg
             titre="Carte des secteurs commerciaux et de leur nombre de collaborateurs"
@@ -225,7 +252,22 @@ export function CarteEquipes({
             })}
           </ul>
         )}
-      </div>
+      </motion.div>
+        ) : null}
+      </AnimatePresence>
+
+      {/* Retour à la carte : visible seulement quand elle est repliée */}
+      {regionId !== null ? (
+        <button
+          ref={retourRef}
+          type="button"
+          onClick={() => setRegionId(null)}
+          className={`mt-4 inline-flex items-center gap-1.5 rounded-lg border border-neutral-200 px-3 py-2 text-sm font-medium text-neutral-600 transition hover:bg-neutral-50 dark:border-navy-700 dark:text-neutral-300 dark:hover:bg-navy-800 ${focus}`}
+        >
+          <ArrowLeft size={15} aria-hidden />
+          Retour à la carte
+        </button>
+      ) : null}
 
       {/* Détail de la région : bilan du mois, direction, chefs de secteur et promoteurs, chacun avec son rôle et son activité */}
       <div aria-live="polite" className="mt-5">
@@ -233,7 +275,14 @@ export function CarteEquipes({
           <p className="text-sm text-neutral-400">Aucun collaborateur ne correspond à « {recherche.trim()} ».</p>
         ) : null}
         {detail.map(({ r, directeurs, chefs, horsChef }) => (
-          <div key={r.id} className="mt-4 first:mt-0">
+          <motion.div
+            key={r.id}
+            className="mt-4 first:mt-0"
+            // Arrive pendant que la carte se replie (léger retard).
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.35, delay: 0.15, ease: [0.4, 0, 0.2, 1] }}
+          >
             <h3 className="flex flex-wrap items-center gap-2 text-sm font-semibold">
               <span className="h-3 w-3 rounded-full" style={{ backgroundColor: r.couleur }} aria-hidden />
               {r.nom}
@@ -365,9 +414,10 @@ export function CarteEquipes({
                 </ul>
               </>
             ) : null}
-          </div>
+          </motion.div>
         ))}
       </div>
     </section>
+    </MotionConfig>
   );
 }

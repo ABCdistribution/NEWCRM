@@ -121,6 +121,28 @@ describe('détail d’une région sélectionnée', () => {
     expect(html).toContain('>IG<'); // Inès GARCIA
   });
 
+  it('sans région : carte et liste des secteurs visibles, pas de bouton de retour', () => {
+    const html = rendre(null);
+    expect(html).toContain('Carte des secteurs commerciaux');
+    expect(html).toContain('Secteurs commerciaux');
+    expect(html).not.toContain('Retour à la carte');
+  });
+
+  it('avec une région : la carte et la liste des secteurs sont repliées, un bouton ramène à la carte', () => {
+    const html = rendre('r1');
+    expect(html).not.toContain('Carte des secteurs commerciaux');
+    expect(html).not.toContain('Secteurs commerciaux');
+    expect(html).toContain('Retour à la carte');
+    // Les pastilles de région restent pour changer de région sans rouvrir la carte.
+    expect(html).toContain('aria-label="Filtrer par région"');
+  });
+
+  it('la recherche remplace le titre visible (déjà en haut de page), qui reste pour les lecteurs d’écran', () => {
+    const html = rendre(null);
+    expect(html).toMatch(/<h2[^>]*class="sr-only"[^>]*>Les équipes Force de Vente<\/h2>/);
+    expect(html).toContain('type="search"');
+  });
+
   it('une région sans membre l’annonce', () => {
     const html = rendre('r2');
     expect(html).toContain('Aucun chef de secteur ni promoteur dans cette région.');
