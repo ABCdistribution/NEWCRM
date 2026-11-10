@@ -31,7 +31,7 @@ export interface LdapFdvEntry {
   displayName: string;
   email: string | null;
   dn: string;
-  ou: 'Promoteur des ventes' | 'Chef de secteur' | 'Directeur' | 'Responsable Merchandising';
+  ou: 'Promoteur des ventes' | 'Chef de secteur' | 'Directeur' | 'Responsable Merchandising' | 'Service ADV' | 'Service Marketing';
   region: string | null; // attribut `st`, verbatim
   managerDn: string | null;
   idRepr: string | null;
@@ -39,8 +39,30 @@ export interface LdapFdvEntry {
   photo: Buffer | null; // thumbnailPhoto (JPEG), si présente dans l'annuaire
 }
 
-/** OUs de la force de vente FRANÇAISE (l'Italie vit ailleurs dans l'annuaire). */
-const OUS_FDV_FR = ['Promoteur des ventes', 'Chef de secteur', 'Directeur', 'Responsable Merchandising'] as const;
+/**
+ * OUs lues par la synchro : la force de vente FRANÇAISE (l'Italie vit ailleurs dans l'annuaire) et deux services du
+ * siège, « Service ADV » (administration des ventes : rôle ADV) et « Service Marketing » (rôle MARKETING), sans région,
+ * secteur ni code représentant.
+ */
+const OUS_FDV_FR = [
+  'Promoteur des ventes',
+  'Chef de secteur',
+  'Directeur',
+  'Responsable Merchandising',
+  'Service ADV',
+  'Service Marketing',
+] as const;
+
+/** OUs du siège (rôle propre, hors force de vente) : repérées par leur élément d'OU entier, jamais par une sous-chaîne. */
+export const OUS_SIEGE = ['Service ADV', 'Service Marketing'] as const;
+export const estOuSiege = (ou: string): ou is (typeof OUS_SIEGE)[number] => (OUS_SIEGE as readonly string[]).includes(ou);
+
+/** Le DN contient-il exactement l'élément « OU=<nom> » (et non une OU dont le nom le contient) ? */
+const dnDansOuExacte = (dn: string, nom: string): boolean =>
+  dn
+    .toLowerCase()
+    .split(/,(?=\s*(?:ou|dc)=)/)
+    .some((partie) => partie.trim() === `ou=${nom.toLowerCase()}`);
 
 /**
  * Nombre maximal de comptes lus par la synchro en masse. L'AD plafonne de toute façon une requête non paginée à 1000 ;
@@ -239,7 +261,11 @@ export class LdapService {
       const horsOu = new Map<string, number>();
       for (const entry of searchEntries) {
         const ou =
-          OUS_FDV_FR.find((o) => entry.dn.toLowerCase().includes(`ou=${o.toLowerCase()}`)) ??
+          OUS_FDV_FR.find((o) =>
+            estOuSiege(o)
+              ? dnDansOuExacte(entry.dn, o) // élément d'OU entier, pas une sous-chaîne
+              : entry.dn.toLowerCase().includes(`ou=${o.toLowerCase()}`),
+          ) ??
           ouParPoste(entry.dn, this.first(entry['title'])?.trim() || null);
         const username = this.first(entry['sAMAccountName']);
         if (!ou && regionFromSt(this.first(entry['st'])?.trim() || null)) {

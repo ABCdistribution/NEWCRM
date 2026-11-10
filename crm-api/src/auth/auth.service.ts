@@ -165,7 +165,8 @@ export class AuthService {
    * Rôle effectif de l'utilisateur, par priorité :
    *  1. allowlist admin explicite (bootstrap) ;
    *  2. groupes AD de rôles (`LDAP_GROUP_*`) s'ils matchent ;
-   *  3. rôle déjà attribué en base (manuel ou synchro) — JAMAIS rétrogradé au login ;
+   *  3. rôle déjà attribué en base : un ADMIN n'est jamais rétrogradé au login ; pour les autres rôles, l'OU de la
+   *     force de vente ou du siège (Service ADV, Service Marketing) fait foi et l'emporte sur le rôle posé à la main (consigne AD) ;
    *  4. première connexion : rôle suggéré par l'OU du compte (Directeur, Chef de secteur…).
    */
   private resolveRole(
@@ -173,6 +174,9 @@ export class AuthService {
     roleActuel: Role | null,
   ): Role {
     if (this.isAdminOverride(profile.username, profile.email)) return Role.ADMIN;
+    // Un ADMIN déjà posé en base n'est jamais rétrogradé par l'OU (comme à la synchro AD) : seul un administrateur
+    // peut changer ce rôle.
+    if (roleActuel === Role.ADMIN) return Role.ADMIN;
     // Consigne AD : l'OU où le compte est rangé fait foi pour TOUS les utilisateurs
     // (OU=Chef de secteur / Directeur / Promoteur des ventes… sous Force de vente).
     // Les groupes AD ne sont plus utilisés pour les rôles.
@@ -187,6 +191,10 @@ export class AuthService {
     if (/OU=Chef de secteur/i.test(dn)) return Role.CHEF_SECTEUR;
     if (/OU=Directeur/i.test(dn)) return Role.DIRECTEUR_REGIONAL;
     if (/OU=Promoteur des ventes/i.test(dn) || /OU=Responsable Merchandising/i.test(dn)) return Role.COMMERCIAL;
+    // Administration des ventes (siège) : rôle ADV, sinon la première connexion tombait sur « promoteur » par défaut.
+    // Services du siège, repérés par l'élément d'OU entier (« OU=Service ADV », pas « OU=Service ADVxxx »).
+    if (/(^|,)\s*OU=Service ADV\s*(,|$)/i.test(dn)) return Role.ADV;
+    if (/(^|,)\s*OU=Service Marketing\s*(,|$)/i.test(dn)) return Role.MARKETING;
     return null;
   }
 
