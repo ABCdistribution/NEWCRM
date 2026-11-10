@@ -6,9 +6,9 @@ import { AnimatePresence, MotionConfig, motion } from 'framer-motion';
 import { ArrowLeft, ArrowRight, Search } from 'lucide-react';
 import { libelleRole } from '@/lib/activite';
 import { teinteRegion } from '@/lib/carte-palette';
-import { formeRegionFdv } from '@/lib/carte-regions-fdv';
+import { FORMES_REGIONS_FDV, formeRegionFdv } from '@/lib/carte-regions-fdv';
 import type { CarteEquipes, CarteRegion } from '@/lib/carte';
-import { BilanRegion, LigneActivite } from './activite-equipe';
+import { BilanRegion, CaObjectifADate, LigneActivite } from './activite-equipe';
 import { Avatar } from './avatar';
 import { CarteRegionsSvg } from './carte-regions-svg';
 import { initiales } from './equipe-ui';
@@ -38,6 +38,12 @@ function scinderNom(r: CarteRegion): { titre: string; sousTitre: string | null }
   if (m) return { titre: m[1], sousTitre: m[2] };
   return { titre: nom, sousTitre: formeRegionFdv(r.code)?.sousTitre ?? null };
 }
+
+/** Rang d'une région dans l'ordre de l'annuaire (celui des formes de la carte) ; les inconnues viennent après. */
+const rangRegion = (code: string) => {
+  const i = FORMES_REGIONS_FDV.findIndex((f) => f.code === code);
+  return i === -1 ? FORMES_REGIONS_FDV.length : i;
+};
 
 const focus =
   'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand dark:focus-visible:outline-accent';
@@ -81,8 +87,13 @@ export function CarteEquipes({
   }, [regionId === null]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Teinte de chaque région : celle de l'annuaire (par code de région), neutre pour une région sans tracé.
+  // Ordre fixe, celui de l'annuaire (IDF, Nord-Ouest, Nord-Est, Sud-Est, Sud-Ouest, Benelux, Corse) pour les pastilles,
+  // la liste et le détail ; une région que la carte ne connaît pas passe à la fin (par nom).
   const regions = useMemo(
-    () => data.regions.map((r) => ({ ...r, couleur: teinteRegion(r.code).point })),
+    () =>
+      data.regions
+        .map((r) => ({ ...r, couleur: teinteRegion(r.code).point }))
+        .sort((a, b) => rangRegion(a.code) - rangRegion(b.code) || a.nom.localeCompare(b.nom, 'fr')),
     [data.regions],
   );
   const total = regions.reduce((s, r) => s + r.nbCollaborateurs, 0);
@@ -124,8 +135,9 @@ export function CarteEquipes({
       <h2 id="carte-equipes-titre" ref={titreRef} tabIndex={-1} className="sr-only">
         Les équipes Force de Vente
       </h2>
-      {/* Barre de recherche pleine largeur, haute (comme celle de l'annuaire) */}
-      <div className="relative w-full">
+      {/* Recherche (pleine largeur, haute comme celle de l'annuaire) + CA réalisé / objectif à date à sa droite */}
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-stretch">
+      <div className="relative min-w-0 flex-1">
         <label htmlFor="carte-recherche" className="sr-only">
           Rechercher un collaborateur
         </label>
@@ -140,8 +152,10 @@ export function CarteEquipes({
           value={recherche}
           onChange={(e) => setRecherche(e.target.value)}
           placeholder="Rechercher un collaborateur par son nom…"
-          className={`w-full rounded-2xl border border-neutral-200 bg-neutral-50 py-3.5 pl-12 pr-4 text-sm dark:border-navy-700 dark:bg-navy-900 ${focus}`}
+          className={`h-full min-h-12 w-full rounded-2xl border border-neutral-200 bg-neutral-50 py-3.5 pl-12 pr-4 text-sm dark:border-navy-700 dark:bg-navy-900 ${focus}`}
         />
+      </div>
+      <CaObjectifADate donnee={data.caADate ?? null} />
       </div>
 
       {regions.length > 0 ? (

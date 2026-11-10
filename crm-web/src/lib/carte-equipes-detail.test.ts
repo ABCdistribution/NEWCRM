@@ -2,7 +2,7 @@ import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
 import { CarteEquipes } from '@/components/carte-equipes';
-import type { Activite, CarteEquipes as Donnees, CarteRegion, MembreRegion } from './carte';
+import type { Activite, CaADate, CarteEquipes as Donnees, CarteRegion, MembreRegion } from './carte';
 
 // Détail d'une région sélectionnée (rendu par react-dom/server, région choisie par `regionInitiale`) : membres, rôles,
 // activité du mois et comparaison du CA à l'objectif. Aucun mock : composants réels, données fabriquées.
@@ -46,10 +46,15 @@ const DONNEES: Donnees = {
 };
 
 const nbsp = (s: string) => s.replace(/[  ]/g, ' ');
-const rendre = (regionInitiale: string | null, droits = { chef: true, promo: true }) =>
+const rendre = (regionInitiale: string | null, droits = { chef: true, promo: true }, caADate?: CaADate | null) =>
   nbsp(
     renderToStaticMarkup(
-      createElement(CarteEquipes, { data: DONNEES, ficheChefSecteur: droits.chef, fichePromoteur: droits.promo, regionInitiale }),
+      createElement(CarteEquipes, {
+        data: caADate === undefined ? DONNEES : { ...DONNEES, caADate },
+        ficheChefSecteur: droits.chef,
+        fichePromoteur: droits.promo,
+        regionInitiale,
+      }),
     ),
   );
 
@@ -144,6 +149,38 @@ describe('détail d’une région sélectionnée', () => {
     expect(html).toContain('Benelux (3)');
     expect(html).not.toContain('IDF (7)');
     expect(html).not.toContain('NE (6)');
+  });
+
+  it('CA réalisé / objectif à date, à côté de la recherche : état « bientôt disponible » tant que l’API ne le fournit pas', () => {
+    const html = rendre(null);
+    expect(html).toContain('CA réalisé / Objectif à date');
+    expect(html).toContain('— / —');
+    expect(html).toContain('bientôt disponible');
+    // Affiché aussi quand une région est ouverte (il ne dépend pas de la carte), et placé avec la recherche.
+    expect(rendre('r1')).toContain('CA réalisé / Objectif à date');
+    expect(html.indexOf('type="search"')).toBeLessThan(html.indexOf('CA réalisé / Objectif à date'));
+    expect(html.indexOf('CA réalisé / Objectif à date')).toBeLessThan(html.indexOf('Filtrer par région'));
+  });
+
+  it('CA réalisé / objectif à date avec donnée : montants, pourcentage et barre', () => {
+    const html = rendre(null, undefined, { ca: 412000, objectif: 500000 });
+    expect(html).toContain('412 000 €');
+    expect(html).toContain('500 000 €');
+    expect(html).toContain('82 %');
+    expect(html).toContain('width:82%');
+    expect(html).not.toContain('bientôt disponible');
+  });
+
+  it('pastilles, liste des secteurs et détail suivent l’ordre de l’annuaire, les régions inconnues à la fin', () => {
+    // Données volontairement dans le désordre.
+    const ordre: [string, string][] = [['COR', 'Corse'], ['NORD', 'Nord'], ['BENELUX', 'Benelux'], ['SO', 'Sud-Ouest'], ['SE', 'Sud-Est'], ['NE', 'Nord-Est'], ['NO', 'Nord-Ouest'], ['IDF', 'Île-de-France']];
+    const desordre: Donnees = { periode: DONNEES.periode, regions: ordre.map(([code, nom], i) => vide('x' + i, code, nom, 10 + i)) };
+    const html = nbsp(renderToStaticMarkup(createElement(CarteEquipes, { data: desordre, ficheChefSecteur: true, fichePromoteur: true })));
+    const pastilles = html.slice(html.indexOf('Filtrer par région'), html.indexOf('Carte des secteurs'));
+    const noms = ['Toutes', 'Île-de-France (17)', 'Nord-Ouest (16)', 'Nord-Est (15)', 'Sud-Est (14)', 'Sud-Ouest (13)', 'Benelux (12)', 'Corse (10)', 'Nord (11)'];
+    const pos = noms.map((n) => pastilles.indexOf(n));
+    expect(pos.every((p) => p >= 0)).toBe(true);
+    expect([...pos].sort((a, b) => a - b)).toEqual(pos);
   });
 
   it('la recherche remplace le titre visible (déjà en haut de page), qui reste pour les lecteurs d’écran', () => {

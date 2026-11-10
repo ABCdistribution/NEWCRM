@@ -37,9 +37,14 @@ export type CarteRegion = {
   })[];
 };
 
+/** CA réalisé depuis le début de l'année et objectif prévu à cette date (cumul de toute la force de vente). */
+export type CaADate = { ca: number; objectif: number };
+
 export type CarteEquipes = {
   /** Mois de l'activité affichée (le mois en cours par défaut). */
   periode: { annee: number; mois: number };
+  /** CA réalisé / objectif à date. PAS encore fourni par l'API : absent ou null, l'écran affiche un état « bientôt disponible ». */
+  caADate?: CaADate | null;
   regions: CarteRegion[];
 };
 

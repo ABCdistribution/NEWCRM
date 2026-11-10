@@ -1,5 +1,5 @@
 import { CalendarCheck, ShoppingCart, Target } from 'lucide-react';
-import type { Activite } from '@/lib/carte';
+import type { Activite, CaADate } from '@/lib/carte';
 import { euros, libellePeriode, niveauObjectif, phraseObjectif, type NiveauObjectif } from '@/lib/activite';
 
 // Couleurs SÉMANTIQUES de statut (objectif atteint / en retard / très en retard), seules couleurs en dur autorisées :
@@ -45,6 +45,50 @@ function TexteObjectif({ a }: { a: Pick<Activite, 'ca' | 'objectif' | 'tauxPct'>
       CA <b className="font-semibold">{euros(a.ca)}</b> sur {euros(a.objectif)} ·{' '}
       <b className={`font-semibold ${COULEUR_TEXTE[niveau]}`}>{a.tauxPct} %</b>
     </span>
+  );
+}
+
+/**
+ * « CA réalisé / Objectif à date » de toute la force de vente, posé à côté de la recherche. Sans donnée (l'API ne la
+ * fournit pas encore), il l'annonce au lieu d'inventer un chiffre ; avec donnée, montants, pourcentage et barre.
+ */
+export function CaObjectifADate({ donnee = null }: { donnee?: CaADate | null }) {
+  const taux = donnee && donnee.objectif > 0 ? Math.round((donnee.ca / donnee.objectif) * 100) : null;
+  const niveau = niveauObjectif(taux);
+  return (
+    <div
+      role="group"
+      aria-label="CA réalisé sur objectif à date"
+      className="flex shrink-0 items-center gap-3 rounded-2xl border border-neutral-200 bg-white px-4 py-2.5 dark:border-navy-700 dark:bg-navy-900"
+    >
+      <Target size={20} className="shrink-0 text-brand dark:text-accent" aria-hidden />
+      <div className="min-w-0">
+        <p className="text-xs text-neutral-500">CA réalisé / Objectif à date</p>
+        {donnee ? (
+          <>
+            <p className="text-sm tabular-nums">
+              <b className="font-semibold">{euros(donnee.ca)}</b> / {euros(donnee.objectif)}
+              {taux != null ? (
+                <>
+                  {' '}
+                  · <b className={`font-semibold ${COULEUR_TEXTE[niveau]}`}>{taux} %</b>
+                </>
+              ) : null}
+            </p>
+            {taux != null ? (
+              <div className="mt-1">
+                <BarreObjectif a={{ ca: donnee.ca, objectif: donnee.objectif, tauxPct: taux }} />
+              </div>
+            ) : null}
+          </>
+        ) : (
+          <p className="text-sm tabular-nums">
+            <span className="font-semibold text-neutral-400">— / —</span>
+            <span className="ml-2 text-xs text-neutral-500">bientôt disponible</span>
+          </p>
+        )}
+      </div>
+    </div>
   );
 }
 
