@@ -15,6 +15,18 @@ interface SecteurVisible {
   managerId: string | null;
 }
 
+/** Activité d'un collaborateur (ou d'une région) sur le mois : visites, commandes, CA en euros, objectif mensuel et taux. */
+export interface Activite {
+  visites: number;
+  commandes: number;
+  ca: number;
+  objectif: number | null;
+  tauxPct: number | null;
+}
+
+/** Collaborateur avec son intitulé de poste AD et son activité du mois. */
+export type MembreEquipe = { id: string; displayName: string; poste: string | null } & Activite;
+
 /** Clients réels (non supprimés) du périmètre, hors pseudo-clients sans adresse française. */
 const CLIENTS_ACTIFS = { deletedAt: null } as const;
 
@@ -55,7 +67,13 @@ export class CarteService {
 
   // --- GET /dashboard/carte-equipes ----------------------------------------------------------------------------------
 
-  async carteEquipes(me: Appelant) {
+  /**
+   * Carte des équipes. `annee` / `mois` : période de l'activité affichée (visites, commandes, CA et objectif du mois).
+   * Même règle que le tableau de bord de direction : le CA vient des commandes non annulées du code représentant du
+   * collaborateur ; son objectif mensuel est la somme des objectifs annuels de ses magasins divisée par 12.
+   * Le périmètre est celui des collaborateurs visibles ci-dessous : aucune donnée hors périmètre n'est lue.
+   */
+  async carteEquipes(me: Appelant, annee: number, mois: number) {
     const secteurs = await this.secteursVisibles(me);
     const secteurIds = secteurs.map((s) => s.id);
     const managerIds = [...new Set(secteurs.map((s) => s.managerId).filter((x): x is string => !!x))];
@@ -85,6 +103,7 @@ export class CarteService {
           id: true,
           displayName: true,
           role: true,
+          poste: true,
           idRepr: true,
           regionId: true,
           secteurId: true,
@@ -123,6 +142,76 @@ export class CarteService {
     for (const r of parCode1) clientsParCode.set(canonRepr(r.idCommercial1!), (clientsParCode.get(canonRepr(r.idCommercial1!)) ?? 0) + r._count._all);
     for (const r of parCode2) clientsParCode.set(canonRepr(r.idCommercial2!), (clientsParCode.get(canonRepr(r.idCommercial2!)) ?? 0) + r._count._all);
 
+    // --- Activité du mois de chaque collaborateur du périmètre : visites, commandes, CA et objectif ------------------
+    const debut = new Date(annee, mois - 1, 1);
+    const fin = new Date(annee, mois, 1);
+    const codes = new Set<string>();
+    for (const u of users) if (u.idRepr) for (const v of idReprVariants(u.idRepr)) codes.add(v);
+    const codesListe = [...codes];
+    const [cmdRows, objRows, visRows] = await Promise.all([
+      codesListe.length
+        ? this.prisma.commande.groupBy({
+            by: ['idRepr'],
+            where: { dateAnnulation: null, dateCommande: { gte: debut, lt: fin }, idRepr: { in: codesListe } },
+            _sum: { montantTotal: true },
+            _count: { _all: true },
+          })
+        : [],
+      codesListe.length
+        ? this.prisma.objectif.findMany({
+            where: {
+              annee,
+              client: {
+                deletedAt: null,
+                OR: [{ idCommercial1: { in: codesListe } }, { idCommercial2: { in: codesListe } }],
+              },
+            },
+            select: { cibleCa: true, client: { select: { idCommercial1: true, idCommercial2: true } } },
+          })
+        : [],
+      users.length
+        ? this.prisma.visite.groupBy({
+            by: ['promoteurId'],
+            where: { deletedAt: null, createdAt: { gte: debut, lt: fin }, promoteurId: { in: users.map((u) => u.id) } },
+            _count: { _all: true },
+          })
+        : [],
+    ]);
+    const caParCode = new Map<string, { ca: number; nb: number }>();
+    for (const r of cmdRows) {
+      const k = canonRepr(r.idRepr!);
+      const cur = caParCode.get(k) ?? { ca: 0, nb: 0 };
+      caParCode.set(k, { ca: cur.ca + Number(r._sum.montantTotal ?? 0), nb: cur.nb + r._count._all });
+    }
+    // Un magasin partagé compte pour chacun de ses deux commerciaux (comme dans le tableau de bord de direction).
+    const objParCode = new Map<string, number>();
+    for (const o of objRows) {
+      const mensuel = Number(o.cibleCa) / 12;
+      const cs = new Set(
+        [o.client.idCommercial1, o.client.idCommercial2].filter((c): c is string => Boolean(c?.trim())).map(canonRepr),
+      );
+      for (const c of cs) objParCode.set(c, (objParCode.get(c) ?? 0) + mensuel);
+    }
+    const visParUser = new Map(visRows.map((r) => [r.promoteurId, r._count._all]));
+    const activite = (u: { id: string; idRepr: string | null }): Activite => {
+      const k = u.idRepr ? canonRepr(u.idRepr) : null;
+      const c = k ? caParCode.get(k) : undefined;
+      const obj = k && objParCode.has(k) ? Math.round(objParCode.get(k)!) : null;
+      const ca = Math.round(c?.ca ?? 0);
+      return { visites: visParUser.get(u.id) ?? 0, commandes: c?.nb ?? 0, ca, objectif: obj, tauxPct: obj ? Math.round((ca / obj) * 100) : null };
+    };
+    const sommeActivite = (l: Activite[]): Activite => {
+      const objectif = l.some((a) => a.objectif != null) ? l.reduce((s, a) => s + (a.objectif ?? 0), 0) : null;
+      const ca = l.reduce((s, a) => s + a.ca, 0);
+      return {
+        visites: l.reduce((s, a) => s + a.visites, 0),
+        commandes: l.reduce((s, a) => s + a.commandes, 0),
+        ca,
+        objectif,
+        tauxPct: objectif ? Math.round((ca / objectif) * 100) : null,
+      };
+    };
+
     const secteursParManager = new Map<string, SecteurVisible[]>();
     for (const s of secteurs) {
       if (!s.managerId) continue;
@@ -139,24 +228,38 @@ export class CarteService {
           geres,
           regionId: u.regionId ?? geres[0]?.regionId ?? u.secteur?.regionId ?? null,
           secteur: geres[0] ?? u.secteur ?? null,
-          promoteurs: [] as { id: string; displayName: string; nbClients: number }[],
+          promoteurs: [] as (MembreEquipe & { nbClients: number })[],
         };
       });
     const chefParId = new Map(chefs.map((c) => [c.user.id, c]));
 
-    // Promoteurs : rattachés au chef du secteur, à défaut au chef désigné par la hiérarchie AD.
+    // Promoteurs. Leur RÉGION est celle de leur propre compte AD (comme dans l'annuaire) ; à défaut, celle de leur chef
+    // ou de leur secteur. Sous un chef de secteur ils ne sont listés que s'ils sont de la même région que lui : les
+    // autres (chef d'une autre région, ou sans chef) vont dans « promoteurs hors chef de la région ».
     const promoteursRegion = new Map<string, number>(); // regionId -> nb de promoteurs
+    const activitePromoteursRegion = new Map<string, Activite[]>(); // regionId -> activité de chaque promoteur
+    const promoteursHorsChef = new Map<string, (MembreEquipe & { nbClients: number; chef: string | null })[]>();
     for (const u of users) {
       if (u.role !== Role.COMMERCIAL) continue;
       const chefId = (u.secteurId && managerDuSecteur(secteurs, u.secteurId)) || u.directeurId;
       const chef = chefId ? chefParId.get(chefId) : undefined;
-      const regionId = chef?.regionId ?? u.secteur?.regionId ?? u.regionId ?? null;
-      if (regionId) promoteursRegion.set(regionId, (promoteursRegion.get(regionId) ?? 0) + 1);
-      chef?.promoteurs.push({
+      const regionId = u.regionId ?? chef?.regionId ?? u.secteur?.regionId ?? null;
+      const act = activite(u);
+      const membre = {
         id: u.id,
         displayName: u.displayName,
+        poste: u.poste,
         nbClients: u.idRepr ? (clientsParCode.get(canonRepr(u.idRepr)) ?? 0) : 0,
-      });
+        ...act,
+      };
+      if (regionId) {
+        promoteursRegion.set(regionId, (promoteursRegion.get(regionId) ?? 0) + 1);
+        activitePromoteursRegion.set(regionId, [...(activitePromoteursRegion.get(regionId) ?? []), act]);
+      }
+      if (chef && (regionId == null || chef.regionId === regionId)) chef.promoteurs.push(membre);
+      else if (regionId) {
+        promoteursHorsChef.set(regionId, [...(promoteursHorsChef.get(regionId) ?? []), { ...membre, chef: chef?.user.displayName ?? null }]);
+      }
     }
 
     // Directeurs régionaux : comptés dans la région de leur compte AD, comme dans l'annuaire (leurs équipes restent
@@ -183,12 +286,20 @@ export class CarteService {
       const chefsRegion = chefs.filter((c) => c.regionId === r.id);
       const nbPromoteurs = promoteursRegion.get(r.id) ?? 0;
       const nbDirecteurs = directeursRegion.get(r.id) ?? 0;
+      const directeurs = users
+        .filter((u) => u.role === Role.DIRECTEUR_REGIONAL && u.regionId === r.id)
+        .map((u) => ({ id: u.id, displayName: u.displayName, poste: u.poste, ...activite(u) }));
+      const activiteChefs = chefsRegion.map((c) => activite(c.user));
       return {
         id: r.id,
         code: r.code,
         nom: r.nom,
         nbCollaborateurs: nbDirecteurs + chefsRegion.length + nbPromoteurs,
         nbDirecteurs,
+        directeurs,
+        promoteursHorsChef: promoteursHorsChef.get(r.id) ?? [],
+        // Bilan du mois de la région : somme de l'activité de ses directeurs, chefs de secteur et promoteurs.
+        stats: sommeActivite([...directeurs, ...activiteChefs, ...(activitePromoteursRegion.get(r.id) ?? [])]),
         nbChefsSecteur: chefsRegion.length,
         nbPromoteurs,
         nbClients: secteurs
@@ -197,15 +308,17 @@ export class CarteService {
         chefsSecteur: chefsRegion.map((c) => ({
           id: c.user.id,
           displayName: c.user.displayName,
+          poste: c.user.poste,
           secteur: c.secteur ? { id: c.secteur.id, code: c.secteur.code, nom: c.secteur.nom } : null,
           nbClients: c.geres.reduce((n, s) => n + (clientsParSecteur.get(s.id) ?? 0), 0),
+          ...activite(c.user),
           promoteurs: c.promoteurs,
         })),
       };
     });
 
     // La carte (formes des régions) est portée par le front : plus aucun calcul de départements ici.
-    return { regions };
+    return { periode: { annee, mois }, regions };
   }
 
   // --- GET /dashboard/carte-secteur ----------------------------------------------------------------------------------

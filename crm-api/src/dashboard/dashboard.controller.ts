@@ -68,8 +68,11 @@ export class DashboardController {
     summary:
       'Carte des équipes : compteurs par région, chefs de secteur et promoteurs, région dominante par département (périmètre : tout / sa région / ses secteurs)',
   })
-  carteEquipes(@CurrentUser() user: User) {
-    return this.carte.carteEquipes(user);
+  @ApiQuery({ name: 'annee', required: false, example: 2026 })
+  @ApiQuery({ name: 'mois', required: false, example: 11 })
+  carteEquipes(@CurrentUser() user: User, @Query('annee') anneeQ?: string, @Query('mois') moisQ?: string) {
+    const { annee, mois } = this.periode(anneeQ, moisQ);
+    return this.carte.carteEquipes(user, annee, mois);
   }
 
   @Get('carte-secteur')

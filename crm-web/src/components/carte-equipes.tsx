@@ -3,9 +3,11 @@
 import { useMemo, useState } from 'react';
 import Link from 'next/link';
 import { ArrowRight, Search, Users } from 'lucide-react';
+import { libelleRole } from '@/lib/activite';
 import { teinteRegion } from '@/lib/carte-palette';
 import { formeRegionFdv } from '@/lib/carte-regions-fdv';
 import type { CarteEquipes, CarteRegion } from '@/lib/carte';
+import { BilanRegion, LigneActivite } from './activite-equipe';
 import { CarteRegionsSvg } from './carte-regions-svg';
 
 const normaliser = (s: string) =>
@@ -49,12 +51,15 @@ export function CarteEquipes({
   data,
   ficheChefSecteur,
   fichePromoteur,
+  regionInitiale = null,
 }: {
   data: CarteEquipes;
   ficheChefSecteur: boolean;
   fichePromoteur: boolean;
+  /** Région sélectionnée à l'ouverture (aucune par défaut) : sert aux tests et à ouvrir la carte sur une région. */
+  regionInitiale?: string | null;
 }) {
-  const [regionId, setRegionId] = useState<string | null>(null);
+  const [regionId, setRegionId] = useState<string | null>(regionInitiale);
   const [recherche, setRecherche] = useState('');
 
   // Teinte de chaque région : celle de l'annuaire (par code de région), neutre pour une région sans tracé.
@@ -83,9 +88,13 @@ export function CarteEquipes({
             return promos.length > 0 ? { ...c, promoteurs: promos } : null;
           })
           .filter((c): c is NonNullable<typeof c> => c !== null);
-        return { r, chefs };
+        const directeurs = r.directeurs.filter((d) => !aRecherche || normaliser(d.displayName).includes(q));
+        const horsChef = r.promoteursHorsChef.filter((p) => !aRecherche || normaliser(p.displayName).includes(q));
+        return { r, directeurs, chefs, horsChef };
       })
-      .filter((x) => x.chefs.length > 0 || (!aRecherche && regionId === x.r.id));
+      .filter(
+        (x) => x.chefs.length > 0 || x.directeurs.length > 0 || x.horsChef.length > 0 || (!aRecherche && regionId === x.r.id),
+      );
   }, [regions, regionId, aRecherche, q]);
 
   return (
@@ -211,14 +220,14 @@ export function CarteEquipes({
         )}
       </div>
 
-      {/* Détail : chefs de secteur et leurs promoteurs */}
+      {/* Détail de la région : bilan du mois, direction, chefs de secteur et promoteurs, chacun avec son rôle et son activité */}
       <div aria-live="polite" className="mt-5">
         {detail.length === 0 && aRecherche ? (
           <p className="text-sm text-neutral-400">Aucun collaborateur ne correspond à « {recherche.trim()} ».</p>
         ) : null}
-        {detail.map(({ r, chefs }) => (
+        {detail.map(({ r, directeurs, chefs, horsChef }) => (
           <div key={r.id} className="mt-4 first:mt-0">
-            <h3 className="flex items-center gap-2 text-sm font-semibold">
+            <h3 className="flex flex-wrap items-center gap-2 text-sm font-semibold">
               <span className="h-3 w-3 rounded-full" style={{ backgroundColor: r.couleur }} aria-hidden />
               {r.nom}
               <span className="font-normal text-neutral-500">
@@ -226,8 +235,30 @@ export function CarteEquipes({
                 {pluriel(r.nbChefsSecteur, 'chef')} de secteur, {pluriel(r.nbPromoteurs, 'promoteur')}
               </span>
             </h3>
+
+            {/* Bilan du mois de la région (masqué pendant une recherche : la liste est alors celle des résultats) */}
+            {aRecherche ? null : <BilanRegion stats={r.stats} annee={data.periode.annee} mois={data.periode.mois} />}
+
+            {directeurs.length > 0 ? (
+              <>
+                <h4 className="mt-4 text-xs font-medium uppercase tracking-wide text-neutral-400">Direction</h4>
+                <ul className="mt-2 grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
+                  {directeurs.map((d) => (
+                    <li key={d.id} className="rounded-xl border border-neutral-100 p-3 dark:border-navy-700">
+                      <p className="text-sm font-semibold">{d.displayName}</p>
+                      <p className="text-xs text-neutral-500">{libelleRole(d.poste, 'Directeur régional')}</p>
+                      <LigneActivite a={d} />
+                    </li>
+                  ))}
+                </ul>
+              </>
+            ) : null}
+
+            <h4 className="mt-4 text-xs font-medium uppercase tracking-wide text-neutral-400">Chefs de secteur et promoteurs</h4>
             {chefs.length === 0 ? (
-              <p className="mt-2 text-sm text-neutral-400">Aucun chef de secteur dans cette région.</p>
+              <p className="mt-2 text-sm text-neutral-400">
+                {horsChef.length > 0 ? 'Aucun chef de secteur dans cette région.' : 'Aucun chef de secteur ni promoteur dans cette région.'}
+              </p>
             ) : (
               <ul className="mt-2 grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
                 {chefs.map((c) => (
@@ -243,26 +274,31 @@ export function CarteEquipes({
                       <p className="text-sm font-semibold">{c.displayName}</p>
                     )}
                     <p className="text-xs text-neutral-500">
-                      {c.secteur ? `${c.secteur.nom} · ` : ''}
+                      {libelleRole(c.poste, 'Chef de secteur')} · {c.secteur ? `${c.secteur.nom} · ` : ''}
                       {pluriel(c.nbClients, 'client')}
                     </p>
+                    <LigneActivite a={c} />
                     {c.promoteurs.length === 0 ? (
                       <p className="mt-2 text-xs text-neutral-400">Aucun promoteur.</p>
                     ) : (
-                      <ul className="mt-2 flex flex-col gap-1 border-t border-neutral-100 pt-2 dark:border-navy-700">
+                      <ul className="mt-3 flex flex-col gap-3 border-t border-neutral-100 pt-3 dark:border-navy-700">
                         {c.promoteurs.map((p) => (
-                          <li key={p.id} className="flex items-center justify-between gap-2 text-xs">
-                            {fichePromoteur ? (
-                              <Link
-                                href={`/mon-equipe/promoteur/${encodeURIComponent(p.id)}`}
-                                className={`min-w-0 truncate rounded-md hover:underline ${focus}`}
-                              >
-                                {p.displayName}
-                              </Link>
-                            ) : (
-                              <span className="min-w-0 truncate">{p.displayName}</span>
-                            )}
-                            <span className="shrink-0 text-neutral-500">{pluriel(p.nbClients, 'client')}</span>
+                          <li key={p.id} className="text-xs">
+                            <div className="flex items-baseline justify-between gap-2">
+                              {fichePromoteur ? (
+                                <Link
+                                  href={`/mon-equipe/promoteur/${encodeURIComponent(p.id)}`}
+                                  className={`min-w-0 truncate rounded-md text-sm font-medium hover:underline ${focus}`}
+                                >
+                                  {p.displayName}
+                                </Link>
+                              ) : (
+                                <span className="min-w-0 truncate text-sm font-medium">{p.displayName}</span>
+                              )}
+                              <span className="shrink-0 text-neutral-500">{pluriel(p.nbClients, 'client')}</span>
+                            </div>
+                            <p className="text-neutral-500">{libelleRole(p.poste, 'Promoteur')}</p>
+                            <LigneActivite a={p} />
                           </li>
                         ))}
                       </ul>
@@ -271,6 +307,37 @@ export function CarteEquipes({
                 ))}
               </ul>
             )}
+
+            {horsChef.length > 0 ? (
+              <>
+                <h4 className="mt-4 text-xs font-medium uppercase tracking-wide text-neutral-400">
+                  Autres promoteurs de la région
+                </h4>
+                <ul className="mt-2 grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
+                  {horsChef.map((p) => (
+                    <li key={p.id} className="rounded-xl border border-neutral-100 p-3 text-xs dark:border-navy-700">
+                      <div className="flex items-baseline justify-between gap-2">
+                        {fichePromoteur ? (
+                          <Link
+                            href={`/mon-equipe/promoteur/${encodeURIComponent(p.id)}`}
+                            className={`min-w-0 truncate rounded-md text-sm font-medium hover:underline ${focus}`}
+                          >
+                            {p.displayName}
+                          </Link>
+                        ) : (
+                          <span className="min-w-0 truncate text-sm font-medium">{p.displayName}</span>
+                        )}
+                        <span className="shrink-0 text-neutral-500">{pluriel(p.nbClients, 'client')}</span>
+                      </div>
+                      <p className="text-neutral-500">
+                        {libelleRole(p.poste, 'Promoteur')} · {p.chef ? `chef de secteur : ${p.chef}` : 'sans chef de secteur'}
+                      </p>
+                      <LigneActivite a={p} />
+                    </li>
+                  ))}
+                </ul>
+              </>
+            ) : null}
           </div>
         ))}
       </div>
