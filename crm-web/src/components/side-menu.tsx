@@ -3,16 +3,12 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Montserrat } from 'next/font/google';
 import { Menu, X } from 'lucide-react';
 import type { MenuSection } from '@/lib/menu';
 
-/** Police du mot-symbole « ABC » en tête de menu (aspect logo). */
-const policeLogo = Montserrat({ subsets: ['latin'], weight: '800' });
-
 type Espace = 'promoteurs' | 'direction';
 
-/** Sous-titre sous « ABC » (aucun dans l'espace Direction). */
+/** Sous-titre sous le logo (aucun dans l'espace Direction). */
 const SOUS_TITRE: Record<Espace, string | null> = {
   promoteurs: 'Promoteurs',
   direction: null,
@@ -32,12 +28,12 @@ function Brand({ espace, compact = false }: { espace: Espace; compact?: boolean 
       href="/"
       className={`${FOCUS} ${compact ? 'inline-flex items-center gap-2' : 'flex w-full flex-col items-center justify-center gap-1.5 py-2'}`}
     >
-      <span
-        className={`${policeLogo.className} ${compact ? 'text-2xl' : 'text-5xl'} select-none font-extrabold leading-none tracking-[0.18em] text-brand`}
-        aria-label="ABC"
-      >
-        ABC
-      </span>
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src="/logo.png"
+        alt="ABC Group"
+        className={`${compact ? 'h-10 w-10' : 'h-20 w-20'} select-none rounded-xl object-contain`}
+      />
       {SOUS_TITRE[espace] ? <span className="text-xs font-medium text-neutral-500">{SOUS_TITRE[espace]}</span> : null}
     </Link>
   );
@@ -71,7 +67,7 @@ function MenuPanel({ sections }: { sections: MenuSection[] }) {
                           ? `bg-attention text-navy hover:brightness-95 ${active ? 'font-semibold ring-2 ring-navy/30' : 'font-medium'}`
                           : active
                             ? 'bg-brand/10 font-semibold text-brand'
-                            : 'text-neutral-700 hover:bg-neutral-100'
+                            : 'text-neutral-900 hover:bg-neutral-100'
                       }`}
                     >
                       <span className="shrink-0">{c.icon}</span>
@@ -130,7 +126,7 @@ export function SideMenu({ espace, sections }: { espace: Espace; sections: MenuS
         <button
           type="button"
           onClick={() => setOpen(true)}
-          className={`${FOCUS} rounded-lg p-2 text-neutral-700 transition hover:bg-neutral-100`}
+          className={`${FOCUS} rounded-lg p-2 text-neutral-900 transition hover:bg-neutral-100`}
           aria-label="Ouvrir le menu"
           aria-expanded={open}
         >
@@ -151,7 +147,7 @@ export function SideMenu({ espace, sections }: { espace: Espace; sections: MenuS
               <button
                 type="button"
                 onClick={() => setOpen(false)}
-                className={`${FOCUS} rounded-lg p-2 text-neutral-700 transition hover:bg-neutral-100`}
+                className={`${FOCUS} rounded-lg p-2 text-neutral-900 transition hover:bg-neutral-100`}
                 aria-label="Fermer le menu"
               >
                 <X size={20} />
