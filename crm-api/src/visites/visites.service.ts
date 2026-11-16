@@ -2,6 +2,7 @@ import { BadRequestException, ForbiddenException, Injectable, NotFoundException 
 import { Prisma } from '@crm/database';
 import { PrismaService } from '../prisma/prisma.service';
 import { perimetreEquipe } from '../common/perimetre-users.util';
+import { filtreModifieDepuis, filtreSupprimes, selectHorodatage, TRI_MODIFIE_DEPUIS } from '../common/modifie-depuis';
 
 /** Filtre des auteurs de visites visibles par `me` : null = pas de filtre (siège, direction, admin) ; CS / DR = équipe + soi ; COMMERCIAL = soi. */
 export function auteursDeVisitesVisibles(me: { id: string; role: string; regionId?: string | null }): Prisma.UserWhereInput | null {
@@ -21,6 +22,8 @@ export interface CreationVisite {
   dnGondoleHaute?: number | null;
   dnGondoleBasse?: number | null;
   commentaire?: string | null;
+  idCommandeApk?: string | null; // exclusif avec raisonAbsenceCommandeId
+  raisonAbsenceCommandeId?: string | null;
   reponses?: { questionId: string; valeur: string }[];
 }
 
@@ -39,15 +42,19 @@ export class VisitesService {
    */
   async findAll(
     promoteurId: string | null,
-    opts: { page?: number; search?: string; equipe?: Prisma.UserWhereInput } = {},
+    opts: { page?: number; search?: string; equipe?: Prisma.UserWhereInput; modifieDepuis?: Date } = {},
   ) {
     const page = opts.page && opts.page > 0 ? opts.page : 1;
     const limit = 30;
+    // Synchro incrémentale : visites modifiées depuis l'instant donné, supprimées logiquement comprises (ET avec le
+    // périmètre promoteur / équipe ci-dessous, qui reste appliqué).
+    const depuis = opts.modifieDepuis;
     const where = {
       ...(promoteurId ? { promoteurId } : {}),
       // CS / DR : visites de leurs équipes (et les leurs) uniquement.
       ...(opts.equipe ? { promoteur: opts.equipe } : {}),
-      deletedAt: null,
+      ...filtreSupprimes(depuis),
+      ...filtreModifieDepuis(depuis),
       ...(opts.search
         ? {
             client: {
@@ -64,12 +71,13 @@ export class VisitesService {
     const [rows, total] = await Promise.all([
       this.prisma.visite.findMany({
         where,
-        orderBy: { createdAt: 'desc' },
+        orderBy: depuis ? TRI_MODIFIE_DEPUIS : { createdAt: 'desc' },
         skip: (page - 1) * limit,
         take: limit,
         select: {
           id: true,
           createdAt: true,
+          ...selectHorodatage(depuis),
           motif: true,
           dnAbc: true,
           dnConcurrence: true,
@@ -77,6 +85,8 @@ export class VisitesService {
           dnGondoleBasse: true,
           pem: true,
           pmcCommentaire: true,
+          idCommandeApk: true,
+          raisonAbsenceCommande: { select: { id: true, libelle: true } },
           client: { select: { id: true, codeAs400: true, enseigne: true, ville: true, niveauClass: true } },
           promoteur: { select: { id: true, displayName: true, idRepr: true } },
           _count: { select: { photos: true } },
@@ -120,6 +130,18 @@ export class VisitesService {
       if (!prospect) throw new NotFoundException(`Prospect ${dto.prospectId} introuvable`);
     }
 
+    // Fin de visite : soit une commande liée, soit une raison d'absence de commande — jamais les deux.
+    if (dto.idCommandeApk && dto.raisonAbsenceCommandeId) {
+      throw new BadRequestException('Fournir au plus un des deux : idCommandeApk ou raisonAbsenceCommandeId');
+    }
+    if (dto.raisonAbsenceCommandeId) {
+      const raison = await this.prisma.raisonAbsenceCommande.findFirst({
+        where: { id: dto.raisonAbsenceCommandeId, deletedAt: null },
+        select: { id: true },
+      });
+      if (!raison) throw new NotFoundException(`Raison ${dto.raisonAbsenceCommandeId} introuvable`);
+    }
+
     // La visite peut solder une visite planifiée — uniquement celle du promoteur.
     let planningId: string | null = null;
     if (dto.planningId) {
@@ -158,6 +180,8 @@ export class VisitesService {
           dnGondoleHaute: dto.dnGondoleHaute ?? null,
           dnGondoleBasse: dto.dnGondoleBasse ?? null,
           pmcCommentaire: dto.commentaire?.trim() || null,
+          idCommandeApk: dto.idCommandeApk ?? null,
+          raisonAbsenceCommandeId: dto.raisonAbsenceCommandeId ?? null,
         },
       });
       if (questionsValides.size > 0) {

@@ -4,6 +4,12 @@ import { PrismaService } from '../prisma/prisma.service';
 import { idReprVariants } from '../common/id-repr.util';
 import { codesRepresentantsDuPerimetre } from '../common/perimetre-codes.util';
 import { QueryCommandesDto } from './dto/query-commandes.dto';
+import {
+  filtreModifieDepuis,
+  lireModifieDepuis,
+  selectHorodatageSansSuppression,
+  TRI_MODIFIE_DEPUIS,
+} from '../common/modifie-depuis';
 import { UpdateLivraisonDto } from './dto/update-livraison.dto';
 
 @Injectable()
@@ -35,10 +41,14 @@ export class CommandesService {
       }
     }
     const mine = codes !== null && user?.role === 'COMMERCIAL' && user.idRepr ? user.idRepr : null;
+    // Synchro incrémentale : commandes modifiées depuis l'instant donné (pas de suppression logique sur ce modèle).
+    const depuis = lireModifieDepuis(query.modifieDepuis);
 
     const where: Prisma.CommandeWhereInput = {
+      ...filtreModifieDepuis(depuis),
       // Équivalence AD (« 68 ») ↔ Minos (« 068 ») gérée à la comparaison.
       ...(codes ? (codes.length === 0 ? { id: { in: [] } } : { idRepr: { in: codes } }) : {}),
+      ...(query.dateDepuis ? { dateCommande: { gte: new Date(query.dateDepuis) } } : {}),
       ...(query.annulees === 'true' ? { dateAnnulation: { not: null } } : {}),
       ...(query.livraison ? { statutLivraison: query.livraison } : {}),
       // Origine provisoire : Appli = saisie mobile (idCommandeApk), EDI = import ERP.
@@ -61,7 +71,7 @@ export class CommandesService {
         where,
         skip: (page - 1) * limit,
         take: limit,
-        orderBy: [{ dateCommande: 'desc' }, { numero: 'desc' }],
+        orderBy: depuis ? TRI_MODIFIE_DEPUIS : [{ dateCommande: 'desc' }, { numero: 'desc' }],
         select: {
           id: true,
           numero: true,
@@ -69,10 +79,14 @@ export class CommandesService {
           dateCommande: true,
           dateAnnulation: true,
           statutLivraison: true,
+          dateExpedition: true,
           dateLivraison: true,
+          transporteur: true,
+          noSuivi: true,
           raisonSocialeCmd: true,
           idRepr: true,
           idCommandeApk: true,
+          ...selectHorodatageSansSuppression(depuis),
           client: { select: { id: true, codeAs400: true, enseigne: true } },
         },
       }),

@@ -23,6 +23,7 @@ import {
   IsOptional,
   IsString,
   IsUUID,
+  Matches,
   MaxLength,
   Min,
   ValidateNested,
@@ -33,6 +34,7 @@ import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { ROLES_COMMANDES_VISITES } from '../common/roles.constants';
+import { lireModifieDepuis, ModifieDepuisQuery } from '../common/modifie-depuis';
 import { auteursDeVisitesVisibles, VisitesService } from './visites.service';
 
 class ReponseDto {
@@ -89,6 +91,21 @@ class CreateVisiteDto {
   @MaxLength(2000)
   commentaire?: string;
 
+  @ApiPropertyOptional({
+    description: "Commande prise pendant la visite (idCommandeApk de la commande mobile) — exclusif avec raisonAbsenceCommandeId",
+  })
+  @IsOptional()
+  @IsString()
+  @Matches(/^[A-Za-z0-9]{4,10}$/, { message: 'idCommandeApk doit contenir 4 à 10 caractères alphanumériques' })
+  idCommandeApk?: string;
+
+  @ApiPropertyOptional({
+    description: "UUID de la raison d'absence de commande — exclusif avec idCommandeApk",
+  })
+  @IsOptional()
+  @IsUUID()
+  raisonAbsenceCommandeId?: string;
+
   @ApiPropertyOptional({ type: [ReponseDto], description: 'Réponses au questionnaire de fin de visite' })
   @IsOptional()
   @IsArray()
@@ -123,6 +140,7 @@ export class VisitesController {
     @Query('page') page: string | undefined,
     @Query('search') search: string | undefined,
     @Query('tous') tous: string | undefined,
+    @Query() { modifieDepuis }: ModifieDepuisQuery,
     @CurrentUser() me: User,
   ) {
     // tous=1 : bascule « Mes visites / Toutes » — lève la restriction du promoteur (ses visites) et du chef de secteur /
@@ -130,7 +148,12 @@ export class VisitesController {
     const lever = tous === '1';
     const promoteurId = me.role === 'COMMERCIAL' && !lever ? me.id : null;
     const equipe = !lever && (me.role === 'CHEF_SECTEUR' || me.role === 'DIRECTEUR_REGIONAL') ? auteursDeVisitesVisibles(me) : null;
-    return this.visites.findAll(promoteurId, { page: Number(page) || 1, search, equipe: equipe ?? undefined });
+    return this.visites.findAll(promoteurId, {
+      page: Number(page) || 1,
+      search,
+      equipe: equipe ?? undefined,
+      modifieDepuis: lireModifieDepuis(modifieDepuis),
+    });
   }
 
   @Post()

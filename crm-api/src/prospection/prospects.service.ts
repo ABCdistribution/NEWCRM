@@ -3,6 +3,13 @@ import { PipelineEtape, Prisma, User } from '@crm/database';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateContactDto, UpdateContactDto } from '../clients/dto/contact.dto';
 import {
+  filtreModifieDepuis,
+  filtreSupprimes,
+  lireModifieDepuis,
+  selectHorodatage,
+  TRI_MODIFIE_DEPUIS,
+} from '../common/modifie-depuis';
+import {
   CreateAppelDto,
   CreateEmailDto,
   CreateProspectApkDto,
@@ -100,9 +107,13 @@ export class ProspectsService {
     const page = query.page ?? 1;
     const limit = query.limit ?? 20;
     const scope = this.scope(user);
+    // Synchro incrémentale : prospects modifiés depuis l'instant donné, supprimés logiquement compris. Le périmètre du
+    // rôle (`scope.where`) s'applique toujours : un prospect supprimé hors périmètre ne sort pas.
+    const depuis = lireModifieDepuis(query.modifieDepuis);
 
     const where: Prisma.ProspectWhereInput = {
-      deletedAt: null,
+      ...filtreSupprimes(depuis),
+      ...filtreModifieDepuis(depuis),
       ...scope.where,
       ...(query.statut ? { statut: query.statut } : {}),
       ...(query.secteur ? { secteurId: query.secteur } : {}),
@@ -126,10 +137,10 @@ export class ProspectsService {
     const [data, total] = await Promise.all([
       this.prisma.prospect.findMany({
         where,
-        select: prospectListSelect,
+        select: depuis ? { ...prospectListSelect, ...selectHorodatage(depuis) } : prospectListSelect,
         skip: (page - 1) * limit,
         take: limit,
-        orderBy: { lastActivityAt: 'desc' },
+        orderBy: depuis ? TRI_MODIFIE_DEPUIS : { lastActivityAt: 'desc' },
       }),
       this.prisma.prospect.count({ where }),
     ]);

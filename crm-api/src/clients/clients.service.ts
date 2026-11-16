@@ -7,6 +7,7 @@ import { QueryClientsDto } from './dto/query-clients.dto';
 import { CreateContactDto, UpdateContactDto } from './dto/contact.dto';
 import { idReprVariants } from '../common/id-repr.util';
 import { codesRepresentantsDuPerimetre } from '../common/perimetre-codes.util';
+import { filtreModifieDepuis, filtreSupprimes, lireModifieDepuis, TRI_MODIFIE_DEPUIS } from '../common/modifie-depuis';
 
 /** Intervalle en jours déduit du libellé de périodicité (référentiel legacy 1..6). */
 function joursPeriodicite(libelle?: string | null): number | null {
@@ -43,6 +44,8 @@ type EnrichInput = {
   idCommercial2: string | null;
   commerciaux: { id: string; displayName: string; idRepr: string | null }[];
   periodicites: { periodicite: { code: number | null; libelle: string } }[];
+  updatedAt?: Date;
+  deletedAt?: Date | null;
 };
 
 @Injectable()
@@ -102,8 +105,13 @@ export class ClientsService {
       });
     }
 
+    // Synchro incrémentale : lignes modifiées depuis l'instant donné, supprimées logiquement comprises (ET avec le
+    // périmètre et les filtres ci-dessus et ci-dessous, jamais à leur place).
+    const depuis = lireModifieDepuis(query.modifieDepuis);
+
     const where: Prisma.ClientWhereInput = {
-      deletedAt: null,
+      ...filtreSupprimes(depuis),
+      ...filtreModifieDepuis(depuis),
       ...(query.actif !== undefined ? { actif: query.actif === 'true' } : {}),
       // Vrais points de vente uniquement (le référentiel Minos contient aussi des
       // pseudo-clients PLV / mobilier sans adresse).
@@ -123,7 +131,7 @@ export class ClientsService {
         where,
         skip: (page - 1) * limit,
         take: limit,
-        orderBy: query.avecAdresse === '1' ? { enseigne: 'asc' } : { createdAt: 'desc' },
+        orderBy: depuis ? TRI_MODIFIE_DEPUIS : query.avecAdresse === '1' ? { enseigne: 'asc' } : { createdAt: 'desc' },
         ...(enrich
           ? {
               include: {
@@ -142,7 +150,7 @@ export class ClientsService {
     ]);
 
     return {
-      data: enrich ? await this.enrichirClients(data as unknown as EnrichInput[]) : data,
+      data: enrich ? await this.enrichirClients(data as unknown as EnrichInput[], depuis !== undefined) : data,
       total,
       page,
       limit,
@@ -211,7 +219,7 @@ export class ClientsService {
    * visite > intervalle de la périodicité ; alerte = en retard ; état = 🟢 si à
    * jour et CA ≥ N-1, 🟠 si en retard OU CA en baisse, 🔴 si les deux.
    */
-  private async enrichirClients(rows: EnrichInput[]) {
+  private async enrichirClients(rows: EnrichInput[], avecHorodatage = false) {
     const ids = rows.map((r) => r.id);
     if (ids.length === 0) return [];
 
@@ -309,6 +317,8 @@ export class ClientsService {
         enBaisse,
         alertes,
         etat,
+        // Synchro incrémentale uniquement : de quoi dédoublonner et effacer les magasins supprimés.
+        ...(avecHorodatage ? { updatedAt: c.updatedAt, deletedAt: c.deletedAt ?? null } : {}),
       };
     });
   }
@@ -391,6 +401,11 @@ export class ClientsService {
           idRepr: true, // toutes les commandes du magasin, y compris celles d'autres représentants
           idCommandeApk: true,
           montantTotal: true,
+          statutLivraison: true,
+          dateExpedition: true,
+          dateLivraison: true,
+          transporteur: true,
+          noSuivi: true,
           _count: { select: { lignes: true } },
         },
       }),
@@ -441,6 +456,11 @@ export class ClientsService {
         viaMobile: c.idCommandeApk !== null,
         nbLignes: c._count.lignes,
         total: Number(c.montantTotal),
+        statutLivraison: c.statutLivraison,
+        dateExpedition: c.dateExpedition,
+        dateLivraison: c.dateLivraison,
+        transporteur: c.transporteur,
+        noSuivi: c.noSuivi,
       })),
       visites,
       ca: { anneeN, courbeN: caN, courbeN1: caN1 },

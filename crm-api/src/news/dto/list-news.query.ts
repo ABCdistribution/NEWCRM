@@ -1,8 +1,9 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 import { IsInt, IsOptional, Max, Min } from 'class-validator';
+import { ModifieDepuisQuery } from '../../common/modifie-depuis';
 
-export class ListNewsQuery {
+export class ListNewsQuery extends ModifieDepuisQuery {
   @ApiPropertyOptional({ default: 1, minimum: 1 })
   @IsOptional()
   @Type(() => Number)

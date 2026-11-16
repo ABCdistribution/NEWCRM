@@ -25,7 +25,7 @@ export class ArticlesController {
   }
 
   @Get(':id')
-  @ApiOperation({ summary: "Détail d'un article" })
+  @ApiOperation({ summary: "Détail d'un article : fiche complète, tarifs, remplacements" })
   findOne(@Param('id', ParseUUIDPipe) id: string) {
     return this.articles.findOne(id);
   }

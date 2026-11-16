@@ -3,6 +3,7 @@ import { Prisma, Role } from '@crm/database';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateNewsDto } from './dto/create-news.dto';
 import { UpdateNewsDto } from './dto/update-news.dto';
+import { filtreModifieDepuis, TRI_MODIFIE_DEPUIS } from '../common/modifie-depuis';
 
 const EXTRAIT_MAX = 200;
 
@@ -55,19 +56,27 @@ export class NewsService {
     return peutAdministrerNews(role) ? { deletedAt: null } : { deletedAt: null, publiee: true };
   }
 
-  async list(role: string, page = 1, pageSize = 20) {
-    const where = this.visibles(role);
+  /**
+   * `depuis` (synchro incrémentale) : news modifiées depuis l'instant donné, supprimées logiquement comprises ; la
+   * visibilité des brouillons reste celle du rôle (un non-administrateur ne reçoit jamais un brouillon, supprimé ou non).
+   */
+  async list(role: string, page = 1, pageSize = 20, depuis?: Date) {
+    const { deletedAt: _deletedAt, ...visibilite } = this.visibles(role);
+    const where: Prisma.NewsWhereInput = depuis
+      ? { ...visibilite, ...filtreModifieDepuis(depuis) }
+      : this.visibles(role);
     const [total, items] = await Promise.all([
       this.prisma.news.count({ where }),
       this.prisma.news.findMany({
         where,
         include: newsInclude,
-        orderBy: [{ publieeAt: { sort: 'desc', nulls: 'last' } }, { createdAt: 'desc' }],
+        orderBy: depuis ? TRI_MODIFIE_DEPUIS : [{ publieeAt: { sort: 'desc', nulls: 'last' } }, { createdAt: 'desc' }],
         skip: (page - 1) * pageSize,
         take: pageSize,
       }),
     ]);
-    return { items: items.map(formater), total, page, pageSize };
+    // En synchro, deletedAt s'ajoute au format habituel pour que l'app efface les news supprimées.
+    return { items: items.map((n) => (depuis ? { ...formater(n), deletedAt: n.deletedAt } : formater(n))), total, page, pageSize };
   }
 
   async get(id: string, role: string) {

@@ -1,9 +1,10 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
-import { IsBooleanString, IsEnum, IsIn, IsInt, IsOptional, IsString, Max, Min } from 'class-validator';
+import { IsBooleanString, IsDateString, IsEnum, IsIn, IsInt, IsOptional, IsString, Max, Min } from 'class-validator';
 import { StatutLivraison } from '@crm/database';
+import { ModifieDepuisQuery } from '../../common/modifie-depuis';
 
-export class QueryCommandesDto {
+export class QueryCommandesDto extends ModifieDepuisQuery {
   @ApiPropertyOptional({ default: 1, minimum: 1 })
   @IsOptional()
   @Type(() => Number)
@@ -23,6 +24,11 @@ export class QueryCommandesDto {
   @IsOptional()
   @IsString()
   search?: string;
+
+  @ApiPropertyOptional({ description: 'Commandes passées à partir de cette date (aaaa-mm-jj)' })
+  @IsOptional()
+  @IsDateString()
+  dateDepuis?: string;
 
   @ApiPropertyOptional({ description: "true pour n'afficher que les commandes annulées" })
   @IsOptional()

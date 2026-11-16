@@ -16,6 +16,7 @@ import { NotificationsModule } from './notifications/notifications.module';
 import { SecteursModule } from './secteurs/secteurs.module';
 import { VisitesModule } from './visites/visites.module';
 import { QuestionnaireModule } from './questionnaire/questionnaire.module';
+import { RaisonsAbsenceModule } from './raisons-absence/raisons-absence.module';
 import { PromosModule } from './promos/promos.module';
 import { ImportModule } from './import/import.module';
 import { ProspectionModule } from './prospection/prospection.module';
@@ -50,6 +51,7 @@ import { SearchModule } from './search/search.module';
     SecteursModule,
     VisitesModule,
     QuestionnaireModule,
+    RaisonsAbsenceModule,
     PromosModule,
     ProspectionModule,
     ImportModule,
