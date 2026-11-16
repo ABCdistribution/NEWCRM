@@ -14,7 +14,9 @@ export const REGIONS_FR: Record<string, { code: string; nom: string }> = {
   idf: { code: 'IDF', nom: 'Île-de-France' },
   iledefrance: { code: 'IDF', nom: 'Île-de-France' },
   corse: { code: 'COR', nom: 'Corse' },
+  // Dans l'AD, la valeur de `st` des comptes belges est « Belgique » ; l'annuaire intranet les range sous « BENELUX ».
   benelux: { code: 'BENELUX', nom: 'Benelux' },
+  belgique: { code: 'BENELUX', nom: 'Benelux' },
 };
 
 /** « Ile de France » / « Sud Est » / « IDF » → clé de REGIONS_FR. */

@@ -18,7 +18,7 @@ import {
   CalendarRange,
   type LucideIcon,
 } from 'lucide-react';
-import { ENCADREMENT, TOUS_ROLES, type Espace, type Role } from './roles';
+import { ENCADREMENT, ROLES_COMMANDES_VISITES, TOUS_ROLES, type Espace, type Role } from './roles';
 
 export type Route = {
   href: string;
@@ -45,8 +45,9 @@ export const ROUTES: readonly Route[] = [
 
   // Écrans communs (les données sont filtrées par périmètre côté API)
   { href: '/clients', label: 'Les clients', icon: Store, roles: TOUS_ROLES, espace: 'commun', menu: true },
-  { href: '/commandes', label: 'Les commandes', icon: ShoppingCart, roles: TOUS_ROLES, espace: 'commun', menu: true },
-  { href: '/visites', label: 'Les visites', icon: Footprints, roles: TOUS_ROLES, espace: 'commun', menu: true },
+  // Commandes et visites : pas d'accès pour le marketing.
+  { href: '/commandes', label: 'Les commandes', icon: ShoppingCart, roles: ROLES_COMMANDES_VISITES, espace: 'commun', menu: true },
+  { href: '/visites', label: 'Les visites', icon: Footprints, roles: ROLES_COMMANDES_VISITES, espace: 'commun', menu: true },
   { href: '/produits', label: 'Les produits', icon: Package, roles: TOUS_ROLES, espace: 'commun', menu: true },
   { href: '/promos', label: 'Les promos / PEM', icon: BadgePercent, roles: TOUS_ROLES, espace: 'commun', menu: true },
   { href: '/qualite', label: 'Qualité & rappels', icon: ShieldAlert, roles: TOUS_ROLES, espace: 'commun', menu: true },

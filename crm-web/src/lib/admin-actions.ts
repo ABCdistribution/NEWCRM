@@ -128,6 +128,8 @@ export type AdSyncState = {
     crees: number;
     maj: number;
     photos?: number;
+    /** Photos manquantes reprises de l'annuaire intranet (absent des anciennes réponses de l'API). */
+    photosAnnuaire?: number;
     directeursLies: number;
     sansRegion: string[];
     sansManager: string[];

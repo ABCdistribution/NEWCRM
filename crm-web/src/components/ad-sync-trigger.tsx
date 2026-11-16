@@ -75,7 +75,7 @@ export function RetourSynchro({ state, pending }: { state: AdSyncState; pending:
       <div className="min-w-0">
         <p className="font-semibold">Synchronisation réussie</p>
         <p className="mt-0.5">
-          {stats.lus} comptes lus · {stats.crees} créés · {stats.maj} mis à jour · {stats.photos ?? 0} photos rapatriées ·{' '}
+          {stats.lus} comptes lus · {stats.crees} créés · {stats.maj} mis à jour · {(stats.photos ?? 0) + (stats.photosAnnuaire ?? 0)} photos rapatriées ·{' '}
           {stats.directeursLies} rattachés à un directeur
         </p>
         {stats.tronque ? (

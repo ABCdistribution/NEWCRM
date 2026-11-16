@@ -14,6 +14,7 @@ import {
   Min,
 } from 'class-validator';
 import { MotifPerteProspect, NiveauClass, PipelineEtape, ResultatAppel, SourceProspect } from '@crm/database';
+import { ModifieDepuisQuery } from '../../common/modifie-depuis';
 
 export class CreateProspectDto {
   @ApiProperty({ example: 'SUPERMARCHE DUPONT SAS' })
@@ -114,7 +115,7 @@ export class UpdateProspectDto {
   motifPerte?: MotifPerteProspect;
 }
 
-export class QueryProspectsDto {
+export class QueryProspectsDto extends ModifieDepuisQuery {
   @ApiPropertyOptional({ default: 1, minimum: 1 })
   @IsOptional()
   @Type(() => Number)

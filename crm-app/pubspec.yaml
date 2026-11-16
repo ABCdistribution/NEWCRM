@@ -1,0 +1,45 @@
+name: crm_app
+description: "CRM ABC - application mobile (promoteur, chef de secteur, directeur régional), codée d'après la maquette HTML."
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.12.1
+
+dependencies:
+  drift: ^2.35.4
+  flutter:
+    sdk: flutter
+  flutter_localizations:
+    sdk: flutter
+  flutter_riverpod: ^3.4.3
+  flutter_secure_storage: ^11.2.0
+  flutter_svg: ^2.2.0
+  image_picker: ^1.2.4
+  intl: ^0.20.2
+  path: ^1.9.1
+  path_provider: ^2.1.6
+  sqlite3: ^3.5.2
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+  drift_dev: ^2.35.3
+  build_runner: ^2.15.1
+
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/images/
+
+  fonts:
+    - family: Inter
+      fonts:
+        - asset: assets/fonts/Inter-Variable.ttf
+
+# SQLite chiffré : le paquet sqlite3 embarque la version SQLCipher (AES-256) à la place de SQLite.
+hooks:
+  user_defines:
+    sqlite3:
+      source: sqlcipher

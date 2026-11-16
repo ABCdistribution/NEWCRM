@@ -1,7 +1,8 @@
 import { ConflictException, Injectable, Logger } from '@nestjs/common';
 import { Role } from '@crm/database';
 import { PrismaService } from '../prisma/prisma.service';
-import { LdapService, LdapFdvEntry } from './ldap.service';
+import { AnnuairePhotosService } from './annuaire-photos.service';
+import { LdapService, LdapFdvEntry, estOuSiege } from './ldap.service';
 import { regionFromSt } from '../common/regions.util';
 import { secteurDepuisSt } from '../common/secteur-st';
 
@@ -11,6 +12,8 @@ const ROLE_PAR_OU: Record<LdapFdvEntry['ou'], Role> = {
   'Chef de secteur': Role.CHEF_SECTEUR,
   Directeur: Role.DIRECTEUR_REGIONAL,
   'Responsable Merchandising': Role.COMMERCIAL,
+  'Service ADV': Role.ADV,
+  'Service Marketing': Role.MARKETING,
 };
 
 /** Champs en conflit d'unicité d'une erreur P2002 (Prisma 7 + driver adapter : meta.target n'est plus fiable). */
@@ -35,6 +38,7 @@ export interface AdSyncResult {
   crees: number;
   maj: number;
   photos: number; // comptes dont la photo AD a été rapatriée
+  photosAnnuaire: number; // photos manquantes reprises de l'annuaire intranet (jamais d'écrasement d'une photo AD)
   directeursLies: number;
   sansRegion: string[]; // logins sans région française reconnue
   sansSecteur: string[]; // « login (valeur de st) » : `st` vide, inconnu ou ambigu — à corriger dans l'AD
@@ -58,6 +62,7 @@ export class AdSyncService {
   constructor(
     private readonly ldap: LdapService,
     private readonly prisma: PrismaService,
+    private readonly annuairePhotos: AnnuairePhotosService,
   ) {}
 
   /** Une synchro à la fois : un second lancement (second clic, deuxième onglet) se heurterait aux contraintes d'unicité. */
@@ -101,6 +106,7 @@ export class AdSyncService {
       crees: 0,
       maj: 0,
       photos: 0,
+      photosAnnuaire: 0,
       directeursLies: 0,
       sansRegion: [],
       sansSecteur: [],
@@ -134,10 +140,13 @@ export class AdSyncService {
     const idParUsername = new Map<string, string>();
 
     for (const e of entries) {
+      // L'ADV et le marketing (siège) n'ont ni région, ni secteur, ni directeur : pas d'avertissement « sans région /
+      // secteur » pour eux.
+      const estAdv = estOuSiege(e.ou);
       const rId = await regionId(e.region);
-      if (!rId) result.sansRegion.push(e.username);
+      if (!rId && !estAdv) result.sansRegion.push(e.username);
       const secteur = await secteurDepuisSt(this.prisma, e.region, secteurs);
-      if (!secteur) result.sansSecteur.push(`${e.username} (${e.region ?? 'st vide'})`);
+      if (!secteur && !estAdv) result.sansSecteur.push(`${e.username} (${e.region ?? 'st vide'})`);
 
       const existant = await this.prisma.user.findUnique({ where: { username: e.username } });
       let userId: string;
@@ -147,10 +156,10 @@ export class AdSyncService {
         const data: {
           displayName: string;
           regionId: string | null;
-          secteurId?: string;
+          secteurId?: string | null;
           poste: string | null;
           role?: Role;
-          idRepr?: string;
+          idRepr?: string | null;
           email?: string;
           photo?: Uint8Array<ArrayBuffer>;
         } = {
@@ -160,6 +169,12 @@ export class AdSyncService {
         };
         // `st` vide ou inconnu : on garde le secteur déjà posé plutôt que de l'effacer.
         if (secteur) data.secteurId = secteur.id;
+        // Un compte devenu ADV (siège) quitte son ancien secteur et son ancien code représentant (le code n'est
+        // effacé que si l'AD n'en donne plus) : il ne doit plus apparaître dans une équipe ni sur un portefeuille.
+        if (estAdv) {
+          data.secteurId = null;
+          if (!e.idRepr && existant.idRepr) data.idRepr = null;
+        }
         // L'OU fait foi pour le rôle (consigne AD) — un ADMIN n'est jamais rétrogradé.
         if (existant.role !== 'ADMIN' && existant.role !== ROLE_PAR_OU[e.ou]) {
           data.role = ROLE_PAR_OU[e.ou];
@@ -245,6 +260,11 @@ export class AdSyncService {
     // --- Passe 2 : hiérarchie (manager → directeurId) ----------------------
     for (const e of entries) {
       const userId = idParUsername.get(e.username.toLowerCase())!;
+      if (estOuSiege(e.ou)) {
+        // Pas de hiérarchie commerciale pour le siège : un ancien directeur (ex-promoteur) est détaché.
+        await this.prisma.user.update({ where: { id: userId }, data: { directeurId: null } });
+        continue;
+      }
       const estSonPropreManager =
         e.managerDn != null && e.managerDn.toLowerCase() === e.dn.toLowerCase();
       const directeurId =
@@ -255,6 +275,9 @@ export class AdSyncService {
 
       await this.prisma.user.update({ where: { id: userId }, data: { directeurId } });
     }
+
+    // --- Passe 3 : photos manquantes, reprises de l'annuaire (ne lève jamais : la synchro réussit sans elles) ----
+    result.photosAnnuaire = (await this.annuairePhotos.completerPhotos()).reprises;
 
     return result;
   }

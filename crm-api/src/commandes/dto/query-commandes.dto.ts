@@ -1,9 +1,10 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
-import { IsBooleanString, IsEnum, IsIn, IsInt, IsOptional, IsString, Max, Min } from 'class-validator';
+import { IsBooleanString, IsDateString, IsEnum, IsIn, IsInt, IsOptional, IsString, Max, Min } from 'class-validator';
 import { StatutLivraison } from '@crm/database';
+import { ModifieDepuisQuery } from '../../common/modifie-depuis';
 
-export class QueryCommandesDto {
+export class QueryCommandesDto extends ModifieDepuisQuery {
   @ApiPropertyOptional({ default: 1, minimum: 1 })
   @IsOptional()
   @Type(() => Number)
@@ -24,6 +25,11 @@ export class QueryCommandesDto {
   @IsString()
   search?: string;
 
+  @ApiPropertyOptional({ description: 'Commandes passées à partir de cette date (aaaa-mm-jj)' })
+  @IsOptional()
+  @IsDateString()
+  dateDepuis?: string;
+
   @ApiPropertyOptional({ description: "true pour n'afficher que les commandes annulées" })
   @IsOptional()
   @IsBooleanString()
@@ -41,4 +47,19 @@ export class QueryCommandesDto {
   @IsOptional()
   @IsIn(['edi', 'appli'])
   origine?: 'edi' | 'appli';
+
+  @ApiPropertyOptional({
+    description:
+      "mes=1 : uniquement les commandes de MON périmètre (promoteur = son code, chef de secteur = ses promoteurs, directeur régional = sa région) ; sans effet pour les rôles sans périmètre",
+  })
+  @IsOptional()
+  @IsIn(['1'])
+  mes?: '1';
+
+  @ApiPropertyOptional({
+    description: "tous=1 : lève la restriction d'un promoteur à ses propres commandes (bascule « Mes commandes / Toutes »)",
+  })
+  @IsOptional()
+  @IsIn(['1'])
+  tous?: '1';
 }

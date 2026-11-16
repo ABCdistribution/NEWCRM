@@ -9,6 +9,7 @@ import { NewsService } from './news.service';
 import { CreateNewsDto } from './dto/create-news.dto';
 import { UpdateNewsDto } from './dto/update-news.dto';
 import { ListNewsQuery } from './dto/list-news.query';
+import { lireModifieDepuis } from '../common/modifie-depuis';
 
 /** Tous les rôles : les news sont lisibles par tout utilisateur connecté. */
 const TOUS_LES_ROLES = [
@@ -40,7 +41,7 @@ export class NewsController {
   @Roles(...TOUS_LES_ROLES)
   @ApiOperation({ summary: 'Liste paginée des news (brouillons visibles seulement par MARKETING / ADMIN)' })
   list(@Query() q: ListNewsQuery, @CurrentUser() user: { role: string }) {
-    return this.news.list(user.role, q.page, q.pageSize);
+    return this.news.list(user.role, q.page, q.pageSize, lireModifieDepuis(q.modifieDepuis));
   }
 
   @Get(':id')

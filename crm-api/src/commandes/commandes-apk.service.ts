@@ -1,6 +1,12 @@
 import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateCommandeApkDto } from './dto/create-commande-apk.dto';
+import {
+  filtreModifieDepuis,
+  lireModifieDepuis,
+  selectHorodatageSansSuppression,
+  TRI_MODIFIE_DEPUIS,
+} from '../common/modifie-depuis';
 
 /**
  * Commande saisie sur l'app mobile, en attente d'intégration ERP.
@@ -102,11 +108,14 @@ export class CommandesApkService {
   /** Commandes mobiles du promoteur connecté (la direction voit tout). */
   async findAll(
     user: { id: string; role: string },
-    query: { page?: number; limit?: number; clientId?: string },
+    query: { page?: number; limit?: number; clientId?: string; modifieDepuis?: string },
   ) {
     const page = query.page ?? 1;
     const limit = query.limit ?? 20;
+    // Synchro incrémentale : commandes mobiles modifiées depuis l'instant donné (pas de suppression logique ici).
+    const depuis = lireModifieDepuis(query.modifieDepuis);
     const where = {
+      ...filtreModifieDepuis(depuis),
       ...(user.role === 'COMMERCIAL' ? { promoteurId: user.id } : {}),
       ...(query.clientId ? { clientId: query.clientId } : {}),
     };
@@ -116,12 +125,13 @@ export class CommandesApkService {
         where,
         skip: (page - 1) * limit,
         take: limit,
-        orderBy: { dateCommande: 'desc' },
+        orderBy: depuis ? TRI_MODIFIE_DEPUIS : { dateCommande: 'desc' },
         select: {
           id: true,
           idCommandeApk: true,
           dateCommande: true,
           commentaire: true,
+          ...selectHorodatageSansSuppression(depuis),
           client: { select: { id: true, codeAs400: true, enseigne: true, ville: true } },
           promoteur: { select: { id: true, displayName: true } },
           lignes: { select: { quantite: true, prixIndicatif: true } },

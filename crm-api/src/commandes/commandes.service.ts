@@ -2,23 +2,53 @@ import { BadRequestException, Injectable, NotFoundException } from '@nestjs/comm
 import { Prisma } from '@crm/database';
 import { PrismaService } from '../prisma/prisma.service';
 import { idReprVariants } from '../common/id-repr.util';
+import { codesRepresentantsDuPerimetre } from '../common/perimetre-codes.util';
 import { QueryCommandesDto } from './dto/query-commandes.dto';
+import {
+  filtreModifieDepuis,
+  lireModifieDepuis,
+  selectHorodatageSansSuppression,
+  TRI_MODIFIE_DEPUIS,
+} from '../common/modifie-depuis';
 import { UpdateLivraisonDto } from './dto/update-livraison.dto';
 
 @Injectable()
 export class CommandesService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async findAll(query: QueryCommandesDto, user?: { role: string; idRepr: string | null }) {
+  async findAll(
+    query: QueryCommandesDto,
+    user?: { id?: string; role: string; idRepr: string | null; regionId?: string | null },
+  ) {
     const page = query.page ?? 1;
     const limit = query.limit ?? 20;
 
-    // Un commercial relié à un code représentant ne voit que SES commandes.
-    const mine = user?.role === 'COMMERCIAL' && user.idRepr ? user.idRepr : null;
+    // Périmètre : un promoteur relié à un code représentant ne voit que SES commandes, sauf bascule « Toutes »
+    // (tous=1). Les autres rôles voient tout, sauf demande « Mes commandes » (mes=1 : leur périmètre, même règle que
+    // les clients et la recherche). `codes` : null = pas de restriction, [] = aucune commande.
+    const lever = query.tous === '1';
+    let codes: string[] | null = null;
+    if (!lever) {
+      if (user?.role === 'COMMERCIAL') {
+        codes = user.idRepr ? idReprVariants(user.idRepr) : query.mes === '1' ? [] : null;
+      } else if (query.mes === '1' && user?.id) {
+        codes = await codesRepresentantsDuPerimetre(this.prisma, {
+          id: user.id,
+          role: user.role,
+          idRepr: user.idRepr,
+          regionId: user.regionId ?? null,
+        });
+      }
+    }
+    const mine = codes !== null && user?.role === 'COMMERCIAL' && user.idRepr ? user.idRepr : null;
+    // Synchro incrémentale : commandes modifiées depuis l'instant donné (pas de suppression logique sur ce modèle).
+    const depuis = lireModifieDepuis(query.modifieDepuis);
 
     const where: Prisma.CommandeWhereInput = {
+      ...filtreModifieDepuis(depuis),
       // Équivalence AD (« 68 ») ↔ Minos (« 068 ») gérée à la comparaison.
-      ...(mine ? { idRepr: { in: idReprVariants(mine) } } : {}),
+      ...(codes ? (codes.length === 0 ? { id: { in: [] } } : { idRepr: { in: codes } }) : {}),
+      ...(query.dateDepuis ? { dateCommande: { gte: new Date(query.dateDepuis) } } : {}),
       ...(query.annulees === 'true' ? { dateAnnulation: { not: null } } : {}),
       ...(query.livraison ? { statutLivraison: query.livraison } : {}),
       // Origine provisoire : Appli = saisie mobile (idCommandeApk), EDI = import ERP.
@@ -41,7 +71,7 @@ export class CommandesService {
         where,
         skip: (page - 1) * limit,
         take: limit,
-        orderBy: [{ dateCommande: 'desc' }, { numero: 'desc' }],
+        orderBy: depuis ? TRI_MODIFIE_DEPUIS : [{ dateCommande: 'desc' }, { numero: 'desc' }],
         select: {
           id: true,
           numero: true,
@@ -49,10 +79,14 @@ export class CommandesService {
           dateCommande: true,
           dateAnnulation: true,
           statutLivraison: true,
+          dateExpedition: true,
           dateLivraison: true,
+          transporteur: true,
+          noSuivi: true,
           raisonSocialeCmd: true,
           idRepr: true,
           idCommandeApk: true,
+          ...selectHorodatageSansSuppression(depuis),
           client: { select: { id: true, codeAs400: true, enseigne: true } },
         },
       }),

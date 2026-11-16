@@ -5,6 +5,7 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
+import { ROLES_COMMANDES_VISITES } from '../common/roles.constants';
 import { CommandesService } from './commandes.service';
 import { CommandesApkService } from './commandes-apk.service';
 import { CreateCommandeApkDto } from './dto/create-commande-apk.dto';
@@ -14,7 +15,9 @@ import { UpdateLivraisonDto } from './dto/update-livraison.dto';
 
 @ApiTags('commandes')
 @ApiBearerAuth()
-@UseGuards(JwtAuthGuard)
+// Pas d'accès pour le marketing ; la mise à jour de la livraison garde sa propre liste de rôles (méthode, prioritaire).
+@UseGuards(JwtAuthGuard, RolesGuard)
+@Roles(...ROLES_COMMANDES_VISITES)
 @Controller('commandes')
 export class CommandesController {
   constructor(
@@ -51,7 +54,7 @@ export class CommandesController {
   })
   findAll(
     @Query() query: QueryCommandesDto,
-    @CurrentUser() user: { role: string; idRepr: string | null },
+    @CurrentUser() user: { id: string; role: string; idRepr: string | null; regionId: string | null },
   ) {
     return this.commandes.findAll(query, user);
   }

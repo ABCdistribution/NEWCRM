@@ -699,6 +699,12 @@ model Visite {
   alerteRaison   String?
   alerteObs      String?
 
+  // Fin de visite (app mobile) : soit une commande a été prise (pont `idCommandeApk` vers CommandeApk, sans FK : la
+  // commande et la visite se synchronisent indépendamment), soit une raison d'absence de commande est choisie.
+  idCommandeApk           String?                @db.VarChar(10)
+  raisonAbsenceCommandeId String?                @db.Uuid
+  raisonAbsenceCommande   RaisonAbsenceCommande? @relation(fields: [raisonAbsenceCommandeId], references: [id])
+
   // Visite liée (ex-id_visite_linked)
   visiteLieeId String?  @db.Uuid
   visiteLiee   Visite?  @relation("VisiteLiee", fields: [visiteLieeId], references: [id])
@@ -718,7 +724,27 @@ model Visite {
   @@index([clientId])
   @@index([prospectId])
   @@index([visiteLieeId])
+  @@index([idCommandeApk])
+  @@index([raisonAbsenceCommandeId])
   @@map("visites")
+}
+
+/// Raison d'absence de commande à l'issue d'une visite — liste fermée administrable (une quinzaine de choix au plus),
+/// proposée par l'app mobile quand aucune commande n'est liée à la visite.
+model RaisonAbsenceCommande {
+  id      String  @id @default(uuid()) @db.Uuid
+  libelle String
+  ordre   Int
+  actif   Boolean @default(true)
+
+  visites Visite[]
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  @@index([ordre])
+  @@map("raisons_absence_commande")
 }
 
 /// Distribution numérique relevée en visite (ex-`visite_dn`).

@@ -1,0 +1,2 @@
+# Analyse statique : lints recommandés pour Flutter, sans règle désactivée.
+include: package:flutter_lints/flutter.yaml

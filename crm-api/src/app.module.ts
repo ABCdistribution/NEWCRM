@@ -16,11 +16,13 @@ import { NotificationsModule } from './notifications/notifications.module';
 import { SecteursModule } from './secteurs/secteurs.module';
 import { VisitesModule } from './visites/visites.module';
 import { QuestionnaireModule } from './questionnaire/questionnaire.module';
+import { RaisonsAbsenceModule } from './raisons-absence/raisons-absence.module';
 import { PromosModule } from './promos/promos.module';
 import { ImportModule } from './import/import.module';
 import { ProspectionModule } from './prospection/prospection.module';
 import { HealthModule } from './health/health.module';
 import { NewsModule } from './news/news.module';
+import { SearchModule } from './search/search.module';
 
 @Module({
   imports: [
@@ -49,10 +51,12 @@ import { NewsModule } from './news/news.module';
     SecteursModule,
     VisitesModule,
     QuestionnaireModule,
+    RaisonsAbsenceModule,
     PromosModule,
     ProspectionModule,
     ImportModule,
     NewsModule,
+    SearchModule,
     HealthModule,
   ],
 })

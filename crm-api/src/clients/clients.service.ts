@@ -1,11 +1,13 @@
 import { ConflictException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
-import { Prisma } from '@crm/database';
+import { NiveauClass, Prisma } from '@crm/database';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateClientDto } from './dto/create-client.dto';
 import { UpdateClientDto } from './dto/update-client.dto';
 import { QueryClientsDto } from './dto/query-clients.dto';
 import { CreateContactDto, UpdateContactDto } from './dto/contact.dto';
 import { idReprVariants } from '../common/id-repr.util';
+import { codesRepresentantsDuPerimetre } from '../common/perimetre-codes.util';
+import { filtreModifieDepuis, filtreSupprimes, lireModifieDepuis, TRI_MODIFIE_DEPUIS } from '../common/modifie-depuis';
 
 /** Intervalle en jours déduit du libellé de périodicité (référentiel legacy 1..6). */
 function joursPeriodicite(libelle?: string | null): number | null {
@@ -42,13 +44,18 @@ type EnrichInput = {
   idCommercial2: string | null;
   commerciaux: { id: string; displayName: string; idRepr: string | null }[];
   periodicites: { periodicite: { code: number | null; libelle: string } }[];
+  updatedAt?: Date;
+  deletedAt?: Date | null;
 };
 
 @Injectable()
 export class ClientsService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async findAll(query: QueryClientsDto, user?: { role: string; idRepr: string | null }) {
+  async findAll(
+    query: QueryClientsDto,
+    user?: { id?: string; role: string; idRepr: string | null; regionId?: string | null },
+  ) {
     const page = query.page ?? 1;
     const limit = query.limit ?? 20;
 
@@ -64,8 +71,47 @@ export class ClientsService {
           ? idReprVariants(query.repr)
           : null;
 
+    // « Mes clients » : périmètre de l'appelant (mêmes codes représentants que la carte). Il ne fait que RESTREINDRE :
+    // codes null (siège, direction, admin) = pas de restriction, [] = aucun client.
+    const conditions: Prisma.ClientWhereInput[] = [];
+    if (query.mes === '1' && user?.id) {
+      const codes = await this.codesDuPerimetre({
+        id: user.id,
+        role: user.role,
+        idRepr: user.idRepr,
+        regionId: user.regionId ?? null,
+      });
+      if (codes !== null) {
+        conditions.push(
+          codes.length === 0
+            ? { id: { in: [] } }
+            : { OR: [{ idCommercial1: { in: codes } }, { idCommercial2: { in: codes } }] },
+        );
+      }
+    }
+    if (query.niveau) {
+      conditions.push(query.niveau.toLowerCase() === 'aucun' ? { niveauClass: null } : { niveauClass: query.niveau.toUpperCase() as NiveauClass });
+    }
+    // Chaque mot doit se retrouver dans l'un des champs (« auchan rouen », « 67000 »).
+    for (const mot of (query.search ?? '').replace(/[%_\\]/g, ' ').split(/\s+/).filter(Boolean).slice(0, 4)) {
+      conditions.push({
+        OR: [
+          { enseigne: { contains: mot, mode: 'insensitive' } },
+          { raisonSociale: { contains: mot, mode: 'insensitive' } },
+          { codeAs400: { contains: mot, mode: 'insensitive' } },
+          { ville: { contains: mot, mode: 'insensitive' } },
+          { codePostal: { contains: mot, mode: 'insensitive' } },
+        ],
+      });
+    }
+
+    // Synchro incrémentale : lignes modifiées depuis l'instant donné, supprimées logiquement comprises (ET avec le
+    // périmètre et les filtres ci-dessus et ci-dessous, jamais à leur place).
+    const depuis = lireModifieDepuis(query.modifieDepuis);
+
     const where: Prisma.ClientWhereInput = {
-      deletedAt: null,
+      ...filtreSupprimes(depuis),
+      ...filtreModifieDepuis(depuis),
       ...(query.actif !== undefined ? { actif: query.actif === 'true' } : {}),
       // Vrais points de vente uniquement (le référentiel Minos contient aussi des
       // pseudo-clients PLV / mobilier sans adresse).
@@ -73,30 +119,19 @@ export class ClientsService {
       ...(mine
         ? { OR: [{ idCommercial1: { in: mine } }, { idCommercial2: { in: mine } }] }
         : {}),
-      ...(query.search
-        ? {
-            // AND explicite pour ne pas écraser le OR du scoping.
-            AND: [
-              {
-                OR: [
-                  { enseigne: { contains: query.search, mode: 'insensitive' } },
-                  { raisonSociale: { contains: query.search, mode: 'insensitive' } },
-                  { codeAs400: { contains: query.search, mode: 'insensitive' } },
-                ],
-              },
-            ],
-          }
-        : {}),
+      // AND explicite pour ne pas écraser le OR du scoping ci-dessus.
+      ...(conditions.length > 0 ? { AND: conditions } : {}),
     };
 
-    const enrich = query.enrich === 'true' || query.enrich === '1';
+    // L'enrichissement (CA du mois, dernière visite, alertes) lit commandes et visites : jamais pour le marketing.
+    const enrich = (query.enrich === 'true' || query.enrich === '1') && user?.role !== 'MARKETING';
 
     const [data, total] = await Promise.all([
       this.prisma.client.findMany({
         where,
         skip: (page - 1) * limit,
         take: limit,
-        orderBy: query.avecAdresse === '1' ? { enseigne: 'asc' } : { createdAt: 'desc' },
+        orderBy: depuis ? TRI_MODIFIE_DEPUIS : query.avecAdresse === '1' ? { enseigne: 'asc' } : { createdAt: 'desc' },
         ...(enrich
           ? {
               include: {
@@ -115,7 +150,7 @@ export class ClientsService {
     ]);
 
     return {
-      data: enrich ? await this.enrichirClients(data as unknown as EnrichInput[]) : data,
+      data: enrich ? await this.enrichirClients(data as unknown as EnrichInput[], depuis !== undefined) : data,
       total,
       page,
       limit,
@@ -129,38 +164,33 @@ export class ClientsService {
   }
 
   /**
-   * Codes représentants du périmètre de l'utilisateur (variantes « 68 » ↔ « 068 » incluses).
-   * null = pas de restriction (ADMIN / DIRECTION) ; [] = périmètre vide.
+   * Clients passés inactifs sur un mois (« AAAA-MM »). L'historique n'est PAS encore enregistré : le CRM ne garde que
+   * l'état `actif` du client, sans auteur, date, directeur régional, envoi à l'ADV ni indicateur « retiré de l'AS400 ».
+   * La route existe pour fixer le contrat de l'écran et répond « indisponible » plutôt qu'une liste vide trompeuse.
+   * À construire (migration + audit) : journal des changements d'état d'un client (client, auteur, date), envoi à
+   * l'ADV, présence du client dans le dernier fichier AS400 ; la liste sera alors bornée au périmètre de l'appelant
+   * (DR : sa région, CS : ses promoteurs) via `codesRepresentantsDuPerimetre`.
    */
-  private async codesDuPerimetre(user: {
+  passesInactifs(mois?: string) {
+    return {
+      disponible: false as const,
+      mois: mois && /^\d{4}-(0[1-9]|1[0-2])$/.test(mois) ? mois : null,
+      depuis: null as string | null,
+      lignes: [] as never[],
+    };
+  }
+
+  /**
+   * Codes représentants du périmètre de l'utilisateur : voir `codesRepresentantsDuPerimetre` (règle partagée avec la
+   * recherche générale). null = pas de restriction ; [] = périmètre vide.
+   */
+  private codesDuPerimetre(user: {
     id: string;
     role: string;
     idRepr: string | null;
     regionId: string | null;
   }): Promise<string[] | null> {
-    if (user.role === 'ADMIN' || user.role === 'DIRECTION' || user.role === 'ADV' || user.role === 'MARKETING') {
-      return null;
-    }
-    if (user.role === 'COMMERCIAL') {
-      return user.idRepr ? idReprVariants(user.idRepr) : [];
-    }
-    // Chef de secteur : les promoteurs dont il est le manager (hiérarchie AD) ;
-    // repli sur sa région si son équipe n'est pas renseignée dans l'annuaire.
-    let membres: { idRepr: string | null }[] = [];
-    if (user.role === 'CHEF_SECTEUR') {
-      membres = await this.prisma.user.findMany({
-        where: { role: 'COMMERCIAL', directeurId: user.id, idRepr: { not: null } },
-        select: { idRepr: true },
-      });
-    }
-    if (membres.length === 0 && user.regionId) {
-      // DR (cas nominal) et CS sans équipe : tous les promoteurs de la région.
-      membres = await this.prisma.user.findMany({
-        where: { role: 'COMMERCIAL', regionId: user.regionId, idRepr: { not: null } },
-        select: { idRepr: true },
-      });
-    }
-    return membres.flatMap((m) => (m.idRepr ? idReprVariants(m.idRepr) : []));
+    return codesRepresentantsDuPerimetre(this.prisma, user);
   }
 
   /**
@@ -189,7 +219,7 @@ export class ClientsService {
    * visite > intervalle de la périodicité ; alerte = en retard ; état = 🟢 si à
    * jour et CA ≥ N-1, 🟠 si en retard OU CA en baisse, 🔴 si les deux.
    */
-  private async enrichirClients(rows: EnrichInput[]) {
+  private async enrichirClients(rows: EnrichInput[], avecHorodatage = false) {
     const ids = rows.map((r) => r.id);
     if (ids.length === 0) return [];
 
@@ -287,6 +317,8 @@ export class ClientsService {
         enBaisse,
         alertes,
         etat,
+        // Synchro incrémentale uniquement : de quoi dédoublonner et effacer les magasins supprimés.
+        ...(avecHorodatage ? { updatedAt: c.updatedAt, deletedAt: c.deletedAt ?? null } : {}),
       };
     });
   }
@@ -369,6 +401,11 @@ export class ClientsService {
           idRepr: true, // toutes les commandes du magasin, y compris celles d'autres représentants
           idCommandeApk: true,
           montantTotal: true,
+          statutLivraison: true,
+          dateExpedition: true,
+          dateLivraison: true,
+          transporteur: true,
+          noSuivi: true,
           _count: { select: { lignes: true } },
         },
       }),
@@ -419,6 +456,11 @@ export class ClientsService {
         viaMobile: c.idCommandeApk !== null,
         nbLignes: c._count.lignes,
         total: Number(c.montantTotal),
+        statutLivraison: c.statutLivraison,
+        dateExpedition: c.dateExpedition,
+        dateLivraison: c.dateLivraison,
+        transporteur: c.transporteur,
+        noSuivi: c.noSuivi,
       })),
       visites,
       ca: { anneeN, courbeN: caN, courbeN1: caN1 },

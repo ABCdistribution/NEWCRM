@@ -363,6 +363,18 @@ ANNULEE ANNULEE
     DateTime queueDate "❓"
     String alerteRaison "❓"
     String alerteObs "❓"
+    String idCommandeApk "❓"
+    DateTime createdAt 
+    DateTime updatedAt 
+    DateTime deletedAt "❓"
+    }
+  
+
+  "raisons_absence_commande" {
+    String id "🗝️"
+    String libelle 
+    Int ordre 
+    Boolean actif 
     DateTime createdAt 
     DateTime updatedAt 
     DateTime deletedAt "❓"
@@ -740,6 +752,7 @@ ANNULEE ANNULEE
     "visites" }o--|| users : "promoteur"
     "visites" }o--|o clients : "client"
     "visites" }o--|o prospects : "prospect"
+    "visites" }o--|o raisons_absence_commande : "raisonAbsenceCommande"
     "visites" |o--|o visites : "visiteLiee"
     "visite_dns" }o--|| visites : "visite"
     "visite_dns" |o--|| "TypeDn" : "enum:type"

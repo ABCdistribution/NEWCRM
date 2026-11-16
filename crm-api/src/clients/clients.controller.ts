@@ -12,7 +12,11 @@ import {
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiProperty, ApiPropertyOptional, ApiTags } from '@nestjs/swagger';
 import { IsDateString, IsIn, IsInt, IsNotEmpty, IsOptional, IsString, IsUUID, MaxLength, Min, ValidateIf } from 'class-validator';
+import { Role } from '@crm/database';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { RolesGuard } from '../auth/guards/roles.guard';
+import { Roles } from '../auth/decorators/roles.decorator';
+import { ROLES_COMMANDES_VISITES } from '../common/roles.constants';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { ClientsService } from './clients.service';
 import { CreateClientDto } from './dto/create-client.dto';
@@ -180,9 +184,21 @@ export class ClientsController {
   })
   findAll(
     @Query() query: QueryClientsDto,
-    @CurrentUser() user: { role: string; idRepr: string | null },
+    @CurrentUser() user: { id: string; role: string; idRepr: string | null; regionId: string | null },
   ) {
     return this.clients.findAll(query, user);
+  }
+
+  // Déclarée avant GET :id pour ne pas être happée par le ParseUUIDPipe.
+  @Get('passes-inactifs')
+  @UseGuards(RolesGuard)
+  @Roles(Role.ADMIN, Role.DIRECTION, Role.DIRECTEUR_REGIONAL, Role.CHEF_SECTEUR, Role.ADV)
+  @ApiOperation({
+    summary:
+      "Clients passés inactifs sur un mois (?mois=AAAA-MM) : enseigne, code, ville, date, auteur, DR, envoi à l'ADV. Historique pas encore enregistré : renvoie disponible=false",
+  })
+  passesInactifs(@Query('mois') mois?: string) {
+    return this.clients.passesInactifs(mois);
   }
 
   // Déclarée avant GET :id pour ne pas être happée par le ParseUUIDPipe.
@@ -207,12 +223,21 @@ export class ClientsController {
 
   @Get(':id')
   @ApiOperation({ summary: "Détail d'un client" })
-  findOne(@Param('id', ParseUUIDPipe) id: string) {
-    return this.clients.findOneDetail(id);
+  async findOne(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: { role: string }) {
+    const detail = await this.clients.findOneDetail(id);
+    // Le marketing ne voit ni commandes ni visites : pas non plus leurs compteurs.
+    if (user.role === Role.MARKETING) {
+      const { _count, ...reste } = detail as typeof detail & { _count?: unknown };
+      void _count;
+      return reste;
+    }
+    return detail;
   }
 
   @Get(':id/historique')
-  @ApiOperation({ summary: 'Historique du magasin : commandes, visites, CA mensuel N / N-1' })
+  @UseGuards(RolesGuard)
+  @Roles(...ROLES_COMMANDES_VISITES) // contient des commandes et des visites : pas d'accès pour le marketing
+  @ApiOperation({ summary: 'Historique du magasin : commandes, visites, CA mensuel N / N-1 (pas de marketing)' })
   historique(@Param('id', ParseUUIDPipe) id: string) {
     return this.clients.findHistorique(id);
   }

@@ -1,19 +1,13 @@
 import Link from 'next/link';
-import {
-  listProspects,
-  getProspectPipeline,
-  type ProspectsResult,
-  type ProspectRow,
-  type ProspectStatut,
-} from '@/lib/api';
+import { getProspectPipeline, type ProspectRow, type ProspectStatut } from '@/lib/api';
 import { ENCADREMENT, requireRole } from '@/lib/roles';
 import { peutEcrireProspects } from '@/lib/prospect-roles';
 import { listSecteursProposables } from '@/lib/prospect-secteurs';
 import { SearchBar } from '@/components/search-bar';
 import { Pagination } from '@/components/pagination';
 import { KpiTile } from '@/components/kpi-tile';
-import { StatutBadge, STATUT_LABELS, STATUT_ACCENT, SOURCE_LABELS } from '@/components/prospect-badges';
-import { ProspectPipeline } from '@/components/prospect-pipeline';
+import { StatutBadge, SOURCE_LABELS } from '@/components/prospect-badges';
+import { ProspectEtapeSelect } from '@/components/prospect-etape-select';
 import { ProspectCreate } from '@/components/prospect-create';
 
 export const metadata = { title: 'Prospection — Direction commerciale' };
@@ -22,6 +16,14 @@ const EUR = new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR',
 const NB = new Intl.NumberFormat('fr-FR');
 const DT = new Intl.DateTimeFormat('fr-FR', { day: '2-digit', month: 'short', year: 'numeric' });
 const fmt = (n: number | null) => (n == null ? '—' : NB.format(n));
+
+/** Étapes en cours : « Gagné » et « Perdu » ne figurent pas dans le tableau. */
+const ETAPES_ACTIVES: ProspectStatut[] = ['NOUVEAU', 'CONTACTE', 'PROPOSITION', 'VISITE', 'NEGOCIATION'];
+/** Un prospect sans activité depuis ce nombre de jours est « à relancer ». */
+const DORMANT_JOURS = 14;
+const PAR_PAGE = 20;
+
+type LigneProspect = ProspectRow & { inactifDepuis: number };
 
 export default async function ProspectsPage({
   searchParams,
@@ -33,10 +35,10 @@ export default async function ProspectsPage({
   if (acces.refuse) return acces.refuse;
 
   const sp = await searchParams;
-  const search = sp.search ?? '';
-  const page = Number(sp.page ?? '1') || 1;
+  const search = (sp.search ?? '').trim();
+  const demandee = Math.max(1, Math.floor(Number(sp.page ?? '1')) || 1);
 
-  // Écriture (création, Kanban) : ADMIN, DR et CS seulement, comme l'API ; DIRECTION consulte en lecture seule.
+  // Écriture (création, changement d'étape) : ADMIN, DR et CS seulement, comme l'API ; DIRECTION consulte en lecture seule.
   const peutEcrire = peutEcrireProspects(acces.me.role);
   // Secteurs proposables pour un nouveau prospect : GET /prospects/secteurs (périmètre du rôle), pas /secteurs
   // (réservé ADMIN, 403 pour CS et DR). Inutile, et refusé par l'API, pour un rôle qui ne crée pas.
@@ -45,32 +47,36 @@ export default async function ProspectsPage({
     peutEcrire ? listSecteursProposables() : Promise.resolve([]),
   ]);
 
-  let liste: ProspectsResult | null = null;
-  let error: string | null = null;
-  try {
-    liste = await listProspects({ search, page });
-  } catch {
-    error = "Impossible de charger les prospects. L'API est-elle démarrée ?";
-  }
-
-  // --- Indicateurs business dérivés du pipeline complet --------------------
-  const ETAPES_ACTIVES: ProspectStatut[] = ['NOUVEAU', 'CONTACTE', 'PROPOSITION', 'VISITE', 'NEGOCIATION'];
+  // --- Indicateurs et tableau, dérivés du pipeline complet (une seule requête, périmètre filtré par l'API) ------
   const colonnes = pipeline ?? [];
-  const colonnesActives = colonnes.filter((c) => ETAPES_ACTIVES.includes(c.statut));
-  const actifs: ProspectRow[] = colonnesActives.flatMap((c) => c.prospects);
-  const gagnes = colonnes.find((c) => c.statut === 'GAGNE')?.total ?? 0;
-  const perdus = colonnes.find((c) => c.statut === 'PERDU')?.total ?? 0;
-  const transformation = gagnes + perdus > 0 ? Math.round((gagnes / (gagnes + perdus)) * 100) : null;
+  const actifs: ProspectRow[] = colonnes.filter((c) => ETAPES_ACTIVES.includes(c.statut)).flatMap((c) => c.prospects);
 
-  // À relancer : actifs sans activité depuis 14 jours, les plus anciens d'abord.
-  const DORMANT_JOURS = 14;
   const maintenant = Date.now();
   const joursDepuis = (iso: string | null) =>
     iso ? Math.floor((maintenant - new Date(iso).getTime()) / 86_400_000) : null;
-  const aRelancer = actifs
-    .map((p) => ({ ...p, inactifDepuis: joursDepuis(p.lastActivityAt ?? p.createdAt) ?? 0 }))
-    .filter((p) => p.inactifDepuis >= DORMANT_JOURS)
+  const lignes: LigneProspect[] = actifs.map((p) => ({
+    ...p,
+    inactifDepuis: joursDepuis(p.lastActivityAt ?? p.createdAt) ?? 0,
+  }));
+  // Les trois tuiles ne se recoupent pas : un prospect inactif depuis 14 jours est « à relancer », quelle que soit son étape.
+  const dormant = (p: LigneProspect) => p.inactifDepuis >= DORMANT_JOURS;
+  const nbARelancer = lignes.filter(dormant).length;
+  const nbAContacter = lignes.filter((p) => !dormant(p) && p.statut === 'NOUVEAU').length;
+  const nbRdvAPrendre = lignes.filter((p) => !dormant(p) && (p.statut === 'CONTACTE' || p.statut === 'PROPOSITION')).length;
+  const nbOuTiret = (n: number) => (n > 0 ? fmt(n) : '—');
+
+  // Recherche (enseigne, raison sociale, ville), puis les plus anciennement relancés en premier.
+  const terme = search.toLowerCase();
+  const filtrees = lignes
+    .filter(
+      (p) =>
+        !terme ||
+        [p.enseigne, p.raisonSociale, p.ville].some((v) => v?.toLowerCase().includes(terme)),
+    )
     .sort((a, b) => b.inactifDepuis - a.inactifDepuis);
+  const pages = Math.max(1, Math.ceil(filtrees.length / PAR_PAGE));
+  const page = Math.min(demandee, pages);
+  const visibles = filtrees.slice((page - 1) * PAR_PAGE, page * PAR_PAGE);
 
   return (
     <div className="flex flex-col gap-4">
@@ -88,66 +94,44 @@ export default async function ProspectsPage({
 
       {/* KPI business */}
       <section className="grid grid-cols-2 gap-4 lg:grid-cols-3">
-        <KpiTile label="Prospects actifs" value={fmt(actifs.length)} />
-        <KpiTile
-          label="À relancer"
-          value={fmt(aRelancer.length)}
-          pill={aRelancer.length > 0 ? { text: `≥ ${DORMANT_JOURS} j`, tone: 'down' } : undefined}
-        />
-        <KpiTile label="Transformation" value={transformation != null ? `${transformation} %` : '—'} />
+        <KpiTile label="À contacter" value={nbOuTiret(nbAContacter)} sub="Premier contact" />
+        <KpiTile label="À relancer" value={nbOuTiret(nbARelancer)} sub="Suivi à effectuer" />
+        <KpiTile label="RDV à prendre" value={nbOuTiret(nbRdvAPrendre)} sub="À organiser" />
       </section>
 
-      <section className="rounded-2xl bg-white shadow-card">
-          <h2 className="flex items-center gap-2 border-b border-neutral-100 px-4 py-3 text-sm font-semibold dark:border-navy-700">
-            À relancer
-            {aRelancer.length > 0 ? (
-              <span className="rounded-full bg-red-500/10 px-2 py-0.5 text-xs font-semibold text-red-500">
-                {aRelancer.length}
-              </span>
-            ) : null}
-          </h2>
-          {aRelancer.length === 0 ? (
-            <p className="px-4 py-6 text-sm text-neutral-400">Tout le pipeline a été touché depuis {DORMANT_JOURS} jours. 👍</p>
-          ) : (
-            <ul className="max-h-64 divide-y divide-neutral-100 overflow-y-auto dark:divide-navy-700">
-              {aRelancer.slice(0, 12).map((p) => (
-                <li key={p.id} className="relative px-4 py-2.5 hover:bg-neutral-50 dark:hover:bg-navy-800/50">
-                  <Link href={`/prospects/${p.id}`} className="absolute inset-0" aria-label={`Fiche ${p.enseigne}`} />
-                  <div className="flex items-center gap-2">
-                    <span className="min-w-0 flex-1 truncate text-sm font-medium">{p.enseigne}</span>
-                    <span className="shrink-0 text-xs font-semibold text-red-500">{p.inactifDepuis} j</span>
-                  </div>
-                  <div className="mt-0.5 flex items-center gap-2 text-[11px] text-neutral-400">
-                    <StatutBadge value={p.statut} />
-                    {p.assignedTo ? <span className="truncate">{p.assignedTo.displayName}</span> : null}
-                  </div>
-                </li>
-              ))}
-            </ul>
-          )}
-      </section>
-
-      {/* Kanban drag & drop (lecture seule pour DIRECTION) */}
-      {colonnes.length > 0 ? <ProspectPipeline colonnes={colonnes} lectureSeule={!peutEcrire} /> : null}
-
-      {error ? (
-        <p className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">{error}</p>
+      {pipeline === null ? (
+        <p className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+          Impossible de charger les prospects. L&apos;API est-elle démarrée ?
+        </p>
       ) : (
-        <ListeView data={liste} search={search} />
+        <ListeView
+          lignes={visibles}
+          offset={(page - 1) * PAR_PAGE}
+          total={filtrees.length}
+          page={page}
+          search={search}
+          peutEcrire={peutEcrire}
+        />
       )}
     </div>
   );
 }
 
-function ListeView({ data, search }: { data: ProspectsResult | null; search: string }) {
-  if (!data) {
-    return (
-      <p className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-        Prospects indisponibles — l&apos;API est-elle démarrée ?
-      </p>
-    );
-  }
-  const offset = (data.page - 1) * data.limit;
+function ListeView({
+  lignes,
+  offset,
+  total,
+  page,
+  search,
+  peutEcrire,
+}: {
+  lignes: LigneProspect[];
+  offset: number;
+  total: number;
+  page: number;
+  search: string;
+  peutEcrire: boolean;
+}) {
   return (
     <>
       <div className="overflow-x-auto rounded-xl bg-white shadow-card">
@@ -161,11 +145,12 @@ function ListeView({ data, search }: { data: ProspectsResult | null; search: str
               <th className="px-4 py-2.5 font-medium">Responsable</th>
               <th className="px-4 py-2.5 text-right font-medium">Potentiel/an</th>
               <th className="px-4 py-2.5 font-medium">Étape</th>
+              <th className="px-4 py-2.5 text-right font-medium">Inactif depuis</th>
               <th className="px-4 py-2.5 font-medium">Créé le</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-neutral-100 dark:divide-navy-700">
-            {data.data.map((p, i) => (
+            {lignes.map((p, i) => (
               <tr key={p.id} className="relative hover:bg-neutral-50 dark:hover:bg-navy-800/50">
                 <td className="px-4 py-3 text-neutral-400 tabular-nums">{offset + i + 1}</td>
                 <td className="px-4 py-3">
@@ -186,24 +171,35 @@ function ListeView({ data, search }: { data: ProspectsResult | null; search: str
                   {p.potentielCaAnnuel != null ? EUR.format(p.potentielCaAnnuel) : '—'}
                 </td>
                 <td className="px-4 py-3">
-                  <StatutBadge value={p.statut} />
+                  {peutEcrire ? (
+                    <ProspectEtapeSelect id={p.id} statut={p.statut} enseigne={p.enseigne} />
+                  ) : (
+                    <StatutBadge value={p.statut} />
+                  )}
+                </td>
+                <td
+                  className={`px-4 py-3 text-right tabular-nums ${
+                    p.inactifDepuis >= DORMANT_JOURS ? 'font-semibold text-red-700' : 'text-neutral-500'
+                  }`}
+                >
+                  {p.inactifDepuis} j
                 </td>
                 <td className="px-4 py-3 text-neutral-500">
                   {p.createdAt ? DT.format(new Date(p.createdAt)) : '—'}
                 </td>
               </tr>
             ))}
-            {data.data.length === 0 ? (
+            {lignes.length === 0 ? (
               <tr>
-                <td colSpan={8} className="px-4 py-8 text-center text-neutral-400">
-                  Aucun prospect{search ? ' pour cette recherche' : ''}.
+                <td colSpan={9} className="px-4 py-8 text-center text-neutral-400">
+                  Aucun prospect{search ? ' pour cette recherche' : ' en cours'}.
                 </td>
               </tr>
             ) : null}
           </tbody>
         </table>
       </div>
-      <Pagination total={data.total} page={data.page} limit={data.limit} params={{ search }} />
+      <Pagination total={total} page={page} limit={PAR_PAGE} params={{ search }} unite="prospect" />
     </>
   );
 }

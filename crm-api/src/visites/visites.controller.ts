@@ -23,6 +23,7 @@ import {
   IsOptional,
   IsString,
   IsUUID,
+  Matches,
   MaxLength,
   Min,
   ValidateNested,
@@ -30,6 +31,10 @@ import {
 import { User } from '@crm/database';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
+import { RolesGuard } from '../auth/guards/roles.guard';
+import { Roles } from '../auth/decorators/roles.decorator';
+import { ROLES_COMMANDES_VISITES } from '../common/roles.constants';
+import { lireModifieDepuis, ModifieDepuisQuery } from '../common/modifie-depuis';
 import { auteursDeVisitesVisibles, VisitesService } from './visites.service';
 
 class ReponseDto {
@@ -86,6 +91,21 @@ class CreateVisiteDto {
   @MaxLength(2000)
   commentaire?: string;
 
+  @ApiPropertyOptional({
+    description: "Commande prise pendant la visite (idCommandeApk de la commande mobile) — exclusif avec raisonAbsenceCommandeId",
+  })
+  @IsOptional()
+  @IsString()
+  @Matches(/^[A-Za-z0-9]{4,10}$/, { message: 'idCommandeApk doit contenir 4 à 10 caractères alphanumériques' })
+  idCommandeApk?: string;
+
+  @ApiPropertyOptional({
+    description: "UUID de la raison d'absence de commande — exclusif avec idCommandeApk",
+  })
+  @IsOptional()
+  @IsUUID()
+  raisonAbsenceCommandeId?: string;
+
   @ApiPropertyOptional({ type: [ReponseDto], description: 'Réponses au questionnaire de fin de visite' })
   @IsOptional()
   @IsArray()
@@ -104,7 +124,9 @@ class PhotoDto {
 
 @ApiTags('visites')
 @ApiBearerAuth()
-@UseGuards(JwtAuthGuard)
+// Pas d'accès pour le marketing (ni liste, ni création, ni photos).
+@UseGuards(JwtAuthGuard, RolesGuard)
+@Roles(...ROLES_COMMANDES_VISITES)
 @Controller('visites')
 export class VisitesController {
   constructor(private readonly visites: VisitesService) {}
@@ -112,16 +134,26 @@ export class VisitesController {
   @Get()
   @ApiOperation({
     summary:
-      'Visites paginées — un commercial voit les siennes, les autres rôles (ADV, direction, CS, DR…) voient toutes les visites',
+      'Visites paginées — un commercial voit les siennes, un CS / DR celles de son équipe, les autres rôles toutes ; ?tous=1 lève la restriction (bascule « Mes visites / Toutes »)',
   })
   findAll(
     @Query('page') page: string | undefined,
     @Query('search') search: string | undefined,
+    @Query('tous') tous: string | undefined,
+    @Query() { modifieDepuis }: ModifieDepuisQuery,
     @CurrentUser() me: User,
   ) {
-    const promoteurId = me.role === 'COMMERCIAL' ? me.id : null;
-    const equipe = me.role === 'CHEF_SECTEUR' || me.role === 'DIRECTEUR_REGIONAL' ? auteursDeVisitesVisibles(me) : null;
-    return this.visites.findAll(promoteurId, { page: Number(page) || 1, search, equipe: equipe ?? undefined });
+    // tous=1 : bascule « Mes visites / Toutes » — lève la restriction du promoteur (ses visites) et du chef de secteur /
+    // directeur régional (leur équipe). Sans elle, le comportement est celui de toujours.
+    const lever = tous === '1';
+    const promoteurId = me.role === 'COMMERCIAL' && !lever ? me.id : null;
+    const equipe = !lever && (me.role === 'CHEF_SECTEUR' || me.role === 'DIRECTEUR_REGIONAL') ? auteursDeVisitesVisibles(me) : null;
+    return this.visites.findAll(promoteurId, {
+      page: Number(page) || 1,
+      search,
+      equipe: equipe ?? undefined,
+      modifieDepuis: lireModifieDepuis(modifieDepuis),
+    });
   }
 
   @Post()

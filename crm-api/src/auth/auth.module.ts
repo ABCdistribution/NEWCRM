@@ -6,6 +6,7 @@ import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
 import { LdapService } from './ldap.service';
 import { AdSyncService } from './ad-sync.service';
+import { AnnuairePhotosService } from './annuaire-photos.service';
 import { SyncController } from './sync.controller';
 import { JwtStrategy } from './strategies/jwt.strategy';
 
@@ -22,6 +23,6 @@ import { JwtStrategy } from './strategies/jwt.strategy';
     }),
   ],
   controllers: [AuthController, SyncController],
-  providers: [AuthService, LdapService, AdSyncService, JwtStrategy],
+  providers: [AuthService, LdapService, AdSyncService, AnnuairePhotosService, JwtStrategy],
 })
 export class AuthModule {}

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { lireFichierApp, lireGarde } from '@/test/gardes-pages';
 import { FICHIERS_ROUTES, PAGES } from '@/test/pages-reelles';
-import { ENCADREMENT, TERRAIN, TOUS_ROLES, espaceDe, type Role } from './roles';
+import { ENCADREMENT, ROLES_COMMANDES_VISITES, TERRAIN, TOUS_ROLES, espaceDe, type Role } from './roles';
 import { ROUTES, routesMenu } from './routes';
 
 // Aucun mock : la table, les rôles et les icônes lucide sont les vrais ; seul le disque (src/app) est lu.
@@ -115,7 +115,7 @@ describe('pages réelles sous src/app', () => {
 });
 
 describe('gardes des pages et des layouts (requireRole) face à la table', () => {
-  const connus = { TOUS_ROLES, ENCADREMENT, TERRAIN };
+  const connus = { TOUS_ROLES, ENCADREMENT, TERRAIN, ROLES_COMMANDES_VISITES };
   const pagesDeApp = PAGES.filter((p) => p.groupes[0] === 'app');
 
   /** Rôles de la garde d'un fichier de src/app ; erreur explicite si elle n'est pas lisible. */
@@ -233,6 +233,22 @@ describe('routesMenu', () => {
         expect(route.menu, `${route.href} n'est pas une route de menu`).toBe(true);
         expect(route.roles, `${route.href} est interdite à ${role}`).toContain(role);
       }
+    });
+
+    it("le marketing n'a accès ni aux commandes ni aux visites : ni menu, ni route, ni page", () => {
+      expect(ROLES_COMMANDES_VISITES).not.toContain('MARKETING');
+      for (const role of TOUS_ROLES.filter((r) => r !== 'MARKETING')) expect(ROLES_COMMANDES_VISITES).toContain(role);
+      for (const espace of ['promoteurs', 'direction'] as const) {
+        const hrefs = routesMenu('MARKETING', espace).map((r) => r.href);
+        expect(hrefs).not.toContain('/commandes');
+        expect(hrefs).not.toContain('/visites');
+      }
+      for (const href of ['/commandes', '/visites']) {
+        expect(ROUTES.find((r) => r.href === href)?.roles).not.toContain('MARKETING');
+      }
+      // Les autres écrans du marketing sont inchangés : clients, produits, promos, qualité, news.
+      const hrefs = routesMenu('MARKETING', 'promoteurs').map((r) => r.href);
+      for (const href of ['/', '/news', '/clients', '/produits', '/promos', '/qualite']) expect(hrefs).toContain(href);
     });
 
     it("le filtre par rôle s'applique quel que soit l'espace demandé (jamais une route interdite)", () => {

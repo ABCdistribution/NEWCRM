@@ -48,6 +48,8 @@ describe('RetourSynchro : retour visible de la synchro AD', () => {
     expect(html).toContain('3 créés');
     expect(html).toContain('61 mis à jour');
     expect(html).toContain('60 photos rapatriées');
+    // Les photos reprises de l'annuaire s'ajoutent au compte, sans changer le texte.
+    expect(rendre({ error: null, ok: true, stats: { ...STATS, photosAnnuaire: 51 } })).toContain('111 photos rapatriées');
     expect(html).not.toContain('limite');
     expect(html).not.toContain('sans région');
   });

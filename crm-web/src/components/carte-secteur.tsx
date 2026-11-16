@@ -22,8 +22,8 @@ import type { MagasinGeoPoint, ProspectRow } from '@/lib/api';
  * Le seul signe qui distingue un prospect d'un client dans l'espace promoteurs (marque et accent identiques) est
  * donc la forme du marqueur (taille et pointillé), en plus de la légende des puces.
  */
-const REPLI_MARQUE = '#7a56e6';
-const REPLI_ACCENT = '#b396fb';
+const REPLI_MARQUE = '#7656b8';
+const REPLI_ACCENT = '#a98ae9';
 
 /** Valeur d'un jeton CSS du thème, lue sur un élément de la carte ; `repli` si elle est absente. */
 function jeton(el: HTMLElement, nom: string, repli: string): string {

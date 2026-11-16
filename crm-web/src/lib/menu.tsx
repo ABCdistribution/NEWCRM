@@ -3,7 +3,7 @@ import { routesMenu } from './routes';
 import { espaceDe, type Espace, type Role } from './roles';
 
 /** Entrée de menu sérialisable (l'icône est un élément React, pas une fonction). */
-export type MenuItem = { href: string; label: string; icon: ReactNode };
+export type MenuItem = { href: string; label: string; icon: ReactNode; /** Entrée sur fond jaune (Administration). */ miseEnAvant?: boolean };
 export type MenuSection = { label: string | null; items: MenuItem[] };
 
 /**
@@ -11,15 +11,17 @@ export type MenuSection = { label: string | null; items: MenuItem[] };
  * la table unique `ROUTES` ; seul le découpage en sections est défini ici.
  */
 const SECTIONS: { cle: string; label: (role: Role) => string | null; hrefs: string[] }[] = [
-  { cle: 'general', label: () => null, hrefs: ['/', '/news'] },
+  // « Administration » (ADMIN seul : la table ROUTES ne la propose qu'à lui) se place entre l'accueil et Les News.
+  { cle: 'general', label: () => null, hrefs: ['/', '/admin', '/news'] },
+  // Pilotage en premier, juste après le bloc général (rôles d'encadrement seulement : la table ROUTES filtre).
+  { cle: 'pilotage', label: () => 'Pilotage', hrefs: ['/prospects', '/mon-equipe', '/alertes', '/rapports'] },
   {
     cle: 'terrain',
     label: (role) => (role === 'COMMERCIAL' ? 'Mon terrain' : 'Terrain'),
-    hrefs: ['/planning', '/planning-equipe', '/clients', '/visites', '/commandes'],
+    hrefs: ['/planning', '/planning-equipe', '/visites', '/commandes'],
   },
-  { cle: 'catalogue', label: () => 'Catalogue', hrefs: ['/produits', '/promos', '/qualite'] },
-  { cle: 'pilotage', label: () => 'Pilotage', hrefs: ['/prospects', '/mon-equipe', '/alertes', '/rapports'] },
-  { cle: 'admin', label: () => 'Administration', hrefs: ['/admin'] },
+  // Les clients se rangent dans le catalogue, en tête.
+  { cle: 'catalogue', label: () => 'Catalogue', hrefs: ['/clients', '/produits', '/promos', '/qualite'] },
 ];
 
 /** Libellés propres à un rôle (sinon celui de la table ROUTES). */
@@ -43,6 +45,8 @@ export function construireMenu(role: Role, espace: Espace = espaceDe(role)): Men
       href: r.href,
       label: libelle(r.href, role, r.label),
       icon: createElement(r.icon, { size: 19, 'aria-hidden': true }),
+      // Administration : sur fond jaune pour ressortir dans le menu (ADMIN seul).
+      ...(r.href === '/admin' ? { miseEnAvant: true } : {}),
     };
   };
 

@@ -1,8 +1,9 @@
 import Link from 'next/link';
-import { getDashboardDirection, listCommandes, type CommandesResult, type StatutLivraison } from '@/lib/api';
-import { ENCADREMENT, TOUS_ROLES, requireRole } from '@/lib/roles';
-import { aujourdhuiParis } from '@/lib/planning-dates';
+import { getStatsCommandes, listCommandes, type CommandesResult, type StatutLivraison } from '@/lib/api';
+import { ENCADREMENT, ROLES_COMMANDES_VISITES, requireRole } from '@/lib/roles';
 import { KpiTile } from '@/components/kpi-tile';
+import { MesToggle } from '@/components/mes-toggle';
+import { aUnPerimetre } from '@/lib/clients-liste';
 import { LivraisonBadge, LIVRAISON } from '@/components/livraison-badge';
 import { SearchBar } from '@/components/search-bar';
 import { Pagination } from '@/components/pagination';
@@ -13,6 +14,9 @@ export const metadata = { title: 'Commandes' };
 const EUR = new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR', maximumFractionDigits: 2 });
 const EUR0 = new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 });
 const NB = new Intl.NumberFormat('fr-FR');
+
+/** Filtres de livraison proposés : « En préparation » et « Livrée partielle » n'en sont pas (leurs pastilles restent affichées sur les commandes). */
+const FILTRES_LIVRAISON: readonly StatutLivraison[] = ['EXPEDIEE', 'LIVREE'];
 const DATE_FMT = new Intl.DateTimeFormat('fr-FR', { day: '2-digit', month: 'short', year: 'numeric' });
 
 function StatutBadge({ annulee }: { annulee: boolean }) {
@@ -26,31 +30,44 @@ function StatutBadge({ annulee }: { annulee: boolean }) {
 export default async function CommandesPage({
   searchParams,
 }: {
-  searchParams: Promise<{ search?: string; page?: string; annulees?: string; livraison?: string; origine?: string }>;
+  searchParams: Promise<{ search?: string; page?: string; annulees?: string; livraison?: string; origine?: string; stats?: string; tous?: string }>;
 }) {
-  const acces = await requireRole(TOUS_ROLES);
+  const acces = await requireRole(ROLES_COMMANDES_VISITES);
   if (acces.refuse) return acces.refuse;
   const sp = await searchParams;
   const search = sp.search ?? '';
   const page = Number(sp.page ?? '1') || 1;
   const annulees = sp.annulees === 'true';
-  const livraison = (Object.keys(LIVRAISON) as StatutLivraison[]).includes(sp.livraison as StatutLivraison)
+  const livraison = FILTRES_LIVRAISON.includes(sp.livraison as StatutLivraison)
     ? (sp.livraison as StatutLivraison)
     : undefined;
   const origine = parseOrigine(sp.origine);
+  // Indicateurs : la journée par défaut, le mois sur demande (?stats=mois).
+  const periodeStats: 'jour' | 'mois' = sp.stats === 'mois' ? 'mois' : 'jour';
+  // « Mes commandes » (promoteur, chef de secteur, directeur régional) : coché par défaut ; décoché (?tous=1), toutes.
+  const avecMes = aUnPerimetre(acces.me.role);
+  const mes = avecMes && sp.tous !== '1';
 
   /** URL de la page avec un ou plusieurs filtres modifiés ; tous les autres sont conservés. */
-  const lien = (modif: { annulees?: boolean; livraison?: StatutLivraison | null; origine?: Origine | null }) => {
+  const lien = (modif: {
+    annulees?: boolean;
+    livraison?: StatutLivraison | null;
+    origine?: Origine | null;
+    stats?: 'jour' | 'mois';
+  }) => {
     const f = {
       annulees: modif.annulees ?? annulees,
       livraison: modif.livraison === undefined ? livraison : (modif.livraison ?? undefined),
       origine: modif.origine === undefined ? origine : (modif.origine ?? undefined),
+      stats: modif.stats ?? periodeStats,
     };
     const q = new URLSearchParams();
     if (search) q.set('search', search);
     if (f.annulees) q.set('annulees', 'true');
     if (f.livraison) q.set('livraison', f.livraison);
     if (f.origine) q.set('origine', f.origine);
+    if (f.stats === 'mois') q.set('stats', 'mois');
+    if (avecMes && !mes) q.set('tous', '1');
     const str = q.toString();
     return str ? `/commandes?${str}` : '/commandes';
   };
@@ -60,30 +77,26 @@ export default async function CommandesPage({
   let result: CommandesResult | null = null;
   let error: string | null = null;
   try {
-    result = await listCommandes({ search, page, annulees, livraison, origine });
+    result = await listCommandes({ search, page, annulees, livraison, origine, mes, tous: avecMes && !mes });
   } catch {
     error = "Impossible de charger les commandes. L'API est-elle démarrée ?";
   }
 
-  const mine = result?.scope?.type === 'mine';
 
-  // Bandeau KPI du mois : encadrement uniquement (l'API réserve ce tableau de bord à ces rôles).
+  // Bandeau d'indicateurs : encadrement uniquement (l'API réserve ces chiffres à ces rôles), du jour par défaut.
   const avecKpi = ENCADREMENT.includes(acces.me.role);
-  const now = aujourdhuiParis(); // mois courant à Paris (fuseau de l'API), pas celui du serveur Next
-  const k = avecKpi ? (await getDashboardDirection(now.getFullYear(), now.getMonth() + 1))?.kpis : undefined;
+  const k = avecKpi ? await getStatsCommandes(periodeStats) : null;
+  const quand = periodeStats === 'jour' ? 'du jour' : 'du mois';
+  const ceMoment = periodeStats === 'jour' ? "aujourd'hui" : 'ce mois';
 
   return (
     <div className="flex flex-col gap-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold">{mine ? 'Mes commandes' : 'Commandes'}</h1>
-          <p className="text-sm text-neutral-500">
-            {mine
-              ? `Commandes de mon code représentant (${result!.scope.idRepr}) — remontées de l'ERP Minos.`
-              : "Commandes remontées de l'ERP Minos."}
-          </p>
+          <h1 className="text-2xl font-bold">{mes ? 'Mes commandes' : 'Commandes'}</h1>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          {avecMes ? <MesToggle libelle="Mes commandes" /> : null}
           {/* Filtre annulées */}
           <Link
             href={lien({ annulees: !annulees })}
@@ -100,36 +113,53 @@ export default async function CommandesPage({
       </div>
 
       {avecKpi ? (
-        <section className="grid grid-cols-2 gap-4 lg:grid-cols-4" aria-label="Indicateurs du mois">
-          <KpiTile
-            label="CA du mois"
-            info="Chiffre d'affaires des commandes du mois"
-            value={k ? EUR0.format(k.ca) : '—'}
-            sub="vs N-1"
-            pill={
-              k?.deltaPct == null
-                ? undefined
-                : { text: `${k.deltaPct >= 0 ? '↑' : '↓'} ${Math.abs(k.deltaPct)}%`, tone: k.deltaPct >= 0 ? 'up' : 'down' }
-            }
-          />
-          <KpiTile
-            label="Commandes du mois"
-            info="Nombre de commandes ce mois"
-            value={k ? NB.format(k.commandes) : '—'}
-            sub="ce mois"
-          />
-          <KpiTile
-            label="Panier moyen"
-            info="Montant moyen par commande ce mois"
-            value={k ? EUR0.format(k.panierMoyen) : '—'}
-            sub="ce mois"
-          />
-          <KpiTile
-            label="Clients commandants"
-            info="Clients ayant passé commande ce mois"
-            value={k ? NB.format(k.magasinsCommandants) : '—'}
-            sub={k ? `sur ${NB.format(k.magasinsTotal)} clients` : undefined}
-          />
+        <section aria-label={`Indicateurs ${quand}`} className="flex flex-col gap-3">
+          {/* Période des indicateurs : la journée à l'ouverture, le mois sur demande (?stats=mois) */}
+          <nav aria-label="Période des indicateurs" className="flex items-center gap-1 self-start rounded-xl bg-white p-1 shadow-card">
+            {(['jour', 'mois'] as const).map((p) => (
+              <Link
+                key={p}
+                href={lien({ stats: p })}
+                aria-current={periodeStats === p ? 'true' : undefined}
+                className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand dark:focus-visible:outline-accent ${
+                  periodeStats === p ? 'bg-brand text-white' : 'text-neutral-500 hover:bg-neutral-100 dark:hover:bg-navy-800'
+                }`}
+              >
+                {p === 'jour' ? "Aujourd'hui" : 'Ce mois'}
+              </Link>
+            ))}
+          </nav>
+          <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+            <KpiTile
+              label={`CA ${quand}`}
+              info={`Chiffre d'affaires des commandes ${quand}`}
+              value={k ? EUR0.format(k.ca) : '—'}
+              sub={periodeStats === 'jour' ? 'vs même jour N-1' : 'vs N-1'}
+              pill={
+                k?.deltaPct == null
+                  ? undefined
+                  : { text: `${k.deltaPct >= 0 ? '↑' : '↓'} ${Math.abs(k.deltaPct)}%`, tone: k.deltaPct >= 0 ? 'up' : 'down' }
+              }
+            />
+            <KpiTile
+              label={`Commandes ${quand}`}
+              info={`Nombre de commandes ${ceMoment}`}
+              value={k ? NB.format(k.commandes) : '—'}
+              sub={ceMoment}
+            />
+            <KpiTile
+              label="Panier moyen"
+              info={`Montant moyen par commande ${ceMoment}`}
+              value={k ? EUR0.format(k.panierMoyen) : '—'}
+              sub={ceMoment}
+            />
+            <KpiTile
+              label="Clients commandants"
+              info={`Clients ayant passé commande ${ceMoment}`}
+              value={k ? NB.format(k.clientsCommandants) : '—'}
+              sub={k ? `sur ${NB.format(k.clientsTotal)} clients` : undefined}
+            />
+          </div>
         </section>
       ) : null}
 
@@ -146,7 +176,7 @@ export default async function CommandesPage({
         >
           Toutes
         </Link>
-        {(Object.keys(LIVRAISON) as StatutLivraison[]).map((statut) => (
+        {FILTRES_LIVRAISON.map((statut) => (
           <Link
             key={statut}
             href={avecLivraison(statut)}
@@ -277,7 +307,7 @@ export default async function CommandesPage({
             total={result!.total}
             page={result!.page}
             limit={result!.limit}
-            params={{ search, ...(annulees ? { annulees: 'true' } : {}), ...(livraison ? { livraison } : {}), ...(origine ? { origine } : {}) }}
+            params={{ search, ...(annulees ? { annulees: 'true' } : {}), ...(livraison ? { livraison } : {}), ...(origine ? { origine } : {}), ...(periodeStats === 'mois' ? { stats: 'mois' } : {}), ...(avecMes && !mes ? { tous: '1' } : {}) }}
           />
         </>
       )}

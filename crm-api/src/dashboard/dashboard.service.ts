@@ -1,8 +1,9 @@
 import { Injectable } from '@nestjs/common';
-import { Prisma, Role } from '@crm/database';
+import { Prisma, Role, User } from '@crm/database';
 import { PrismaService } from '../prisma/prisma.service';
 import { PlanningsService } from '../plannings/plannings.service';
 import { idReprVariants } from '../common/id-repr.util';
+import { codesRepresentantsDuPerimetre } from '../common/perimetre-codes.util';
 import { REGIONS_FR, regionFromDept } from '../common/regions-fr.util';
 
 /** Clé canonique d'un code représentant : « 068 » et « 68 » comptent ensemble. */
@@ -767,5 +768,65 @@ export class DashboardService {
       ORDER BY SUM(co."montantTotal") DESC
       LIMIT 5`;
     return rows.map((r) => ({ nom: r.nom?.trim() || '(sans nom)', ca: r.ca, commandes: r.nb }));
+  }
+
+  /**
+   * Indicateurs de la page Commandes : CA, nombre de commandes, panier moyen et clients commandants sur la JOURNÉE
+   * (aujourd'hui) ou sur le MOIS en cours, avec le CA de la même période l'année précédente. Mêmes règles que le
+   * dashboard de pilotage : commandes non annulées, montant total de la commande. Périmètre de l'appelant (codes
+   * représentants de `codesRepresentantsDuPerimetre` : chef de secteur = ses promoteurs, directeur régional = sa
+   * région, siège / direction / admin = tout) ; un périmètre vide donne des zéros.
+   * `maintenant` : date de référence (le jour courant du serveur, dont le fuseau est Europe/Paris en production).
+   */
+  async statsCommandes(me: User, periode: 'jour' | 'mois', maintenant: Date = new Date()) {
+    const y = maintenant.getFullYear();
+    const m = maintenant.getMonth();
+    const j = maintenant.getDate();
+    const debut = periode === 'jour' ? new Date(y, m, j) : new Date(y, m, 1);
+    const fin = periode === 'jour' ? new Date(y, m, j + 1) : new Date(y, m + 1, 1);
+    const debutN1 = periode === 'jour' ? new Date(y - 1, m, j) : new Date(y - 1, m, 1);
+    const finN1 = periode === 'jour' ? new Date(y - 1, m, j + 1) : new Date(y - 1, m + 1, 1);
+
+    const codes = await codesRepresentantsDuPerimetre(this.prisma, me);
+    const vide = { periode, ca: 0, caN1: 0, deltaPct: null as number | null, commandes: 0, panierMoyen: 0, clientsCommandants: 0, clientsTotal: 0 };
+    if (codes !== null && codes.length === 0) return vide;
+    const filtreRepr = codes ? Prisma.sql`AND co."idRepr" IN (${Prisma.join(codes)})` : Prisma.empty;
+
+    const [courant, precedent, clientsTotal] = await Promise.all([
+      this.prisma.$queryRaw<{ ca: number; nb: number; clients: number }[]>`
+        SELECT COALESCE(SUM(co."montantTotal"), 0)::float8 AS ca, COUNT(*)::int AS nb,
+               COUNT(DISTINCT co."clientId")::int AS clients
+        FROM commandes co
+        WHERE co."dateAnnulation" IS NULL
+          AND co."dateCommande" >= ${debut} AND co."dateCommande" < ${fin}
+          ${filtreRepr}`,
+      this.prisma.$queryRaw<{ ca: number }[]>`
+        SELECT COALESCE(SUM(co."montantTotal"), 0)::float8 AS ca
+        FROM commandes co
+        WHERE co."dateAnnulation" IS NULL
+          AND co."dateCommande" >= ${debutN1} AND co."dateCommande" < ${finN1}
+          ${filtreRepr}`,
+      this.prisma.client.count({
+        where: {
+          deletedAt: null,
+          actif: true,
+          ...(codes ? { OR: [{ idCommercial1: { in: codes } }, { idCommercial2: { in: codes } }] } : {}),
+        },
+      }),
+    ]);
+
+    const ca = courant[0]?.ca ?? 0;
+    const nb = courant[0]?.nb ?? 0;
+    const caN1 = precedent[0]?.ca ?? 0;
+    return {
+      periode,
+      ca,
+      caN1,
+      deltaPct: caN1 > 0 ? Math.round(((ca - caN1) / caN1) * 100) : null,
+      commandes: nb,
+      panierMoyen: nb > 0 ? ca / nb : 0,
+      clientsCommandants: courant[0]?.clients ?? 0,
+      clientsTotal,
+    };
   }
 }
