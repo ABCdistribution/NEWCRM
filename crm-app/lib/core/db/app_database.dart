@@ -226,6 +226,11 @@ class AppDatabase extends _$AppDatabase {
         ),
       );
 
+  /// Supprime une ligne d'un domaine.
+  Future<void> supprimerEnregistrement(String domaine, String id) => (delete(
+    enregistrementsLocaux,
+  )..where((t) => t.domaine.equals(domaine) & t.id.equals(id))).go();
+
   /// Lignes JSON d'un domaine.
   Future<List<String>> enregistrements(String domaine) async {
     final lignes = await (select(

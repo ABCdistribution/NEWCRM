@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/data/data.dart';
 import '../../../core/state/state.dart';
+import '../logic/attente_crm.dart';
 import 'commande_en_cours.dart';
 
 /// Commande en cours de saisie (maquette : `S.cmd`). Nulle tant qu'aucune commande n'est démarrée ;
@@ -37,6 +38,32 @@ class CommandeEnCoursNotifier extends Notifier<CommandeEnCours?> {
       deAttente: rang,
     );
   }
+
+  /// Rouvre une commande en attente du CRM : client, lignes, remarque et consigne de livraison reprises.
+  void reprendreCrm(CommandeAttenteCrm a) {
+    final motif = a.motifNePasLivrerAvant ?? '';
+    final connu = motifsConsigneConnus.contains(motif);
+    state = CommandeEnCours(
+      magasinId: a.clientId,
+      lignes: [
+        for (final l in a.lignes) LigneCommande(l.articleId, l.quantite),
+      ],
+      note: a.commentaire,
+      pas: a.nePasLivrerAvant != null,
+      dateMin: a.nePasLivrerAvant ?? '',
+      motifPas: motif.isEmpty ? '' : (connu ? motif : 'Autre'),
+      motifAutre: motif.isNotEmpty && !connu ? motif : '',
+      crm: a,
+      idApk: a.idApk,
+    );
+  }
+
+  /// La commande en cours est maintenant enregistrée dans le CRM sous cette forme (après un envoi réussi).
+  void lierCrm(CommandeAttenteCrm a) =>
+      _maj((c) => c.copyWith(crm: a, idApk: a.idApk));
+
+  /// Fixe l'identifiant mobile de la commande à sa première tentative d'envoi.
+  void fixerIdApk(String id) => _maj((c) => c.copyWith(idApk: id));
 
   /// Termine la commande (validée ou mise en attente) : `S.cmd = null`.
   void terminer() => state = null;

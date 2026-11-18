@@ -26,6 +26,8 @@ class CrmApp extends ConsumerWidget {
     // Démarre le chargement du catalogue réel dès qu'un utilisateur est connecté ; tant qu'aucune donnée n'est
     // téléchargée (premier lancement), l'écran de chargement remplace l'application.
     final jeux = ref.watch(jeuxDeDonneesProvider).map((e) => e.$2);
+    // Commandes en attente : téléchargées en arrière-plan, sans retenir l'ouverture de l'application.
+    ref.watch(commandesAttenteSynchroProvider);
     final continuerSansDonnees = ref.watch(continuerSansDonneesProvider);
     // Juste après une connexion, on attend la fin des téléchargements même avec une copie locale ; ensuite
     // l'attente est levée (elle ne revient qu'à la prochaine connexion).

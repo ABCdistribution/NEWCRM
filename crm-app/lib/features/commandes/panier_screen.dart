@@ -3,14 +3,18 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/data/data.dart';
 import '../../core/logic/logic.dart';
+import '../../core/models/models.dart';
 import '../../core/nav/nav.dart';
 import '../../core/state/state.dart';
+import '../../core/sync/domaines_provider.dart';
 import '../../core/theme/theme.dart';
 import '../../core/ui/ui.dart';
 import 'commande_actions.dart';
+import 'envoi_mail_sheet.dart';
 import 'logic/regles_commande.dart';
 import 'state/commande_en_cours.dart';
 import 'state/commande_provider.dart';
+import 'state/sous_onglet_commandes.dart';
 import 'widgets/stock_widgets.dart';
 
 /// Panier de la commande en cours (écran empilé `cmd-panier`). Maquette : cmdPanier l.1624-1642.
@@ -42,6 +46,7 @@ class _PanierScreenState extends ConsumerState<PanierScreen> {
         : ref.watch(magasinParIdProvider(cmd.magasinId!));
     final notifier = ref.read(commandeEnCoursProvider.notifier);
     final n = cmd.lignes.length;
+    final crmActif = ref.watch(attenteCrmActiveProvider);
     final livraison = cmd.pas && cmd.dateMin.isNotEmpty
         ? 'à partir du ${dateFr(cmd.dateMin)}'
         : DemoTemps.livraisonPrevue;
@@ -125,12 +130,15 @@ class _PanierScreenState extends ConsumerState<PanierScreen> {
           hint: 'Ex. prévenir le chef de rayon',
           lignes: 3,
         ),
+        if (crmActif) _BlocCrm(cmd: cmd),
       ],
       bas: BarreBasse(
         blanc: true,
         enfants: [
           AppBouton(
-            '⏸ Mettre en attente',
+            cmd.crm == null
+                ? '⏸ Mettre en attente'
+                : '⏸ Enregistrer en attente',
             variante: VarianteBouton.tonal,
             onPressed: () => mettreEnAttente(context, ref),
           ),
@@ -138,6 +146,87 @@ class _PanierScreenState extends ConsumerState<PanierScreen> {
             '✓ Valider',
             variante: VarianteBouton.plein,
             onPressed: () => validerCommande(context, ref),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Promoteur connecté : envoi de la commande par mail au client (pastille « Envoyée à … » une fois fait) et, pour une
+/// commande déjà enregistrée dans le CRM, suppression.
+class _BlocCrm extends ConsumerWidget {
+  const _BlocCrm({required this.cmd});
+
+  final CommandeEnCours cmd;
+
+  Future<void> _supprimer(BuildContext context, WidgetRef ref) async {
+    final id = cmd.crm?.id;
+    if (id == null) return;
+    final ok = await showConfirmation(
+      context,
+      titre: 'Supprimer cette commande ?',
+      texte: 'La commande en attente sera supprimée du CRM.',
+      ok: 'Supprimer',
+    );
+    if (ok != true || !context.mounted) return;
+    final c = ProviderScope.containerOf(context);
+    final role = c.read(roleActifProvider);
+    final erreur = await supprimerCommandeEnAttente(c, id);
+    if (!context.mounted) return;
+    if (erreur != null) {
+      AppToast.show(context, erreur);
+      return;
+    }
+    c.read(commandeEnCoursProvider.notifier).terminer();
+    c
+        .read(sousOngletCommandesProvider.notifier)
+        .choisir(SousOngletCommandes.attente);
+    AppToast.show(context, 'Commande en attente supprimée.');
+    if (role == Role.promoteur) {
+      AppRoutes.allerOnglet(context, OngletApp.commandes);
+    } else {
+      AppRoutes.retourRacine(context);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final envoyee = cmd.crm?.emailEnvoyeLe != null;
+    return AppCarte(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (envoyee)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 4),
+              child: Wrap(
+                children: [
+                  Pastille(
+                    '✉ Envoyée à ${cmd.crm?.emailValidation ?? 'le client'}',
+                    variante: VariantePastille.bleu,
+                  ),
+                ],
+              ),
+            ),
+          Rangee(
+            children: [
+              AppBouton(
+                '✉ Envoyer par mail',
+                petit: true,
+                variante: VarianteBouton.clair,
+                onPressed: cmd.lignes.isEmpty
+                    ? null
+                    : () => ouvrirEnvoiMail(context),
+              ),
+              if (cmd.crm != null)
+                AppBouton(
+                  'Supprimer',
+                  petit: true,
+                  variante: VarianteBouton.danger,
+                  onPressed: () => _supprimer(context, ref),
+                ),
+            ],
           ),
         ],
       ),

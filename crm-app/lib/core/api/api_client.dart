@@ -12,6 +12,13 @@ abstract interface class ApiLecture {
   Future<Object?> get(String chemin, {Map<String, String>? query});
 }
 
+/// Écriture authentifiée (abstraction : faux en test). Réservée aux commandes en attente.
+abstract interface class ApiEcriture {
+  /// `POST`, `PATCH` ou `DELETE` de `chemin` avec `corps` (JSON) : renvoie le JSON décodé de la réponse (null si elle
+  /// est vide). Lève [ErreurApi], dont le message est celui de l'API quand elle en donne un.
+  Future<Object?> envoyer(String methode, String chemin, {Object? corps});
+}
+
 /// Téléchargement authentifié d'un fichier (photo de profil).
 abstract interface class ApiOctets {
   /// `GET {chemin}` : octets de la réponse, ou null si le fichier n'existe pas (404). Lève [ErreurApi].
@@ -19,7 +26,7 @@ abstract interface class ApiOctets {
 }
 
 /// Client HTTP de l'API du CRM : jeton en `Authorization: Bearer`, sans dépendance externe.
-class ApiClient implements ApiLecture, ApiOctets {
+class ApiClient implements ApiLecture, ApiOctets, ApiEcriture {
   ApiClient({required this._jeton, String? urlBase, HttpClient? client})
     : _urlBase = urlBase ?? ConfigApi.url,
       _client =
@@ -68,6 +75,52 @@ class ApiClient implements ApiLecture, ApiOctets {
       return tampon.takeBytes();
     } on ErreurApi {
       rethrow;
+    } on TimeoutException {
+      throw const ErreurApi(TypeErreurApi.reseau);
+    } on SocketException {
+      throw const ErreurApi(TypeErreurApi.reseau);
+    } on HttpException {
+      throw const ErreurApi(TypeErreurApi.reseau);
+    } on HandshakeException {
+      throw const ErreurApi(TypeErreurApi.reseau);
+    }
+  }
+
+  @override
+  Future<Object?> envoyer(
+    String methode,
+    String chemin, {
+    Object? corps,
+  }) async {
+    final jeton = await _jeton();
+    if (jeton == null || jeton.isEmpty) {
+      throw const ErreurApi(TypeErreurApi.sessionExpiree);
+    }
+    try {
+      final requete = await _client.openUrl(
+        methode,
+        Uri.parse('$_urlBase$chemin'),
+      );
+      requete.headers.set(HttpHeaders.authorizationHeader, 'Bearer $jeton');
+      requete.headers.set(HttpHeaders.acceptHeader, 'application/json');
+      if (corps != null) {
+        requete.headers.contentType = ContentType.json;
+        requete.add(utf8.encode(jsonEncode(corps)));
+      }
+      final reponse = await requete.close().timeout(delaiReponse);
+      final texte = await reponse
+          .transform(utf8.decoder)
+          .join()
+          .timeout(delaiReponse);
+      final statut = reponse.statusCode;
+      if (statut >= 200 && statut < 300) {
+        return texte.trim().isEmpty ? null : jsonDecode(texte);
+      }
+      throw ErreurApi.depuisReponse(statut, texte);
+    } on ErreurApi {
+      rethrow;
+    } on FormatException {
+      throw const ErreurApi(TypeErreurApi.inattendue);
     } on TimeoutException {
       throw const ErreurApi(TypeErreurApi.reseau);
     } on SocketException {
