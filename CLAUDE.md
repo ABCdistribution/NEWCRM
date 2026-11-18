@@ -39,7 +39,7 @@ Le front n'est **pas** dans le workspace pnpm (`pnpm-workspace.yaml` = `crm-api`
 - Ne jamais lancer d'import ou de seed contre la production.
 
 ## Règles de travail
-- Branche dédiée, commits petits ; pas de déploiement ni d'action sur la production sans accord explicite.
-- **Fin de tâche** : quand une tâche est terminée ET validée (typage, build, tests disponibles, relecture par `audit-architecture` si elle touche permissions, auth ou migrations), l'orchestrateur appelle l'agent `git-manager` avec la liste des fichiers de la tâche. Il vérifie, commite et pousse sur la branche distante `dev` uniquement (jamais `main`, jamais de `--force`), puis il rend un résumé. Il ne déploie jamais ; le déploiement reste soumis à l'accord de l'utilisateur.
+- Branche dédiée, commits petits ; pas de déploiement ni d'action sur la production sans accord explicite (la demande de fusion dans `main` vaut cet accord).
+- **Fin de tâche** : quand une tâche est terminée ET validée (typage, build, tests disponibles, relecture par `audit-architecture` si elle touche permissions, auth ou migrations), l'orchestrateur appelle l'agent `git-manager` avec la liste des fichiers de la tâche. Il vérifie, commite et pousse sur la branche distante `dev` (jamais de `--force`), puis il rend un résumé. **Fusion dans `main`** : un push sur `main` déploie (workflow GitHub + cron du serveur). L'agent `git-manager` ne fusionne `dev` dans `main` que sur demande explicite de l'utilisateur dans le message en cours (jamais en fin de tâche de lui-même), en annonçant avant ce qui sera déployé ; il ne se connecte jamais au serveur.
 - Une tâche n'est validée que si typage + build + tests pertinents ont été exécutés ; sinon le signaler.
 - Backlog et décisions en attente : `docs/BACKLOG.md`.
