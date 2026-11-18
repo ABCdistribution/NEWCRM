@@ -68,11 +68,11 @@ export function AdminOrganisationOnglet({ data }: { data: AdminOrganisation }) {
           Aucune région configurée.
         </p>
       ) : (
-        data.regions.map((r) => (
-          <section key={r.id} className="rounded-2xl bg-white shadow-card">
-            <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1 border-b border-neutral-100 px-5 py-3">
+        <div className="columns-1 gap-4 md:columns-2 2xl:columns-3">
+          {data.regions.map((r) => (
+            <section key={r.id} className="mb-4 break-inside-avoid rounded-2xl bg-white p-4 shadow-card">
               <h2 className="text-sm font-semibold">{r.nom}</h2>
-              <span className="text-xs text-neutral-400">
+              <p className="mt-0.5 text-xs text-neutral-500">
                 Directeur régional :{' '}
                 {r.directeurs.length === 0 ? (
                   <span className="text-amber-600">aucun</span>
@@ -84,45 +84,47 @@ export function AdminOrganisationOnglet({ data }: { data: AdminOrganisation }) {
                     </span>
                   ))
                 )}
-              </span>
-            </div>
-            <div className="grid grid-cols-1 gap-3 p-4 lg:grid-cols-2 xl:grid-cols-3">
-              {r.secteurs.length === 0 ? (
-                <p className="text-sm text-neutral-400">Aucun secteur.</p>
-              ) : (
-                r.secteurs.map((s) => (
-                  <div key={s.id} className="rounded-xl border border-neutral-100 p-3">
-                    <p className="text-sm font-semibold">
-                      <span className="mr-1.5 rounded-md bg-neutral-100 px-1.5 py-0.5 font-mono text-xs">{s.code}</span>
-                      {s.nom}
-                    </p>
-                    <p className="mt-1 text-xs text-neutral-500">
-                      Chef de secteur :{' '}
-                      {s.manager ? (
-                        <Nom nom={s.manager.displayName} actif={s.manager.isActive} />
-                      ) : (
-                        <span className="text-amber-600">non défini</span>
-                      )}
-                    </p>
-                    <p className="mt-2 text-xs font-medium text-neutral-400">
-                      {s.promoteurs.length} promoteur{s.promoteurs.length > 1 ? 's' : ''}
-                    </p>
-                    {s.promoteurs.length > 0 ? (
-                      <ul className="mt-1 text-sm text-neutral-700">
-                        {s.promoteurs.map((p) => (
-                          <li key={p.id} className="flex items-center justify-between gap-2 py-0.5">
-                            <Nom nom={p.displayName} actif={p.isActive} />
-                            <span className="font-mono text-xs text-neutral-400">{p.idRepr ?? '—'}</span>
-                          </li>
-                        ))}
-                      </ul>
-                    ) : null}
-                  </div>
-                ))
-              )}
-            </div>
-          </section>
-        ))
+              </p>
+              <div className="mt-3 flex flex-col gap-2">
+                {r.secteurs.length === 0 ? (
+                  <p className="text-sm text-neutral-400">Aucun secteur.</p>
+                ) : (
+                  r.secteurs.map((s) => (
+                    <div key={s.id} className="rounded-xl border border-neutral-100 p-3">
+                      <div className="flex flex-wrap items-baseline justify-between gap-x-2">
+                        <p className="text-sm font-semibold">
+                          <span className="mr-1.5 rounded-md bg-neutral-100 px-1.5 py-0.5 font-mono text-xs">{s.code}</span>
+                          {s.nom}
+                        </p>
+                        <span className="text-xs text-neutral-400">
+                          {s.promoteurs.length} promoteur{s.promoteurs.length > 1 ? 's' : ''}
+                        </span>
+                      </div>
+                      <p className="mt-1 text-xs text-neutral-500">
+                        Chef de secteur :{' '}
+                        {s.manager ? (
+                          <Nom nom={s.manager.displayName} actif={s.manager.isActive} />
+                        ) : (
+                          <span className="text-amber-600">non défini</span>
+                        )}
+                      </p>
+                      {s.promoteurs.length > 0 ? (
+                        <ul className="mt-2 text-sm text-neutral-700">
+                          {s.promoteurs.map((p) => (
+                            <li key={p.id} className="flex items-center justify-between gap-2 py-0.5">
+                              <Nom nom={p.displayName} actif={p.isActive} />
+                              <span className="font-mono text-xs text-neutral-400">{p.idRepr ?? '—'}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      ) : null}
+                    </div>
+                  ))
+                )}
+              </div>
+            </section>
+          ))}
+        </div>
       )}
 
       {data.secteursSansRegion.length > 0 ? (

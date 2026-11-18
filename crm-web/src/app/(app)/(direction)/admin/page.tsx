@@ -6,6 +6,7 @@ import { AdminApercuOnglet } from '@/components/admin/apercu';
 import { AdminUtilisateursOnglet } from '@/components/admin/utilisateurs';
 import { AdminOrganisationOnglet } from '@/components/admin/organisation';
 import { AdminSynchrosOnglet } from '@/components/admin/synchros';
+import { AdminVisitesOnglet } from '@/components/admin/visites';
 import { AdminContenusOnglet } from '@/components/admin/contenus';
 import { AdminBientotOnglet } from '@/components/admin/bientot';
 
@@ -55,6 +56,9 @@ export default async function AdminPage({
     case 'synchros':
       contenu = await AdminSynchrosOnglet();
       break;
+    case 'visites':
+      contenu = await AdminVisitesOnglet();
+      break;
     case 'contenus':
       contenu = <AdminContenusOnglet />;
       break;
@@ -76,7 +80,7 @@ export default async function AdminPage({
           Accès administrateur
         </span>
       </header>
-      <div className="grid grid-cols-1 gap-5 lg:grid-cols-[230px_minmax(0,1fr)]">
+      <div className="flex flex-col gap-5">
         <AdminOnglets actif={onglet} />
         <div className="min-w-0">{contenu}</div>
       </div>

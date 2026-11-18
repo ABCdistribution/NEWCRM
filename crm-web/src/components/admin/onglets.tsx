@@ -5,6 +5,7 @@ import {
   Network,
   RefreshCw,
   Smartphone,
+  ClipboardList,
   Library,
   SlidersHorizontal,
   ScrollText,
@@ -16,31 +17,29 @@ export const ONGLETS: readonly { id: string; label: string; icone: LucideIcon; b
   { id: 'utilisateurs', label: 'Utilisateurs', icone: Users },
   { id: 'organisation', label: 'Organisation', icone: Network },
   { id: 'synchros', label: 'Synchronisations', icone: RefreshCw },
+  { id: 'visites', label: 'Visites', icone: ClipboardList },
   { id: 'mobile', label: 'Mobile', icone: Smartphone, bientot: true },
   { id: 'contenus', label: 'Contenus', icone: Library },
   { id: 'configuration', label: 'Configuration', icone: SlidersHorizontal, bientot: true },
   { id: 'journal', label: "Journal d'audit", icone: ScrollText, bientot: true },
 ];
 
-export type OngletId = 'apercu' | 'utilisateurs' | 'organisation' | 'synchros' | 'mobile' | 'contenus' | 'configuration' | 'journal';
+export type OngletId = 'apercu' | 'utilisateurs' | 'organisation' | 'synchros' | 'visites' | 'mobile' | 'contenus' | 'configuration' | 'journal';
 
 export function ongletValide(valeur: string | undefined): OngletId {
   return (ONGLETS.find((o) => o.id === valeur)?.id ?? 'apercu') as OngletId;
 }
 
 /**
- * Navigation de la console d'administration : colonne verticale à gauche sur grand écran,
- * bandeau défilant en haut sur mobile. L'onglet actif est porté par `?onglet=` (lien partageable).
+ * Navigation de la console d'administration : bandeau horizontal en haut, qui passe à la ligne plutôt que de défiler : toutes les rubriques restent visibles, pour laisser toute la
+ * largeur au contenu. L'onglet actif est porté par `?onglet=` (lien partageable).
  */
 export function AdminOnglets({ actif }: { actif: OngletId }) {
   return (
     <nav
       aria-label="Sections de l'administration"
-      className="flex gap-1 overflow-x-auto rounded-2xl bg-white p-2 shadow-card lg:flex-col lg:overflow-visible lg:self-start"
+      className="flex flex-wrap gap-1 rounded-2xl bg-white p-2 shadow-card"
     >
-      <p className="hidden px-3 pb-1 pt-2 text-[11px] font-semibold uppercase tracking-wider text-neutral-400 lg:block">
-        Console
-      </p>
       {ONGLETS.map((o) => {
         const courant = o.id === actif;
         const Icone = o.icone;
@@ -49,7 +48,7 @@ export function AdminOnglets({ actif }: { actif: OngletId }) {
             key={o.id}
             href={`/admin?onglet=${o.id}`}
             aria-current={courant ? 'page' : undefined}
-            className={`flex shrink-0 items-center gap-2.5 rounded-lg border-l-[3px] px-3 py-2 text-sm font-medium transition ${
+            className={`flex items-center gap-2 rounded-lg border-b-[3px] px-3 py-2 text-sm font-medium transition ${
               courant
                 ? 'border-brand bg-brand/10 text-navy'
                 : 'border-transparent text-neutral-600 hover:bg-neutral-50 hover:text-neutral-900'
