@@ -172,7 +172,10 @@ class _CarteTournee extends StatelessWidget {
                         ),
                         const SizedBox(height: 3),
                         Text(
-                          '${ligne.visite.heure} · ${ligne.visite.type}',
+                          [
+                            if (ligne.visite.heure.isNotEmpty) ligne.visite.heure,
+                            ligne.visite.type,
+                          ].join(' · '),
                           style: AppText.sousCarte,
                         ),
                       ],

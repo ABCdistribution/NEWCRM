@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/models/models.dart';
 import '../../core/nav/nav.dart';
 import '../../core/state/state.dart';
+import '../../core/sync/referentiels_visite_provider.dart';
 import '../../core/ui/ui.dart';
 import 'kilometrage_dialog.dart';
 import 'logic/visites_logique.dart';
@@ -30,14 +31,19 @@ class ValiderVisiteDialog extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final visite = ref.watch(visiteParIdProvider(visiteId));
     if (visite == null) return const SizedBox.shrink();
-    final manque = manquants(visite);
+    final manque = manquants(
+      visite,
+      questions: ref.watch(questionnaireProvider).value ?? const [],
+      raisonsDisponibles:
+          (ref.watch(raisonsAbsenceProvider).value ?? const []).isNotEmpty,
+    );
     final ok = manque.isEmpty;
     return DialogueBase(
       titre: ok ? 'Valider la visite ?' : 'Visite incomplète',
       children: [
         if (ok)
           const TexteDialogue(
-            "La visite DPH est complète (7 étapes horodatées). Une fois validée, elle part dès que le réseau le permet et n'est plus modifiable.",
+            "La visite est complète. Une fois validée, elle part dès que le réseau le permet et n'est plus modifiable.",
           )
         else ...[
           const TexteDialogue('Il reste à faire :'),

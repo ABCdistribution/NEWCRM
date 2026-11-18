@@ -18,9 +18,11 @@ class CrmNotifier extends Notifier<CrmEtat> {
     // Reconstruit l'état quand les clients réels sont (re)chargés ; les phases de progression ne comptent pas.
     ref.watch(clientsProvider.select((e) => (e.nb, e.majLe)));
     ref.watch(commandesProvider.select((e) => (e.nb, e.majLe)));
+    ref.watch(visitesSynchroProvider.select((e) => (e.nb, e.majLe)));
     ref.watch(prospectsSynchroProvider.select((e) => (e.nb, e.majLe)));
     ref.watch(equipeProvider.select((e) => (e.nb, e.majLe)));
     ref.watch(performanceProvider.select((e) => (e.nb, e.majLe)));
+    ref.watch(planningSynchroProvider.select((e) => (e.nb, e.majLe)));
     return CrmEtat.initial(ref.watch(roleActifProvider));
   }
 
@@ -117,7 +119,6 @@ class CrmNotifier extends Notifier<CrmEtat> {
       photos: const {
         EtapeDph.arrivee: 0,
         EtapeDph.rayonArrivee: 0,
-        EtapeDph.face: 0,
         EtapeDph.rayonFin: 0,
       },
     );

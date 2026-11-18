@@ -2,6 +2,7 @@ import 'package:crm_app/core/models/models.dart';
 import 'package:crm_app/core/nav/nav.dart';
 import 'package:crm_app/core/state/state.dart';
 import 'package:crm_app/core/ui/ui.dart';
+import 'package:crm_app/features/visites/state/actions_visite.dart';
 import 'package:crm_app/features/visites/state/kilometrage.dart';
 import 'package:crm_app/features/visites/visite_screen.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -12,10 +13,8 @@ import 'aide_visites.dart';
 Visite visite(WidgetTester tester, String id) =>
     storeApp(tester).visites.firstWhere((v) => v.id == id);
 
-Future<void> ouvrirValidation(WidgetTester tester) async {
-  await tester.tap(find.text('✓ Terminer la visite'));
-  await tester.pumpAndSettle();
-}
+/// Parcourt les étapes avec « Suivant » puis touche « ✓ Terminer la visite » (la visite doit être complète).
+Future<void> ouvrirValidation(WidgetTester tester) => terminerLeParcours(tester);
 
 void main() {
   group('Valider la visite (svalider l.1397-1400, v-valider-ok l.1562-1567)', () {
@@ -25,34 +24,34 @@ void main() {
       final id = await demarrerVisiteChez(tester, Role.promoteur, 'm1');
       await tester.tap(find.text('Plus tard'));
       await tester.pumpAndSettle();
-      conteneurApp(tester)
-          .read(crmProvider.notifier)
-          .majVisite(
-            id,
-            (v) => v.copyWith(
-              chrono: {
-                ...v.chrono,
-                EtapeDph.arrivee: 'x',
-                EtapeDph.rayonArrivee: 'x',
-                EtapeDph.dn: 'x',
-                EtapeDph.concurrence: 'x',
-                EtapeDph.promos: 'x',
-                EtapeDph.face: 'x',
-                EtapeDph.rayonFin: 'x',
-              },
-              pem: const VisitePem(realisee: false),
-            ),
-          );
+      AppRoutes.validerVisite(contexteCoquille(tester), id);
       await tester.pumpAndSettle();
-      await ouvrirValidation(tester);
       expect(find.text('Visite incomplète'), findsOneWidget);
-      // il manque le bilan, et la raison de l'absence de visite PEM
-      expect(find.byType(MessageErreur), findsNWidgets(2));
-      expect(find.text('Bilan de visite'), findsWidgets);
+      expect(find.text('Il reste à faire :'), findsOneWidget);
+      // sans photo d'arrivée, sans photo du rayon, sans réponse sur la commande à mettre en rayon
+      expect(find.byType(MessageErreur), findsNWidgets(3));
+      expect(find.text("Prenez la photo d'arrivée sur site."), findsOneWidget);
+      expect(find.text('Prenez la photo du rayon.'), findsOneWidget);
       expect(
-        find.text('Visite PEM (réalisée, ou raison de son absence)'),
+        find.text("Indiquez s'il y a une commande à mettre en rayon."),
         findsOneWidget,
       );
+      expect(find.text('Valider'), findsNothing);
+
+      // la liste suit la visite : une fois tout renseigné, le dialogue propose de valider
+      final actions = ActionsVisite(
+        conteneurApp(tester).read(crmProvider.notifier),
+        id,
+      );
+      actions.ajouterPhoto(EtapeDph.arrivee);
+      await tester.pumpAndSettle();
+      expect(find.byType(MessageErreur), findsNWidgets(2));
+      actions.ajouterPhoto(EtapeDph.rayonArrivee);
+      actions.definirCommandeEnRayon(oui: false);
+      await tester.pumpAndSettle();
+      expect(find.byType(MessageErreur), findsNothing);
+      expect(find.text('Valider la visite ?'), findsOneWidget);
+      expect(find.text('Valider'), findsOneWidget);
       expect(visite(tester, id).etat, EtatVisite.brouillon);
     });
 
@@ -68,7 +67,7 @@ void main() {
         expect(find.text('Valider la visite ?'), findsOneWidget);
         expect(
           find.text(
-            "La visite DPH est complète (7 étapes horodatées). Une fois validée, elle part dès que le réseau le permet et n'est plus modifiable.",
+            "La visite est complète. Une fois validée, elle part dès que le réseau le permet et n'est plus modifiable.",
           ),
           findsOneWidget,
         );

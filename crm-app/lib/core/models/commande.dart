@@ -36,6 +36,8 @@ class Commande {
     this.transporteur,
     this.suivi,
     this.par,
+    this.auteurId,
+    this.auteurNom,
     this.pasAvant,
     this.motifPas,
     this.note,
@@ -67,6 +69,10 @@ class Commande {
 
   /// Auteur si la commande a été saisie dans l'appli (sinon voir `parMagasin`).
   final String? par;
+
+  /// Promoteur à qui le CRM rattache la commande (par son code représentant), pour l'activité par promoteur.
+  final String? auteurId;
+  final String? auteurNom;
 
   /// Consigne « Ne pas livrer avant » : date ISO `aaaa-mm-jj` et motif.
   final String? pasAvant;

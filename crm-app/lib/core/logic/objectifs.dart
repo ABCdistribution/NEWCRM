@@ -2,6 +2,7 @@
 library;
 
 import '../models/models.dart';
+import 'dates.dart';
 
 /// Niveau d'atteinte d'un objectif : vert ≥ 90 %, orange ≥ 70 %, rouge en dessous (`couleurObj`).
 enum NiveauObjectif { bon, moyen, faible }
@@ -57,23 +58,23 @@ ObjectifMagasin objectifMagasin(Magasin m) {
   final n = m.id.runes.fold<int>(0, (a, c) => a + c);
   final obj = 3000 + (n % 9) * 450;
   final ca = ((obj * (0.55 + (n % 7) * 0.08) / 10).round()) * 10;
-  const toutes = [
+  final toutes = [
     OperationPromo(
       'Remise -20 % gamme soin',
-      '2 nov.',
-      '15 nov.',
+      DemoTemps.jourRelatif(-2),
+      DemoTemps.jourRelatif(11),
       EtatOp.enCours,
     ),
     OperationPromo(
       'Tête de gondole PEM Noël',
-      '16 nov.',
-      '6 déc.',
+      DemoTemps.jourRelatif(12),
+      DemoTemps.jourRelatif(32),
       EtatOp.aVenir,
     ),
     OperationPromo(
       '2 achetés = 1 offert maquillage',
-      '1 oct.',
-      '31 oct.',
+      DemoTemps.jourRelatif(-34),
+      DemoTemps.jourRelatif(-4),
       EtatOp.terminee,
     ),
   ];

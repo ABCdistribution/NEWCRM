@@ -44,7 +44,10 @@ class MesRapportsScreen extends ConsumerWidget {
           ),
         TitreLigne(
           'Rapports précédents',
-          droite: Text('2026', style: AppText.t(13, c: AppColors.muted)),
+          droite: Text(
+            '${DemoTemps.aujourdhui.year}',
+            style: AppText.t(13, c: AppColors.muted),
+          ),
         ),
         for (final r in precedents)
           _CarteRapport(
@@ -159,8 +162,14 @@ class _CarteRapport extends StatelessWidget {
               ),
               const SizedBox(width: 8),
               Pastille(
-                r.auto ? 'Validé auto' : 'Validé',
-                variante: r.auto
+                !r.valide
+                    ? 'Non validé'
+                    : r.auto
+                    ? 'Validé auto'
+                    : 'Validé',
+                variante: !r.valide
+                    ? VariantePastille.jaune
+                    : r.auto
                     ? VariantePastille.gris
                     : VariantePastille.vert,
               ),
@@ -172,10 +181,11 @@ class _CarteRapport extends StatelessWidget {
             Chiffre('${r.rdv}', 'RDV obtenus'),
           ]),
           Pied(r.pied),
-          Pied(
-            'Écarts avec la prévision : ${resumeEcarts(r.ecarts.map((e) => e.genre))}',
-            style: AppText.t(11.5, w: FontWeight.w700, c: u.violet),
-          ),
+          if (r.ecartsConnus)
+            Pied(
+              'Écarts avec la prévision : ${resumeEcarts(r.ecarts.map((e) => e.genre))}',
+              style: AppText.t(11.5, w: FontWeight.w700, c: u.violet),
+            ),
         ],
       ),
     );

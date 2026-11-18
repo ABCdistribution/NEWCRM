@@ -240,7 +240,7 @@ void main() {
       );
       visites.completerVisite(tester, id);
       await tester.pumpAndSettle();
-      await visites.toucher(tester, find.text('✓ Terminer la visite'));
+      await visites.terminerLeParcours(tester);
       expect(find.text('Valider la visite ?'), findsOneWidget);
       await tester.tap(find.widgetWithText(AppBouton, 'Valider'));
       await tester.pumpAndSettle();

@@ -213,10 +213,14 @@ void main() {
     );
 
     test('clé de tri des dates (cleDate)', () {
-      expect(cleDate('4 nov. 09:00'), 104090);
-      expect(cleDate('3 nov.'), 103000);
-      expect(cleDate('30 oct. 13:00'), 30130);
-      expect(cleDate('29 oct.'), 29000);
+      // le mois compte à partir du mois courant de la démo (novembre) en remontant, puis le jour, puis l'heure
+      expect(cleDate('4 nov. 09:00'), 1204090);
+      expect(cleDate('3 nov.'), 1203000);
+      expect(cleDate('30 oct. 13:00'), 1130130);
+      expect(cleDate('29 oct.'), 1129000);
+      expect(cleDate('4 nov. 09:00'), greaterThan(cleDate('3 nov.')));
+      expect(cleDate('3 nov.'), greaterThan(cleDate('30 oct. 13:00')));
+      expect(cleDate('30 oct. 13:00'), greaterThan(cleDate('29 oct.')));
     });
 
     test(

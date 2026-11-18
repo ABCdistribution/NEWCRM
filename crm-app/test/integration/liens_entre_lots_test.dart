@@ -9,6 +9,7 @@ import 'package:crm_app/features/commandes/prise_commande_screen.dart';
 import 'package:crm_app/features/planning/formulaire_rdv_sheet.dart';
 import 'package:crm_app/features/prospects/fiche_prospect_screen.dart';
 import 'package:crm_app/features/visites/compte_rendu_screen.dart';
+import 'package:crm_app/features/visites/state/actions_visite.dart';
 import 'package:crm_app/features/visites/visite_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -287,9 +288,27 @@ void main() {
       await ouvrir(tester, () => AppRoutes.demarrerVisite(ctx(tester), 'm1'));
       await fermerKilometrage(tester);
       final visite = store(tester).visites.first;
-      expect(find.text('Aucune commande liée à cette visite.'), findsOneWidget);
 
-      await tester.tap(find.text('🛒 Commander'));
+      // Les deux photos et la réponse « pas de commande à mettre en rayon » ouvrent le chemin vers l'étape « Commande
+      // liée à la visite » (photos prises : simulées par l'action qui suit chaque capture).
+      final actions = ActionsVisite(
+        conteneur(tester).read(crmProvider.notifier),
+        visite.id,
+      );
+      actions.ajouterPhoto(EtapeDph.arrivee);
+      actions.ajouterPhoto(EtapeDph.rayonArrivee);
+      actions.definirCommandeEnRayon(oui: false);
+      await tester.pumpAndSettle();
+      for (var i = 0; i < 4; i++) {
+        await tester.tap(find.text('Suivant ›'));
+        await tester.pumpAndSettle();
+      }
+      expect(find.text('Étape 5 / 8'), findsOneWidget);
+      await tester.tap(find.text('Oui'));
+      await tester.pumpAndSettle();
+      expect(find.text('Aucune commande prise pour le moment.'), findsOneWidget);
+
+      await tester.tap(find.text('🛒 Prendre la commande'));
       await tester.pumpAndSettle();
       expect(find.byType(PriseCommandeScreen), findsOneWidget);
       final premiere = find.byType(LigneProduit).first;
@@ -311,7 +330,7 @@ void main() {
       final liee = etat.visiteParId(visite.id)!.cmd!;
       expect(liee.id, commande.id.replaceFirst('CDE-', ''));
       expect(find.textContaining('Commande #${liee.id} : '), findsOneWidget);
-      expect(find.text('Aucune commande liée à cette visite.'), findsNothing);
+      expect(find.text('Aucune commande prise pour le moment.'), findsNothing);
       await tester.pump(const Duration(seconds: 3));
 
       // Le compte rendu de la même visite montre la commande liée.

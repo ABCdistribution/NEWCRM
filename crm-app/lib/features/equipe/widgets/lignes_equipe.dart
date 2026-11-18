@@ -255,12 +255,7 @@ class CarteSemaine extends StatelessWidget {
                 ),
               ),
               const SizedBox(width: 10),
-              Pastille(
-                w.enCours ? 'En cours' : 'Validé auto',
-                variante: w.enCours
-                    ? VariantePastille.jaune
-                    : VariantePastille.gris,
-              ),
+              pastilleSemaine(w),
             ],
           ),
           if (w.nonRenseignee)
@@ -395,4 +390,15 @@ class _CarteLecture extends StatelessWidget {
       ],
     ),
   );
+}
+
+/// Pastille d'état d'une semaine de rapport : « En cours », « Non validé », « Validé auto » ou « Validé ».
+Pastille pastilleSemaine(SemaineCs w) {
+  if (w.enCours) return const Pastille('En cours', variante: VariantePastille.jaune);
+  if (w.nonValide) {
+    return const Pastille('Non validé', variante: VariantePastille.jaune);
+  }
+  return w.auto
+      ? const Pastille('Validé auto', variante: VariantePastille.gris)
+      : const Pastille('Validé', variante: VariantePastille.vert);
 }

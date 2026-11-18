@@ -1,9 +1,14 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../core/data/data.dart';
+import '../../core/data/equipe_serveur.dart';
+import '../../core/data/planning_serveur.dart';
+import '../../core/logic/logic.dart';
+import '../../core/sync/planning_equipe_provider.dart';
 import '../../core/theme/theme.dart';
 import '../../core/ui/ui.dart';
 import 'data/equipe_demo.dart';
+import 'data/semaine_reelle.dart';
 import 'widgets/lignes_equipe.dart';
 
 /// Une semaine du rapport d'un chef de secteur (écran empilé `cs-sem`). Maquette : pageSemaineCS l.817-835.
@@ -11,7 +16,7 @@ import 'widgets/lignes_equipe.dart';
 ///
 /// Rapport d'activité en lecture seule : prévu et réalisé, écarts avec la prévision (pour la semaine 44 de Nadia H.,
 /// le réalisé ligne à ligne), puis la prévision enregistrée, que le bouton affiche ou masque.
-class SemaineCsScreen extends StatefulWidget {
+class SemaineCsScreen extends ConsumerStatefulWidget {
   const SemaineCsScreen({
     super.key,
     required this.csId,
@@ -22,34 +27,72 @@ class SemaineCsScreen extends StatefulWidget {
   final int numSemaine;
 
   @override
-  State<SemaineCsScreen> createState() => _SemaineCsScreenState();
+  ConsumerState<SemaineCsScreen> createState() => _SemaineCsScreenState();
 }
 
-class _SemaineCsScreenState extends State<SemaineCsScreen> {
+class _SemaineCsScreenState extends ConsumerState<SemaineCsScreen> {
   /// La prévision est masquée à l'ouverture (`voirPrev`).
   bool _voirPrevision = false;
 
+  /// Lundi (« yyyy-mm-dd ») de la semaine de ce numéro, parmi celles autour de la semaine courante.
+  String? _lundiDuNumero(int numero) {
+    final base = DemoTemps.lundi;
+    for (var decalage = -12; decalage <= 6; decalage++) {
+      final lundi = DateTime(base.year, base.month, base.day + 7 * decalage);
+      if (DemoTemps.numeroSemaine(lundi) == numero) return isoJour(lundi);
+    }
+    return null;
+  }
+
   @override
   Widget build(BuildContext context) {
-    final cs = chefsSecteurDemo.firstWhere((c) => c.id == widget.csId);
-    final w = semainesChefSecteur(
-      cs.id,
-    ).firstWhere((x) => x.n == widget.numSemaine);
+    final cs = chefActuelParId(widget.csId);
+    if (cs == null) {
+      return const PageUnivers(
+        entete: TopbarEcran(titre: 'Rapport'),
+        enfants: [Vide('Chef de secteur introuvable.')],
+      );
+    }
+    final SemaineCs? w;
+    if (cs.reel) {
+      // Chef de secteur du CRM : rapport chargé à l'ouverture (copie locale d'abord).
+      final lundi = _lundiDuNumero(widget.numSemaine);
+      final rapport = lundi == null
+          ? null
+          : ref
+                .watch(rapportEquipeProvider((userId: cs.id, lundi: lundi)))
+                .value;
+      w = rapport == null ? null : semaineCsDepuisRapport(rapport);
+      if (w == null) {
+        return PageUnivers(
+          entete: TopbarEcran(
+            titre: 'Semaine ${widget.numSemaine}',
+            sous: cs.nom,
+          ),
+          paddingCorps: false,
+          corps: const CorpsSousTopbar(
+            children: [Vide('Rapport indisponible pour cette semaine.')],
+          ),
+        );
+      }
+    } else {
+      w = semainesChefSecteur(
+        cs.id,
+      ).firstWhere((x) => x.n == widget.numSemaine);
+    }
     return PageUnivers(
       entete: TopbarEcran(
         titre: 'Semaine ${w.n}${w.enCours ? ' · en cours' : ''}',
         sous: '${cs.nom} · ${w.periode}',
-        droite: Pastille(
-          w.enCours ? 'En cours' : 'Validé auto',
-          variante: w.enCours ? VariantePastille.jaune : VariantePastille.gris,
-        ),
+        droite: pastilleSemaine(w),
       ),
       paddingCorps: false,
       corps: CorpsSousTopbar(
         children: [
           const SectionTitre("RAPPORT D'ACTIVITÉ", margeHaut: 0),
           ..._rapport(w),
-          if (w.valide != null) Pied('Validé automatiquement le ${w.valide}'),
+          if (w.valide != null)
+            Pied('Validé${w.auto ? ' automatiquement' : ''} le ${w.valide}'),
           Padding(
             padding: const EdgeInsets.only(top: 16),
             child: AppBouton(

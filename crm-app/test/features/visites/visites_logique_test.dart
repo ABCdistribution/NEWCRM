@@ -1,4 +1,5 @@
 import 'package:crm_app/core/data/data.dart';
+import 'package:crm_app/core/data/referentiels_visite.dart';
 import 'package:crm_app/core/models/models.dart';
 import 'package:crm_app/core/state/state.dart';
 import 'package:crm_app/features/visites/data/visites_data.dart';
@@ -19,7 +20,8 @@ Visite brouillon(Map<EtapeDph, String> chrono) => Visite(
 );
 
 void main() {
-  group('données du lot (KITS, KIT_PRODUITS, RAISONS_PEM)', () {
+  testsCodeColis();
+  group('données du lot (KITS, KIT_PRODUITS, portées)', () {
     test('quatre kits, dans l’ordre de la maquette', () {
       expect(kitsDemo.map((k) => k.code), [
         'COSMIA-01',
@@ -51,12 +53,7 @@ void main() {
       expect((k.code, k.nom, k.marque, k.refs), ('ZZZ', 'ZZZ', '', 0));
     });
 
-    test('raisons PEM et portées', () {
-      expect(raisonsPem, [
-        'Pas de rayon PEM',
-        'Rayon fermé ou en travaux',
-        'Autre',
-      ]);
+    test('portées', () {
       expect(porteeVisites[Role.promoteur], 'sur vos clients');
       expect(porteeVisites[Role.cs], 'de votre secteur');
       expect(porteeVisites[Role.dir], 'de votre région');
@@ -100,31 +97,180 @@ void main() {
     });
   });
 
-  group('manquants (l.1255)', () {
-    test('un brouillon neuf doit tout faire, PEM comprise', () {
-      final m = manquants(brouillon({EtapeDph.debut: 'x'}));
-      expect(m.length, 9);
-      expect(m.first, "Photos d'arrivée sur site");
-      expect(m.last, 'Visite PEM (réalisée, ou raison de son absence)');
+  group('parcours de visite', () {
+    test('huit étapes, sans le début, dans l’ordre', () {
+      expect(EtapeDph.values, hasLength(9));
+      expect(EtapeDph.parcours, hasLength(8));
+      expect(EtapeDph.parcours, isNot(contains(EtapeDph.debut)));
+      expect(EtapeDph.parcours.map((e) => e.cle), [
+        'arrivee',
+        'rayonArrivee',
+        'colis',
+        'dn',
+        'commande',
+        'questionnaire',
+        'op',
+        'rayonFin',
+      ]);
+      expect(EtapeDph.colis.libelle, 'Commande à mettre en rayon');
+      expect(EtapeDph.commande.libelle, 'Commande liée à la visite');
+      expect(EtapeDph.op.libelle, 'Pointage OP');
+      expect({for (final e in EtapeDph.values) if (e.estPhoto) e}, {
+        EtapeDph.arrivee,
+        EtapeDph.rayonArrivee,
+        EtapeDph.rayonFin,
+      });
+    });
+  });
+
+  group('erreurEtape : ce que « Suivant » exige', () {
+    const obligatoire = QuestionFin(
+      id: 'q1',
+      libelle: 'Rayon propre ?',
+      type: TypeQuestionFin.caseACocher,
+      obligatoire: true,
+    );
+    const facultative = QuestionFin(
+      id: 'q2',
+      libelle: 'Remarque',
+      type: TypeQuestionFin.texte,
+      obligatoire: false,
+    );
+
+    test('photo d’arrivée et photo du rayon obligatoires', () {
+      final v = brouillon({EtapeDph.debut: 'x'});
+      expect(
+        erreurEtape(v, EtapeDph.arrivee),
+        "Prenez la photo d'arrivée sur site.",
+      );
+      expect(erreurEtape(v, EtapeDph.rayonArrivee), 'Prenez la photo du rayon.');
+      final avecPhotos = v.copyWith(
+        photos: {EtapeDph.arrivee: 1, EtapeDph.rayonArrivee: 2},
+      );
+      expect(erreurEtape(avecPhotos, EtapeDph.arrivee), isNull);
+      expect(erreurEtape(avecPhotos, EtapeDph.rayonArrivee), isNull);
+      // une photo supprimée (compteur à 0) ne compte plus
+      final retiree = v.copyWith(photos: {EtapeDph.arrivee: 0});
+      expect(erreurEtape(retiree, EtapeDph.arrivee), isNotNull);
     });
 
-    test('PEM non réalisée sans raison manque, avec raison non', () {
-      final tout = {for (final e in EtapeDph.values) e: 'x'};
-      expect(manquants(brouillon(tout)), [
-        'Visite PEM (réalisée, ou raison de son absence)',
-      ]);
-      final v = brouillon(tout).copyWith(pem: const VisitePem(realisee: false));
-      expect(manquants(v), ['Visite PEM (réalisée, ou raison de son absence)']);
+    test('la photo du rayon de fin n’est pas exigée', () {
+      expect(erreurEtape(brouillon({}), EtapeDph.rayonFin), isNull);
+    });
+
+    test('il faut répondre à « commande à mettre en rayon », oui ou non', () {
+      final v = brouillon({});
+      const message = "Indiquez s'il y a une commande à mettre en rayon.";
+      expect(erreurEtape(v, EtapeDph.colis), message);
+      expect(erreurEtape(v.copyWith(commandeEnRayon: false), EtapeDph.colis), isNull);
+      // « oui » sans colis saisi est accepté
+      expect(erreurEtape(v.copyWith(commandeEnRayon: true), EtapeDph.colis), isNull);
+    });
+
+    test('commande liée ou raison d’absence, seulement quand le CRM en propose', () {
+      final v = brouillon({});
+      const message =
+          "Prenez la commande, ou choisissez la raison de l'absence de commande.";
+      expect(erreurEtape(v, EtapeDph.commande), isNull);
       expect(
-        manquants(
-          v.copyWith(pem: const VisitePem(realisee: false, raison: 'Autre')),
+        erreurEtape(v, EtapeDph.commande, raisonsDisponibles: true),
+        message,
+      );
+      final avecRaison = v.copyWith(
+        raisonAbsenceId: 'r1',
+        raisonAbsence: 'Stock suffisant',
+      );
+      expect(
+        erreurEtape(avecRaison, EtapeDph.commande, raisonsDisponibles: true),
+        isNull,
+      );
+      final avecCommande = v.copyWith(
+        cmd: const CommandeLiee(id: '1', ht: '10,00 €', liv: '06/11/2026'),
+      );
+      expect(
+        erreurEtape(avecCommande, EtapeDph.commande, raisonsDisponibles: true),
+        isNull,
+      );
+    });
+
+    test('questions obligatoires du questionnaire', () {
+      final v = brouillon({});
+      const message = 'Répondez aux questions obligatoires.';
+      expect(erreurEtape(v, EtapeDph.questionnaire), isNull);
+      expect(
+        erreurEtape(v, EtapeDph.questionnaire, questions: [facultative]),
+        isNull,
+      );
+      expect(
+        erreurEtape(v, EtapeDph.questionnaire, questions: [obligatoire, facultative]),
+        message,
+      );
+      // une réponse vide ne compte pas, « false » est une vraie réponse
+      expect(
+        erreurEtape(
+          v.copyWith(reponses: {'q1': ''}),
+          EtapeDph.questionnaire,
+          questions: [obligatoire],
         ),
-        isEmpty,
+        message,
       );
       expect(
-        manquants(v.copyWith(pem: const VisitePem(realisee: true))),
-        isEmpty,
+        erreurEtape(
+          v.copyWith(reponses: {'q1': 'false'}),
+          EtapeDph.questionnaire,
+          questions: [obligatoire, facultative],
+        ),
+        isNull,
       );
+    });
+
+    test('le début, le DN et le pointage OP n’ont pas d’exigence', () {
+      final v = brouillon({});
+      for (final e in [EtapeDph.debut, EtapeDph.dn, EtapeDph.op]) {
+        expect(erreurEtape(v, e), isNull, reason: e.cle);
+      }
+    });
+  });
+
+  group('manquants : toutes les étapes du parcours', () {
+    test('un brouillon neuf doit prendre les photos et répondre pour le rayon', () {
+      final m = manquants(brouillon({EtapeDph.debut: 'x'}));
+      expect(m, [
+        "Prenez la photo d'arrivée sur site.",
+        'Prenez la photo du rayon.',
+        "Indiquez s'il y a une commande à mettre en rayon.",
+      ]);
+    });
+
+    test('un brouillon complet n’a plus rien à faire', () {
+      final v = brouillon({
+        for (final e in EtapeDph.values) e: 'x',
+      }).copyWith(
+        photos: {EtapeDph.arrivee: 1, EtapeDph.rayonArrivee: 1},
+        commandeEnRayon: false,
+      );
+      expect(manquants(v), isEmpty);
+    });
+
+    test('les exigences du CRM s’ajoutent dans l’ordre du parcours', () {
+      const q = QuestionFin(
+        id: 'q1',
+        libelle: 'Rayon propre ?',
+        type: TypeQuestionFin.caseACocher,
+        obligatoire: true,
+      );
+      final m = manquants(
+        brouillon({}),
+        questions: const [q],
+        raisonsDisponibles: true,
+      );
+      expect(m, [
+        "Prenez la photo d'arrivée sur site.",
+        'Prenez la photo du rayon.',
+        "Indiquez s'il y a une commande à mettre en rayon.",
+        "Prenez la commande, ou choisissez la raison de l'absence de commande.",
+        'Répondez aux questions obligatoires.',
+      ]);
     });
   });
 
@@ -159,66 +305,6 @@ void main() {
       expect(sPluriel(0), '');
       expect(sPluriel(1), '');
       expect(sPluriel(2), 's');
-    });
-  });
-
-  group('messages d’enregistrement d’une étape', () {
-    test('contrôles de la maquette (v-etape-ok)', () {
-      final v = brouillon({EtapeDph.debut: 'x'});
-      expect(
-        erreurEnregistrement(v, EtapeDph.dn),
-        'Sélectionnez au moins un kit pour la vérification DN.',
-      );
-      expect(
-        erreurEnregistrement(v, EtapeDph.concurrence),
-        'Ajoutez au moins une marque concurrente, ou cochez « Aucune marque concurrente ».',
-      );
-      expect(
-        erreurEnregistrement(v, EtapeDph.bilan),
-        'Validez les objectifs pour enregistrer le bilan.',
-      );
-      expect(
-        erreurEnregistrement(v, EtapeDph.promos),
-        'Indiquez si les promotions sont conformes.',
-      );
-      expect(erreurEnregistrement(v, EtapeDph.face), isNull);
-      expect(
-        erreurEnregistrement(
-          v.copyWith(concurrence: const Concurrence(aucune: true)),
-          EtapeDph.concurrence,
-        ),
-        isNull,
-      );
-      expect(
-        erreurEnregistrement(
-          v.copyWith(promosConformes: false),
-          EtapeDph.promos,
-        ),
-        isNull,
-      );
-    });
-
-    test('messages de réussite et libellés des boutons', () {
-      expect(
-        messageEtapeEnregistree(EtapeDph.dn),
-        'Vérification DN enregistrée.',
-      );
-      expect(
-        messageEtapeEnregistree(EtapeDph.bilan),
-        'Bilan de visite enregistré.',
-      );
-      expect(
-        messageEtapeEnregistree(EtapeDph.concurrence),
-        'Concurrence enregistrée.',
-      );
-      expect(
-        messageEtapeEnregistree(EtapeDph.promos),
-        'Vérification Promos enregistrée.',
-      );
-      expect(objetEnregistrement(EtapeDph.dn), 'la vérification DN');
-      expect(objetEnregistrement(EtapeDph.concurrence), 'la concurrence');
-      expect(objetEnregistrement(EtapeDph.bilan), 'le bilan de visite');
-      expect(objetEnregistrement(EtapeDph.promos), 'la vérification Promos');
     });
   });
 
@@ -286,6 +372,20 @@ void main() {
         ],
       );
       expect(tourneeRestante(tout), isFalse);
+    });
+  });
+}
+
+void testsCodeColis() {
+  group('codeColisValide', () {
+    test('enlève les espaces autour du code', () {
+      expect(codeColisValide('  0123456789 '), '0123456789');
+    });
+    test('refuse vide, nul et trop long', () {
+      expect(codeColisValide(null), isNull);
+      expect(codeColisValide('   '), isNull);
+      expect(codeColisValide('x' * 65), isNull);
+      expect(codeColisValide('x' * 64), 'x' * 64);
     });
   });
 }

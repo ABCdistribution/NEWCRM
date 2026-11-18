@@ -1,5 +1,7 @@
 import '../data/commandes_serveur.dart';
+import '../data/visites_serveur.dart';
 import '../data/data.dart';
+import '../data/planning_serveur.dart';
 import '../data/prospects_serveur.dart';
 import '../logic/logic.dart';
 import '../models/models.dart';
@@ -40,6 +42,7 @@ class CrmEtat {
     required this.visitesAutres,
     required this.commandes,
     required this.prochainNumVisite,
+    this.planningFenetre = const [],
   });
 
   /// État initial du profil : même filtrage par périmètre que `etatInitial()` de la maquette.
@@ -59,6 +62,8 @@ class CrmEtat {
         prospectsDemo.where((p) => visP(role, p)).toList();
     final idsVisibles = {for (final m in magasins) m.id};
     bool visibleMag(String id) => idsVisibles.contains(id);
+    final planning = planningServeur();
+    final connecte = DemoTemps.reel;
     bool etapeVisible(EtapePlanning e) => switch (e.cible) {
       CiblePlanning.client => visibleMag(e.ref ?? ''),
       CiblePlanning.prospect => prospects.any((p) => p.id == e.ref),
@@ -69,16 +74,31 @@ class CrmEtat {
       magasins: magasins,
       tousMagasins: tous,
       prospects: prospects,
-      etapes: etapesDemo.where(etapeVisible).toList(),
-      plansEquipe: {
-        for (final nom in nomsAvecPlanningEquipe())
-          nom: planningInitialDe(nom, magasins),
-      },
-      tournee: tourneeDemo.where((t) => visibleMag(t.magasinId)).toList(),
-      visites: visitesDuProfilDemo(
-        profil.nom,
-      ).where((v) => visibleMag(v.magasinId)).toList(),
-      visitesAutres: visitesAutresDemo,
+      // Connecté : le planning est celui du CRM (vide tant qu'il n'est pas téléchargé), jamais celui de la démonstration.
+      etapes: planning != null
+          ? planning.semaineCourante
+          : connecte
+          ? const []
+          : etapesDemo.where(etapeVisible).toList(),
+      planningFenetre: planning?.etapes ?? const [],
+      plansEquipe: connecte
+          ? const {}
+          : {
+              for (final nom in nomsAvecPlanningEquipe())
+                nom: planningInitialDe(nom, magasins),
+            },
+      tournee: planning != null
+          ? planning.tournee
+          : connecte
+          ? const []
+          : tourneeDemo.where((t) => visibleMag(t.magasinId)).toList(),
+      // Visites réelles du CRM quand elles sont téléchargées ; sinon celles de la démonstration.
+      visites:
+          visitesMiennesServeur() ??
+          visitesDuProfilDemo(
+            profil.nom,
+          ).where((v) => visibleMag(v.magasinId)).toList(),
+      visitesAutres: visitesAutresServeur() ?? visitesAutresDemo,
       commandes: commandesServeur() ?? List.of(commandesDemo),
       prochainNumVisite: premierNumVisiteLibre,
     );
@@ -97,6 +117,10 @@ class CrmEtat {
 
   /// Planning de la semaine du profil.
   final List<EtapePlanning> etapes;
+
+  /// Planning réel sur toute la fenêtre téléchargée (semaines voisines comprises, `sem` = décalage de semaine) ;
+  /// vide en démonstration.
+  final List<EtapePlanning> planningFenetre;
 
   /// Plannings composés par l'encadrement pour un promoteur ou un autre chef de secteur, par nom court.
   /// Le planning de Nadia H. (chef de secteur de la démo) est `etapes`, voir `planDe`.
@@ -196,6 +220,7 @@ class CrmEtat {
       tousMagasins: tousMagasins ?? this.tousMagasins,
       prospects: prospects ?? this.prospects,
       etapes: etapes ?? this.etapes,
+      planningFenetre: planningFenetre,
       plansEquipe: plansEquipe ?? this.plansEquipe,
       tournee: tournee ?? this.tournee,
       visites: visites ?? this.visites,

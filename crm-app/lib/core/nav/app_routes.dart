@@ -37,8 +37,7 @@ import '../../features/visites/filtres_visites_sheet.dart';
 import '../../features/visites/kilometrage_dialog.dart';
 import '../../features/visites/kit_detail_sheet.dart';
 import '../../features/visites/kits_sheet.dart';
-import '../../features/visites/photos_etape_screen.dart';
-import '../../features/visites/saisie_etape_screen.dart';
+import '../../features/visites/scan_colis_screen.dart';
 import '../../features/visites/valider_visite_dialog.dart';
 import '../../features/visites/visite_screen.dart';
 import '../models/models.dart';
@@ -167,27 +166,9 @@ class AppRoutes {
     return visite(context, id);
   }
 
-  /// Saisie d'une étape de visite (`saisie`) : vérification DN, concurrence, promos, bilan.
-  static Future<void> saisieEtapeVisite(
-    BuildContext context, {
-    required String visiteId,
-    required EtapeDph etape,
-  }) => _pousser<void>(
-    context,
-    'saisie',
-    SaisieEtapeScreen(visiteId: visiteId, etape: etape),
-  );
-
-  /// Photos d'une étape de visite (appareil photo, miniatures, suppression).
-  static Future<void> photosEtapeVisite(
-    BuildContext context, {
-    required String visiteId,
-    required EtapeDph etape,
-  }) => _pousser<void>(
-    context,
-    'photos',
-    PhotosEtapeScreen(visiteId: visiteId, etape: etape),
-  );
+  /// Scan des colis d'une commande à mettre en rayon (caméra).
+  static Future<void> scannerColis(BuildContext context, String visiteId) =>
+      _pousser<void>(context, 'scan-colis', ScanColisScreen(visiteId: visiteId));
 
   /// Compte rendu d'une visite terminée ou d'un autre promoteur (`cr`), en lecture seule.
   static Future<void> compteRendu(BuildContext context, String visiteId) =>

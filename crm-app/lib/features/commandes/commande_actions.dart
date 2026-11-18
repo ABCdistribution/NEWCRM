@@ -127,7 +127,7 @@ void validerCommande(BuildContext context, WidgetRef ref) {
         cmd: CommandeLiee(
           id: num.replaceFirst('CDE-', ''),
           ht: total,
-          liv: '06/11/2026',
+          liv: DemoTemps.livraisonPrevueNumerique,
         ),
       ),
     );

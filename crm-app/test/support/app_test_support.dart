@@ -99,12 +99,20 @@ ProviderContainer conteneurPour(Role role) {
 /// await lancerApp(tester, Role.cs);
 /// final ctx = tester.element(find.byType(ShellScreen));   // contexte de la coquille, pour `AppRoutes.xxx(ctx, …)`
 /// ```
-Future<void> lancerApp(WidgetTester tester, Role role) async {
+/// `overrides` : providers à remplacer (ex. le questionnaire de fin de visite, vide sans copie locale ni réseau).
+Future<void> lancerApp(
+  WidgetTester tester,
+  Role role, {
+  List<Override> overrides = const [],
+}) async {
   await assurerInter(tester);
   utiliserTelephone(tester);
   await tester.pumpWidget(
     ProviderScope(
-      overrides: [modeDemoProvider.overrideWith(ModeDemoActif.new)],
+      overrides: [
+        modeDemoProvider.overrideWith(ModeDemoActif.new),
+        ...overrides,
+      ],
       child: const CrmApp(),
     ),
   );

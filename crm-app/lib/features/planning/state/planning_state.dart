@@ -6,6 +6,8 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/data/data.dart';
+import '../../../core/data/planning_serveur.dart';
+import '../../../core/sync/domaines_provider.dart';
 import '../../../core/logic/logic.dart';
 import '../../../core/models/models.dart';
 import '../../../core/state/state.dart';
@@ -65,6 +67,7 @@ class PlanningNotifier extends Notifier<PlanningEtat> {
   @override
   PlanningEtat build() {
     final initial = CrmEtat.initial(ref.watch(roleActifProvider));
+    if (DemoTemps.reel) return _depuisServeur(initial);
     _previsionDemo = previsionDemo(
       initial.etapes,
       magasins: initial.magasins,
@@ -75,6 +78,32 @@ class PlanningNotifier extends Notifier<PlanningEtat> {
       prevision: _previsionDemo,
       ecartsOuverts: false,
       previsionVue: false,
+    );
+  }
+
+  /// Phase et prévision de la semaine courante telles que le CRM les donne (`GET /tournees/semaine` et
+  /// `/tournees/semaine/prevue`). Sans rapport téléchargé (promoteur, premier lancement) : rapport en cours, sans
+  /// prévision.
+  PlanningEtat _depuisServeur(CrmEtat initial) {
+    ref.watch(rapportsSynchroProvider.select((e) => (e.nb, e.majLe)));
+    ref.watch(planningSynchroProvider.select((e) => (e.nb, e.majLe)));
+    _previsionDemo = const [];
+    final r = rapportsServeur();
+    final s = r?.semaine;
+    final prevue = r?.prevue;
+    return PlanningEtat(
+      phase: s == null
+          ? PhasePlanning.rapport
+          : s.verrouillee
+          ? PhasePlanning.valide
+          : s.phaseRapport
+          ? PhasePlanning.rapport
+          : PhasePlanning.prevision,
+      prevision: prevue == null
+          ? null
+          : rapprocherPrevue(prevue, initial.etapes),
+      ecartsOuverts: false,
+      previsionVue: true,
     );
   }
 
@@ -119,6 +148,10 @@ final ecartsSemaineProvider = Provider<ResultatEcarts?>((ref) {
 
 /// Rapports précédents de « Mes rapports » : les semaines 44 à 41, précédées de la semaine 45 quand elle est validée.
 final rapportsPrecedentsProvider = Provider<List<RapportSemaine>>((ref) {
+  if (DemoTemps.reel) {
+    ref.watch(rapportsSynchroProvider.select((e) => (e.nb, e.majLe)));
+    return rapportsReels(rapportsServeur());
+  }
   final plan = ref.watch(planningProvider);
   if (!plan.verrouillee) return rapportsDemo;
   return [
@@ -130,3 +163,24 @@ final rapportsPrecedentsProvider = Provider<List<RapportSemaine>>((ref) {
     ...rapportsDemo,
   ];
 });
+
+/// Semaine affichée par « Mon planning » : décalage par rapport à la semaine courante (0 = courante). La navigation
+/// entre semaines n'existe que connecté ; la démonstration reste sur la semaine 45.
+class SemainePlanningNotifier extends Notifier<int> {
+  /// Semaines proposées avant et après la semaine courante : celles que la synchronisation télécharge.
+  static const int avant = 3;
+  static const int apres = 5;
+
+  @override
+  int build() {
+    ref.watch(roleActifProvider);
+    return 0;
+  }
+
+  void decaler(int delta) => state = (state + delta).clamp(-avant, apres);
+
+  void aujourdhui() => state = 0;
+}
+
+final semainePlanningProvider =
+    NotifierProvider<SemainePlanningNotifier, int>(SemainePlanningNotifier.new);

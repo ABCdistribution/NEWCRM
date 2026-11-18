@@ -89,14 +89,23 @@ class DemoTemps {
       libelleJour(DateTime(lundi.year, lundi.month, lundi.day + 7));
 
   /// Livraison prévue par défaut : deux jours ouvrés après aujourd'hui (démo : « ven. 6 nov. »).
-  static String get livraisonPrevue {
+  static String get livraisonPrevue => libelleJour(livraisonPrevueDate);
+
+  /// Date de livraison prévue par défaut (deux jours ouvrés après aujourd'hui).
+  static DateTime get livraisonPrevueDate {
     var d = aujourdhui;
     var restants = 2;
     while (restants > 0) {
       d = DateTime(d.year, d.month, d.day + 1);
       if (d.weekday <= 5) restants--;
     }
-    return libelleJour(d);
+    return d;
+  }
+
+  /// « 06/11/2026 » : livraison prévue par défaut, au format des champs date.
+  static String get livraisonPrevueNumerique {
+    final d = livraisonPrevueDate;
+    return '${deuxChiffres(d.day)}/${deuxChiffres(d.month)}/${d.year}';
   }
 
   /// Lundi de la semaine courante.
@@ -113,9 +122,27 @@ class DemoTemps {
   static int get semaineCourante => reel ? numeroSemaine(lundi) : 45;
 
   /// « 2 – 6 novembre » : jours ouvrés de la semaine courante.
-  static String get semaineLibelle {
-    if (!reel) return '2 – 6 novembre';
-    final a = lundi;
+  static String get semaineLibelle =>
+      reel ? libellePeriodeSemaine(lundi) : '2 – 6 novembre';
+
+  /// « 22 oct. » : le jour situé `decalage` jours après aujourd'hui (négatif : avant). Sert aux dates d'exemple de la
+  /// démonstration, qui suivent ainsi la date du jour une fois connecté.
+  static String jourRelatif(int decalage) {
+    final d = DateTime(
+      aujourdhui.year,
+      aujourdhui.month,
+      aujourdhui.day + decalage,
+    );
+    return '${d.day} ${moisCourts[d.month - 1]}';
+  }
+
+  /// « lun. 2 nov. » : le jour situé `decalage` jours après le lundi de la semaine courante.
+  static String jourDepuisLundi(int decalage) =>
+      libelleJour(DateTime(lundi.year, lundi.month, lundi.day + decalage));
+
+  /// « 2 – 6 novembre » ou « 30 novembre – 4 décembre » : jours ouvrés de la semaine commençant ce lundi.
+  static String libellePeriodeSemaine(DateTime lundiDeLaSemaine) {
+    final a = lundiDeLaSemaine;
     final b = DateTime(a.year, a.month, a.day + 4);
     const mois = [
       'janvier',

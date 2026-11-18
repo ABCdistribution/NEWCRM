@@ -5,8 +5,11 @@ import '../auth/session.dart';
 import '../data/activite_serveur.dart';
 import '../data/commandes_serveur.dart';
 import '../data/equipe_serveur.dart';
+import '../data/planning_serveur.dart';
+import '../logic/dates.dart';
 import '../models/models.dart';
 import '../data/prospects_serveur.dart';
+import '../data/visites_serveur.dart';
 import '../../features/catalogue/data/news_serveur.dart';
 import '../db/app_database.dart';
 import '../api/api_client.dart';
@@ -73,6 +76,54 @@ class CommandesNotifier extends SynchroDomaineNotifier {
 
 final commandesProvider = NotifierProvider<CommandesNotifier, EtatSynchro>(
   CommandesNotifier.new,
+);
+
+/// Visites des 60 derniers jours dans le périmètre de l'utilisateur (`GET /visites` : les siennes pour un promoteur,
+/// celles de son équipe pour l'encadrement).
+class VisitesNotifier extends SynchroDomaineNotifier {
+  @override
+  String get domaine => 'visites';
+
+  @override
+  bool get refusTolere => true;
+
+  @override
+  void appliquer(List<Map<String, dynamic>>? lignes) {
+    if (lignes == null) {
+      definirVisitesServeur();
+      return;
+    }
+    final moi = ref.read(sessionProvider);
+    final r = visitesDepuisJson(
+      lignes,
+      moiId: moi?.id,
+      moiNom: moi?.nomAffiche ?? '',
+    );
+    definirVisitesServeur(miennes: r.miennes, autres: r.autres);
+  }
+
+  @override
+  Future<int> telecharger(
+    ApiLecture api,
+    AppDatabase base,
+    void Function(int, int) progression,
+  ) {
+    final depuis = DateTime.now().subtract(const Duration(days: 60));
+    return SyncDomaine(api, base, domaine).telecharger(
+      '/visites',
+      query: {
+        'dateDepuis':
+            '${depuis.year}-${depuis.month.toString().padLeft(2, '0')}-${depuis.day.toString().padLeft(2, '0')}',
+      },
+      maxLignes: 1500,
+      cleTaille: 'limit',
+      progression: progression,
+    );
+  }
+}
+
+final visitesSynchroProvider = NotifierProvider<VisitesNotifier, EtatSynchro>(
+  VisitesNotifier.new,
 );
 
 /// Prospects du périmètre (`GET /prospects`) : chef de secteur, directeur régional, direction. Les autres rôles
@@ -237,6 +288,120 @@ final performanceProvider = NotifierProvider<PerformanceNotifier, EtatSynchro>(
   PerformanceNotifier.new,
 );
 
+/// Rôles API qui tiennent une tournée personnelle (`/tournees`) et ont un rapport d'activité hebdomadaire.
+const _rolesTournee = {
+  'CHEF_SECTEUR',
+  'DIRECTEUR_REGIONAL',
+  'DIRECTION',
+  'ADMIN',
+};
+
+/// Planning de l'utilisateur sur quelques semaines autour de la semaine courante : ses visites planifiées pour un
+/// promoteur (`GET /plannings`), sa tournée personnelle pour l'encadrement (`GET /tournees/me`).
+class PlanningSynchroNotifier extends SynchroDomaineNotifier {
+  @override
+  String get domaine => 'planning';
+
+  @override
+  bool get refusTolere => true;
+
+  @override
+  void appliquer(List<Map<String, dynamic>>? lignes) => definirPlanningServeur(
+    lignes == null ? null : planningDepuisJson(lignes, DemoTemps.lundi),
+  );
+
+  @override
+  Future<int> telecharger(
+    ApiLecture api,
+    AppDatabase base,
+    void Function(int, int) progression,
+  ) async {
+    final moi = ref.read(sessionProvider);
+    if (moi == null) return 0;
+    final f = fenetrePlanning(DemoTemps.lundi);
+    final String src;
+    final Object? reponse;
+    if (moi.roleApi == 'COMMERCIAL') {
+      src = 'planning';
+      reponse = await api.get(
+        '/plannings',
+        query: {'promoteurId': moi.id, 'debut': f.debut, 'fin': f.fin},
+      );
+    } else if (_rolesTournee.contains(moi.roleApi)) {
+      src = 'tournee';
+      reponse = await api.get(
+        '/tournees/me',
+        query: {'debut': f.debut, 'fin': f.fin},
+      );
+    } else {
+      return 0;
+    }
+    if (reponse is! List) throw const ErreurApi(TypeErreurApi.inattendue);
+    return SyncDomaine(api, base, domaine).enregistrer([
+      for (final b in reponse)
+        if (b is Map<String, dynamic>) {...b, '_src': src},
+    ]);
+  }
+}
+
+final planningSynchroProvider =
+    NotifierProvider<PlanningSynchroNotifier, EtatSynchro>(
+      PlanningSynchroNotifier.new,
+    );
+
+/// Rapport d'activité de la semaine courante et historique de « Mes rapports » (chef de secteur, directeur régional,
+/// direction) : état de la semaine (`GET /tournees/semaine`), prévision enregistrée (`/tournees/semaine/prevue`) et
+/// historique (`/tournees/historique`).
+class RapportsSynchroNotifier extends SynchroDomaineNotifier {
+  @override
+  String get domaine => 'rapports';
+
+  @override
+  bool get refusTolere => true;
+
+  @override
+  void appliquer(List<Map<String, dynamic>>? lignes) => definirRapportsServeur(
+    lignes == null || lignes.isEmpty
+        ? null
+        : rapportsDepuisJson(lignes.first, DemoTemps.lundi),
+  );
+
+  @override
+  Future<int> telecharger(
+    ApiLecture api,
+    AppDatabase base,
+    void Function(int, int) progression,
+  ) async {
+    if (!_rolesTournee.contains(ref.read(sessionProvider)?.roleApi)) return 0;
+    final lundi = isoJour(DemoTemps.lundi);
+    final semaine = await api.get(
+      '/tournees/semaine',
+      query: {'semaine': lundi},
+    );
+    final prevue = await api.get(
+      '/tournees/semaine/prevue',
+      query: {'semaine': lundi},
+    );
+    final historique = await api.get('/tournees/historique');
+    if (semaine is! Map<String, dynamic>) {
+      throw const ErreurApi(TypeErreurApi.inattendue);
+    }
+    return SyncDomaine(api, base, domaine).enregistrer([
+      {
+        'id': 'courant',
+        'semaine': semaine,
+        'prevue': prevue,
+        'historique': historique,
+      },
+    ]);
+  }
+}
+
+final rapportsSynchroProvider =
+    NotifierProvider<RapportsSynchroNotifier, EtatSynchro>(
+      RapportsSynchroNotifier.new,
+    );
+
 /// Notifications non lues de l'utilisateur (`GET /notifications/me`), affichées dans la cloche d'alertes.
 class NotificationsNotifier extends SynchroDomaineNotifier {
   @override
@@ -275,10 +440,13 @@ final jeuxDeDonneesProvider = Provider<List<(String, EtatSynchro)>>(
     ('Catalogue', ref.watch(catalogueProvider)),
     ('Clients', ref.watch(clientsProvider)),
     ('Commandes', ref.watch(commandesProvider)),
+    ('Visites', ref.watch(visitesSynchroProvider)),
     ('Prospects', ref.watch(prospectsSynchroProvider)),
     ('Actualités', ref.watch(newsProvider)),
     ('Équipe', ref.watch(equipeProvider)),
     ('Activité', ref.watch(performanceProvider)),
+    ('Planning', ref.watch(planningSynchroProvider)),
+    ('Rapports', ref.watch(rapportsSynchroProvider)),
     ('Notifications', ref.watch(notificationsSynchroProvider)),
   ],
 );
@@ -288,9 +456,12 @@ void rafraichirTout(WidgetRef ref) {
   ref.read(catalogueProvider.notifier).rafraichir();
   ref.read(clientsProvider.notifier).rafraichir();
   ref.read(commandesProvider.notifier).rafraichir();
+  ref.read(visitesSynchroProvider.notifier).rafraichir();
   ref.read(prospectsSynchroProvider.notifier).rafraichir();
   ref.read(newsProvider.notifier).rafraichir();
   ref.read(equipeProvider.notifier).rafraichir();
   ref.read(performanceProvider.notifier).rafraichir();
+  ref.read(planningSynchroProvider.notifier).rafraichir();
+  ref.read(rapportsSynchroProvider.notifier).rafraichir();
   ref.read(notificationsSynchroProvider.notifier).rafraichir();
 }
