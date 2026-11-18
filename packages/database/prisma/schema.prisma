@@ -618,6 +618,8 @@ model Promo {
   dateFin   DateTime?
   actif     Boolean   @default(true)
 
+  visitePromos VisitePromo[]
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -710,7 +712,12 @@ model Visite {
   visiteLiee   Visite?  @relation("VisiteLiee", fields: [visiteLieeId], references: [id])
   visitesLiees Visite[] @relation("VisiteLiee")
 
+  // Étape « commande à mettre en rayon ? » du parcours mobile : nul tant que le promoteur n'a pas répondu.
+  commandeEnRayon Boolean?
+
   dns      VisiteDN[]
+  kits     VisiteKit[]
+  colis    VisiteColis[]
   photos   VisitePhoto[]
   steps    VisiteStep[]
   promos   VisitePromo[]
@@ -763,6 +770,38 @@ model VisiteDN {
   @@map("visite_dns")
 }
 
+/// Kit constaté en rayon pendant la vérification DN du parcours mobile : code du kit + nombre de références constatées.
+/// Modèle distinct de `VisiteDN` (relevé par type / marque / gamme / métrage, sans notion de kit) : réutiliser VisiteDN
+/// obligerait à détourner ses colonnes. `code` est le code article du kit (texte libre, sans FK : certains codes de l'app
+/// ne sont pas dans le catalogue).
+model VisiteKit {
+  id         String @id @default(uuid()) @db.Uuid
+  visiteId   String @db.Uuid
+  visite     Visite @relation(fields: [visiteId], references: [id])
+  code       String @db.VarChar(64)
+  nbReferences Int  @default(0)
+
+  createdAt DateTime @default(now())
+
+  @@unique([visiteId, code])
+  @@index([visiteId])
+  @@map("visite_kits")
+}
+
+/// Code de colis scanné ou saisi à l'étape « commande à mettre en rayon » (un code une seule fois par visite).
+model VisiteColis {
+  id       String @id @default(uuid()) @db.Uuid
+  visiteId String @db.Uuid
+  visite   Visite @relation(fields: [visiteId], references: [id])
+  code     String @db.VarChar(64)
+
+  createdAt DateTime @default(now())
+
+  @@unique([visiteId, code])
+  @@index([visiteId])
+  @@map("visite_colis")
+}
+
 /// Photo prise en visite (ex-`visite_photo`).
 model VisitePhoto {
   id          String  @id @default(uuid()) @db.Uuid
@@ -777,6 +816,8 @@ model VisitePhoto {
   mime    String?
   donnees Bytes?
   idApk   String? @unique // clé d'idempotence de l'outbox mobile
+  // Étape du parcours mobile à laquelle appartient la photo : arrivee, rayonArrivee ou rayonFin (nul pour les photos anciennes).
+  etape   String? @db.VarChar(20)
 
   createdAt DateTime @default(now())
 
@@ -838,18 +879,23 @@ model VisiteReponse {
   @@map("visite_reponses")
 }
 
-/// Promo vue en visite (ex-`visite_promo`).
+/// Promo vue en visite (ex-`visite_promo`). Pointage OP du parcours mobile : `promoId` + `presente` (en place en rayon).
 model VisitePromo {
   id        String   @id @default(uuid()) @db.Uuid
   visiteId  String   @db.Uuid
   visite    Visite   @relation(fields: [visiteId], references: [id])
   articleId String?  @db.Uuid
   article   Article? @relation(fields: [articleId], references: [id])
+  promoId   String?  @db.Uuid
+  promo     Promo?   @relation(fields: [promoId], references: [id])
+  presente  Boolean?
 
   createdAt DateTime @default(now())
 
+  @@unique([visiteId, promoId])
   @@index([visiteId])
   @@index([articleId])
+  @@index([promoId])
   @@map("visite_promos")
 }
 
@@ -1048,6 +1094,12 @@ model CommandeLigne {
   @@map("commande_lignes")
 }
 
+/// Statut d'une commande mobile : brouillon en attente ou commande validée.
+enum StatutCommandeApk {
+  EN_ATTENTE
+  VALIDEE
+}
+
 /// Commande saisie sur l'app mobile (ex-`commande_apk`), transmise à l'ERP hors CRM.
 /// `idCommandeApk` : clé d'idempotence de la sync mobile ET pont avec la commande
 /// Minos qui reviendra par l'import (champ IDCRM, 10 caractères max).
@@ -1061,6 +1113,17 @@ model CommandeApk {
   commentaire   String?
   dateCommande  DateTime // date de saisie sur le terrain (pas de réception serveur)
 
+  /// EN_ATTENTE : brouillon modifiable par le promoteur (éventuellement envoyé par mail pour validation du client),
+  /// jamais transmis à l'ERP. VALIDEE : commande ferme (comportement historique, défaut).
+  statut          StatutCommandeApk @default(VALIDEE)
+  emailValidation String? // adresse du client à laquelle la commande a été envoyée pour validation
+  emailEnvoyeLe   DateTime?
+  valideeLe       DateTime?
+
+  /// « Ne pas livrer avant » (jour) et son motif (liste de l'app, « Autre » déjà résolu en texte) : le motif est obligatoire dès que la date est posée.
+  nePasLivrerAvant      DateTime? @db.Date
+  motifNePasLivrerAvant String?
+
   lignes CommandeApkLigne[]
 
   createdAt DateTime @default(now())
@@ -1068,6 +1131,7 @@ model CommandeApk {
 
   @@index([promoteurId])
   @@index([clientId])
+  @@index([statut])
   @@map("commandes_apk")
 }
 

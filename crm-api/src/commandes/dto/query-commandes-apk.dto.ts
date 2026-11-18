@@ -1,6 +1,7 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
-import { IsInt, IsOptional, IsUUID, Max, Min } from 'class-validator';
+import { StatutCommandeApk } from '@crm/database';
+import { IsEnum, IsInt, IsOptional, IsUUID, Max, Min } from 'class-validator';
 import { ModifieDepuisQuery } from '../../common/modifie-depuis';
 
 export class QueryCommandesApkDto extends ModifieDepuisQuery {
@@ -23,4 +24,9 @@ export class QueryCommandesApkDto extends ModifieDepuisQuery {
   @IsOptional()
   @IsUUID()
   clientId?: string;
+
+  @ApiPropertyOptional({ enum: StatutCommandeApk, description: 'Filtre sur le statut (EN_ATTENTE ou VALIDEE)' })
+  @IsOptional()
+  @IsEnum(StatutCommandeApk)
+  statut?: StatutCommandeApk;
 }
