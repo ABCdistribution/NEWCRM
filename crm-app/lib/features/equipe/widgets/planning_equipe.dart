@@ -38,10 +38,46 @@ class PlanningEquipe extends ConsumerWidget {
   final Widget? apres;
 
   @override
+  Widget build(BuildContext context, WidgetRef ref) => VuePlanningEquipe(
+    plan: ref.watch(crmProvider.select((e) => e.planDe(nom))),
+    nom: nom,
+    semaine: semaine,
+    onSemaine: onSemaine,
+    lecture: lecture,
+    apres: apres,
+  );
+}
+
+/// Semaine, jours et lignes d'un planning déjà lu (store ou CRM) : navigation entre semaines, sélecteur de jours,
+/// cartes des lignes. `plan` contient les lignes de toutes les semaines affichables (`EtapePlanning.sem`).
+///
+/// `nom` désigne la personne dont on modifie le planning ; il n'est utile que sans `lecture`.
+class VuePlanningEquipe extends ConsumerWidget {
+  const VuePlanningEquipe({
+    super.key,
+    required this.plan,
+    required this.semaine,
+    required this.onSemaine,
+    this.nom = '',
+    this.lecture = false,
+    this.apres,
+    this.message,
+  });
+
+  final List<EtapePlanning> plan;
+  final String nom;
+  final int semaine;
+  final ValueChanged<int> onSemaine;
+  final bool lecture;
+  final Widget? apres;
+
+  /// Texte à la place de « Aucune ligne ce jour. » quand le planning n'est pas encore lu (chargement, indisponible).
+  final String? message;
+
+  @override
   Widget build(BuildContext context, WidgetRef ref) {
     final crm = ref.watch(crmProvider);
     final jour = ref.watch(jourPlanningProvider);
-    final plan = crm.planDe(nom);
     final info = semaineInfo(semaine);
     final lignes = lignesDuJour(plan, jour, sem: semaine);
 
@@ -130,7 +166,7 @@ class PlanningEquipe extends ConsumerWidget {
         ),
         const SizedBox(height: 12),
         if (lignes.isEmpty)
-          const Vide('Aucune ligne ce jour.')
+          Vide(message ?? 'Aucune ligne ce jour.')
         else
           for (final e in lignes) carte(e),
         if (!lecture) ...[

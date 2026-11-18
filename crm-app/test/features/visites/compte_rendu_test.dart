@@ -5,6 +5,7 @@ import 'package:crm_app/core/ui/ui.dart';
 import 'package:crm_app/features/clients/fiche_magasin_screen.dart';
 import 'package:crm_app/features/visites/compte_rendu_screen.dart';
 import 'package:crm_app/features/visites/kit_detail_sheet.dart';
+import 'package:crm_app/features/visites/state/actions_visite.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -32,8 +33,6 @@ void main() {
       expect(find.text('réalisée par Julien M.'), findsOneWidget);
       expect(find.text('Envoyée'), findsOneWidget);
       expect(find.text('COMPTE RENDU DE LA VISITE'), findsOneWidget);
-      expect(find.text('Visite DPH'), findsOneWidget);
-      expect(find.text('Visite PEM'), findsOneWidget);
 
       expect(find.text('LE CLIENT'), findsOneWidget);
       expect(find.text('Enseigne'), findsOneWidget);
@@ -49,23 +48,22 @@ void main() {
       expect(find.text('Réalisée par'), findsOneWidget);
       expect(find.text('Julien M.'), findsOneWidget);
 
-      expect(find.text('COMMANDE LIÉE À LA VISITE DPH'), findsOneWidget);
+      expect(find.text('COMMANDE LIÉE À LA VISITE'), findsOneWidget);
       expect(find.text('Commande'), findsOneWidget);
       expect(find.text('#2018 : 2 340,00 € - 22/10/2026'), findsOneWidget);
 
-      // la visite PEM est réalisée : pas de rubrique « Visite PEM »
-      expect(find.text('VISITE PEM'), findsNothing);
+      // pas de commande à mettre en rayon, pas de raison d'absence (une commande est liée)
+      expect(find.text('COMMANDE À METTRE EN RAYON'), findsNothing);
+      expect(find.text("Raison de l'absence de commande"), findsNothing);
 
       expect(find.text('DISTRIBUTION NUMÉRIQUE PAR KIT'), findsOneWidget);
       expect(find.text('COSMIA ZIPPED PLANE KIT ›'), findsOneWidget);
       expect(find.text('Kit racines brun ›'), findsOneWidget);
       expect(find.text('✓'), findsNWidgets(2 + 9));
 
-      expect(find.text('CONCURRENCE'), findsOneWidget);
-      expect(find.text('Marque concurrente A'), findsOneWidget);
-      expect(find.text('2 m'), findsOneWidget);
-      expect(find.text('Marque concurrente B'), findsOneWidget);
-      expect(find.text('1,5 m'), findsOneWidget);
+      // plus de rubriques Visite PEM ni Concurrence
+      expect(find.text('VISITE PEM'), findsNothing);
+      expect(find.text('CONCURRENCE'), findsNothing);
 
       expect(find.text('TIMING DE VISITE'), findsOneWidget);
       // début 9h30, puis +57, +104, +104, +120, +122, +122, +126, +128 minutes
@@ -89,30 +87,65 @@ void main() {
       expect(tester.takeException(), isNull);
     });
 
-    testWidgets('visite sans visite PEM : la raison est donnée', (
+    testWidgets('visite sans commande liée : la raison d’absence est donnée', (
       tester,
     ) async {
       // d00 (E.Leclerc – Paris) n'appartient qu'au chef de secteur et au directeur
       await ouvrirCompteRendu(tester, Role.dir, 'd00');
       expect(find.text('Visite #218081'), findsOneWidget);
       expect(find.text('réalisée par Cindy R.'), findsOneWidget);
-      expect(find.text('Visite PEM · non réalisée'), findsOneWidget);
-      expect(find.text('VISITE PEM'), findsOneWidget);
-      expect(find.text('Pas de visite PEM car'), findsOneWidget);
-      expect(find.text('Pas de rayon PEM'), findsOneWidget);
       expect(find.text('E.LECLERC PARIS'), findsOneWidget);
       expect(find.text('75011 PARIS (FR)'), findsOneWidget);
-      // pas de commande liée
+      // pas de commande liée, pas de raison saisie
       expect(find.text('Aucune commande liée'), findsOneWidget);
       expect(find.text('Commande'), findsNothing);
+      expect(find.text("Raison de l'absence de commande"), findsNothing);
+
+      conteneurApp(tester)
+          .read(crmProvider.notifier)
+          .majVisite(
+            'd00',
+            (v) => v.copyWith(
+              raisonAbsenceId: 'r1',
+              raisonAbsence: 'Stock suffisant',
+            ),
+          );
+      await tester.pumpAndSettle();
+      expect(find.text("Raison de l'absence de commande"), findsOneWidget);
+      expect(find.text('Stock suffisant'), findsOneWidget);
+    });
+
+    testWidgets('commande à mettre en rayon : les colis sont listés', (
+      tester,
+    ) async {
+      await ouvrirCompteRendu(tester, Role.promoteur, 'd0');
+      final actions = ActionsVisite(
+        conteneurApp(tester).read(crmProvider.notifier),
+        'd0',
+      );
+      actions.definirCommandeEnRayon(oui: true);
+      await tester.pumpAndSettle();
+      expect(find.text('COMMANDE À METTRE EN RAYON'), findsOneWidget);
+      expect(find.text('Aucun colis saisi'), findsOneWidget);
+
+      actions.ajouterColis('COL-001');
+      actions.ajouterColis('COL-002');
+      await tester.pumpAndSettle();
+      expect(find.text('Aucun colis saisi'), findsNothing);
+      expect(find.text('COL-001'), findsOneWidget);
+      expect(find.text('COL-002'), findsOneWidget);
+
+      // « Non » efface les colis et masque la rubrique
+      actions.definirCommandeEnRayon(oui: false);
+      await tester.pumpAndSettle();
+      expect(find.text('COMMANDE À METTRE EN RAYON'), findsNothing);
+      expect(find.text('COL-001'), findsNothing);
     });
 
     testWidgets('visite d’un autre promoteur : lecture seule', (tester) async {
       await ouvrirCompteRendu(tester, Role.promoteur, 'x3');
       expect(find.text('Visite #218086'), findsOneWidget);
       expect(find.text('réalisée par Amine K.'), findsOneWidget);
-      expect(find.text('Visite PEM · non réalisée'), findsOneWidget);
-      expect(find.text('Rayon fermé ou en travaux'), findsOneWidget);
       expect(find.text('CARREFOUR MARKET VERSAILLES'), findsOneWidget);
       expect(
         find.text("Lecture seule : cette visite n'est pas la vôtre."),
@@ -128,22 +161,17 @@ void main() {
       expect(badge.couleur, const Color(0xFF2563EB));
     });
 
-    testWidgets('sans kit ni marque : rubriques vides', (tester) async {
+    testWidgets('sans kit : pas de rubrique de distribution numérique', (tester) async {
       await lancerApp(tester, Role.promoteur);
       conteneurApp(tester)
           .read(crmProvider.notifier)
           .majVisite(
             'd0',
-            (v) => v.copyWith(
-              kits: const [],
-              concurrence: const Concurrence(aucune: true),
-            ),
+            (v) => v.copyWith(kits: const []),
           );
       AppRoutes.compteRendu(contexteCoquille(tester), 'd0');
       await tester.pumpAndSettle();
       expect(find.text('DISTRIBUTION NUMÉRIQUE PAR KIT'), findsNothing);
-      expect(find.text('Aucune marque concurrente en rayon'), findsOneWidget);
-      expect(find.text('Marque concurrente A'), findsNothing);
     });
 
     testWidgets(

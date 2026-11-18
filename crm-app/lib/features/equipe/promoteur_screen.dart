@@ -7,8 +7,11 @@ import '../../core/logic/logic.dart';
 import '../../core/theme/theme.dart';
 import '../../core/ui/ui.dart';
 import 'state/filtres.dart';
+import '../planning/state/planning_state.dart';
+import 'widgets/activite_promoteur_reelle.dart';
 import 'widgets/lignes_equipe.dart';
 import 'widgets/planning_equipe.dart';
+import 'widgets/planning_equipe_reel.dart';
 
 /// Page d'un promoteur vue par son encadrement (écran empilé `promo-page`). Maquette : pagePromo l.891-905.
 /// Ouverte par `AppRoutes.pagePromoteur(context, csId: ..., nom: ...)` ; `nom` doit être celui d'un promoteur de la démo.
@@ -49,6 +52,21 @@ class _PromoteurScreenState extends State<PromoteurScreen> {
         commandes: reel.commandes,
         ca: reel.real,
         objectif: reel.cible,
+        enfants: [
+          if (reel.userId != null)
+            PlanningEquipeReel(
+              userId: reel.userId!,
+              promoteur: true,
+              semaine: _semaine,
+              onSemaine: (d) => setState(
+                () => _semaine = (_semaine + d).clamp(
+                  -SemainePlanningNotifier.avant,
+                  SemainePlanningNotifier.apres,
+                ),
+              ),
+            ),
+          ActiviteDuPromoteur(userId: reel.userId),
+        ],
       );
     }
     final p = promoteurParNom(widget.nom)!;

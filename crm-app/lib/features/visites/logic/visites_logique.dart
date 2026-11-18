@@ -2,6 +2,7 @@
 /// lecture des nombres saisis. Maquette : `visitesListe`, `manquants`, `horloge`, `etatTournee`.
 library;
 
+import '../../../core/data/referentiels_visite.dart';
 import '../../../core/logic/logic.dart';
 import '../../../core/models/models.dart';
 import '../../../core/state/state.dart';
@@ -76,19 +77,53 @@ List<LigneVisite> visitesFiltrees(CrmEtat e, FiltresVisites f) {
   return [...miennes, ...autres].where(garde).toList();
 }
 
-/// Ce qu'il reste à faire avant de pouvoir valider une visite (`manquants`) : les étapes DPH non horodatées,
-/// puis la visite PEM si elle n'est ni réalisée ni justifiée.
-List<String> manquants(Visite v) {
-  final m = [
-    for (final e in EtapeDph.values)
-      if (!v.etapeFaite(e)) e.libelle,
-  ];
-  if (v.pem.realisee == null ||
-      (v.pem.realisee == false && v.pem.raison.isEmpty)) {
-    m.add('Visite PEM (réalisée, ou raison de son absence)');
+/// Ce que le parcours exige pour passer l'étape `e` avec « Suivant » (nul si rien ne manque) : une photo d'arrivée et
+/// une photo du rayon, la réponse à « une commande à mettre en rayon ? », une commande liée ou une raison d'absence
+/// (quand le CRM en propose), les questions obligatoires du questionnaire. Les autres étapes n'ont pas d'exigence.
+String? erreurEtape(
+  Visite v,
+  EtapeDph e, {
+  List<QuestionFin> questions = const [],
+  bool raisonsDisponibles = false,
+}) {
+  switch (e) {
+    case EtapeDph.arrivee:
+      if ((v.photos[e] ?? 0) == 0) return "Prenez la photo d'arrivée sur site.";
+    case EtapeDph.rayonArrivee:
+      if ((v.photos[e] ?? 0) == 0) return 'Prenez la photo du rayon.';
+    case EtapeDph.colis:
+      if (v.commandeEnRayon == null) {
+        return "Indiquez s'il y a une commande à mettre en rayon.";
+      }
+    case EtapeDph.commande:
+      if (v.cmd == null && v.raisonAbsence.isEmpty && raisonsDisponibles) {
+        return "Prenez la commande, ou choisissez la raison de l'absence de commande.";
+      }
+    case EtapeDph.questionnaire:
+      final manque = questions.any(
+        (q) => q.obligatoire && (v.reponses[q.id] ?? '').isEmpty,
+      );
+      if (manque) return 'Répondez aux questions obligatoires.';
+    default:
+      break;
   }
-  return m;
+  return null;
 }
+
+/// Ce qu'il reste à faire avant de pouvoir terminer la visite : les messages de toutes les étapes du parcours.
+List<String> manquants(
+  Visite v, {
+  List<QuestionFin> questions = const [],
+  bool raisonsDisponibles = false,
+}) => [
+  for (final e in EtapeDph.parcours)
+    ?erreurEtape(
+      v,
+      e,
+      questions: questions,
+      raisonsDisponibles: raisonsDisponibles,
+    ),
+];
 
 /// Prochain horodatage de l'horloge de la démo (`horloge`) pour une visite : à partir de 14:23, chaque étape
 /// horodatée avance l'heure de 4, 5, 4, 5… minutes (`S.min += 4 + S.min % 3`). Le nombre d'horodatages déjà
@@ -140,43 +175,9 @@ String milliersEspaces(int n) => groupeMilliers(n, separateur: ' ');
 /// Pluriel de la maquette : « kit », « kits » (s'ajoute dès 2).
 String sPluriel(int n) => n > 1 ? 's' : '';
 
-/// Message d'erreur quand l'étape ne peut pas être enregistrée (`v-etape-ok`), nul si elle le peut.
-String? erreurEnregistrement(Visite v, EtapeDph e) {
-  switch (e) {
-    case EtapeDph.dn:
-      if (v.kits.isEmpty) {
-        return 'Sélectionnez au moins un kit pour la vérification DN.';
-      }
-    case EtapeDph.concurrence:
-      if (!v.concurrence.aucune && v.concurrence.liste.isEmpty) {
-        return 'Ajoutez au moins une marque concurrente, ou cochez « Aucune marque concurrente ».';
-      }
-    case EtapeDph.bilan:
-      if (!v.bilanValide) {
-        return 'Validez les objectifs pour enregistrer le bilan.';
-      }
-    case EtapeDph.promos:
-      if (v.promosConformes == null) {
-        return 'Indiquez si les promotions sont conformes.';
-      }
-    default:
-      break;
-  }
-  return null;
+/// Code de colis lu ou saisi : sans espaces autour, nul s'il est vide ou trop long pour être une étiquette.
+String? codeColisValide(String? brut) {
+  final c = brut?.trim();
+  if (c == null || c.isEmpty || c.length > 64) return null;
+  return c;
 }
-
-/// Message affiché une fois l'étape enregistrée (la saisie des promotions sert de cas par défaut, comme la maquette).
-String messageEtapeEnregistree(EtapeDph e) => switch (e) {
-  EtapeDph.dn => 'Vérification DN enregistrée.',
-  EtapeDph.bilan => 'Bilan de visite enregistré.',
-  EtapeDph.concurrence => 'Concurrence enregistrée.',
-  _ => 'Vérification Promos enregistrée.',
-};
-
-/// Fin du libellé du bouton « ✓ Enregistrer … » de la saisie d'une étape.
-String objetEnregistrement(EtapeDph e) => switch (e) {
-  EtapeDph.dn => 'la vérification DN',
-  EtapeDph.concurrence => 'la concurrence',
-  EtapeDph.bilan => 'le bilan de visite',
-  _ => 'la vérification Promos',
-};

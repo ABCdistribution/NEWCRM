@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../api/erreur_api.dart';
@@ -5,12 +7,18 @@ import '../auth/session.dart';
 import '../data/activite_serveur.dart';
 import '../data/commandes_serveur.dart';
 import '../data/equipe_serveur.dart';
+import '../data/planning_serveur.dart';
+import '../logic/dates.dart';
 import '../models/models.dart';
 import '../data/prospects_serveur.dart';
+import '../data/visites_serveur.dart';
 import '../../features/catalogue/data/news_serveur.dart';
+import '../../features/commandes/logic/attente_crm.dart';
+import '../db/base_provider.dart';
 import '../db/app_database.dart';
 import '../api/api_client.dart';
 import 'catalogue_provider.dart';
+import 'pages_api.dart';
 import 'sync_domaine.dart';
 
 /// Jeu de données secondaire gardé en JSON dans la base locale (commandes, visites, prospects…).
@@ -73,6 +81,233 @@ class CommandesNotifier extends SynchroDomaineNotifier {
 
 final commandesProvider = NotifierProvider<CommandesNotifier, EtatSynchro>(
   CommandesNotifier.new,
+);
+
+/// Commandes mises en attente par le promoteur dans le CRM (`GET /commandes/apk?statut=EN_ATTENTE`), avec leur détail
+/// (lignes, e-mail du client) : lisibles hors connexion. Réservé au promoteur (COMMERCIAL), seul à pouvoir les modifier.
+///
+/// C'est aussi le seul endroit où l'app écrit dans le CRM : créer, modifier, valider, supprimer une commande en
+/// attente et l'envoyer par mail. Chaque écriture met à jour la copie locale avec la réponse de l'API.
+class CommandesAttenteNotifier extends SynchroDomaineNotifier {
+  @override
+  String get domaine => 'commandes_attente';
+
+  @override
+  bool get refusTolere => true;
+
+  /// Lignes JSON (détails de l'API) de la copie en mémoire.
+  List<Map<String, dynamic>> _lignes = [];
+
+  @override
+  void appliquer(List<Map<String, dynamic>>? lignes) {
+    _lignes = lignes == null ? [] : List.of(lignes);
+    definirAttentesServeur(
+      lignes == null
+          ? null
+          : [for (final j in lignes) ?commandeAttenteDepuisJson(j)],
+    );
+  }
+
+  @override
+  Future<int> telecharger(
+    ApiLecture api,
+    AppDatabase base,
+    void Function(int, int) progression,
+  ) async {
+    if (ref.read(sessionProvider)?.roleApi != 'COMMERCIAL') return 0;
+    final liste = await lireToutesLesPages(
+      api,
+      '/commandes/apk',
+      query: {'statut': 'EN_ATTENTE'},
+      maxLignes: 200,
+      progression: progression,
+    );
+    final ids = [
+      for (final b in liste)
+        if (b is Map<String, dynamic> && b['id'] is String) b['id'] as String,
+    ];
+    final details = <Object?>[];
+    for (var i = 0; i < ids.length; i += 5) {
+      details.addAll(
+        await Future.wait([
+          for (final id in ids.skip(i).take(5)) _detail(api, id),
+        ]),
+      );
+    }
+    return SyncDomaine(api, base, domaine).enregistrer(details);
+  }
+
+  /// Détail d'une commande ; null si elle a été supprimée ou validée entre la liste et le détail (404).
+  static Future<Object?> _detail(ApiLecture api, String id) async {
+    try {
+      return await api.get(_chemin(id));
+    } on ErreurApi catch (e) {
+      if (e.statut == 404) return null;
+      rethrow;
+    }
+  }
+
+  AppDatabase? get _baseLocale {
+    try {
+      return ref.read(baseLocaleProvider);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  static String _chemin(String id) =>
+      '/commandes/apk/${Uri.encodeComponent(id)}';
+
+  /// Copie locale et liste affichée remises à jour après une écriture.
+  void _publier() {
+    if (!ref.mounted) return;
+    appliquer(_lignes);
+    state = state.avec(nb: _lignes.length);
+  }
+
+  /// Range le détail renvoyé par l'API ; renvoie la commande, ou lève [ErreurApi] si la réponse est illisible.
+  Future<CommandeAttenteCrm> _memoriser(Object? detail) async {
+    final commande = detail is Map<String, dynamic>
+        ? commandeAttenteDepuisJson(detail)
+        : null;
+    if (commande == null) throw const ErreurApi(TypeErreurApi.inattendue);
+    final json = detail as Map<String, dynamic>;
+    _lignes = [
+      for (final l in _lignes)
+        if (l['id'] != commande.id) l,
+      json,
+    ];
+    await _baseLocale?.ecrireEnregistrement(
+      domaine,
+      commande.id,
+      jsonEncode(json),
+    );
+    _publier();
+    return commande;
+  }
+
+  Future<void> _oublier(String id) async {
+    _lignes = [
+      for (final l in _lignes)
+        if (l['id'] != id) l,
+    ];
+    await _baseLocale?.supprimerEnregistrement(domaine, id);
+    _publier();
+  }
+
+  /// `POST /commandes/apk` (idempotent par `idCommandeApk`) puis lecture du détail.
+  Future<CommandeAttenteCrm> creer(Map<String, Object?> corps) async {
+    final r = await ref
+        .read(apiEcritureProvider)
+        .envoyer('POST', '/commandes/apk', corps: corps);
+    final id = r is Map ? r['id'] : null;
+    if (id is! String) throw const ErreurApi(TypeErreurApi.inattendue);
+    return _memoriser(await ref.read(apiClientProvider).get(_chemin(id)));
+  }
+
+  /// `PATCH /commandes/apk/:id`.
+  Future<CommandeAttenteCrm> modifier(
+    String id,
+    Map<String, Object?> corps,
+  ) async => _memoriser(
+    await ref
+        .read(apiEcritureProvider)
+        .envoyer('PATCH', _chemin(id), corps: corps),
+  );
+
+  /// `POST /commandes/apk/:id/valider` : la commande quitte la liste.
+  Future<void> valider(String id) async {
+    await ref
+        .read(apiEcritureProvider)
+        .envoyer('POST', '${_chemin(id)}/valider');
+    await _oublier(id);
+  }
+
+  /// `DELETE /commandes/apk/:id` ; une commande déjà supprimée côté CRM (404) disparaît aussi de la liste.
+  Future<void> supprimer(String id) async {
+    try {
+      await ref.read(apiEcritureProvider).envoyer('DELETE', _chemin(id));
+    } on ErreurApi catch (e) {
+      if (e.statut != 404) rethrow;
+    }
+    await _oublier(id);
+  }
+
+  /// `POST /commandes/apk/:id/envoyer-mail` : la commande reste en attente.
+  Future<CommandeAttenteCrm> envoyerMail(String id, String email) async =>
+      _memoriser(
+        await ref
+            .read(apiEcritureProvider)
+            .envoyer(
+              'POST',
+              '${_chemin(id)}/envoyer-mail',
+              corps: {'email': email},
+            ),
+      );
+}
+
+final commandesAttenteSynchroProvider =
+    NotifierProvider<CommandesAttenteNotifier, EtatSynchro>(
+      CommandesAttenteNotifier.new,
+    );
+
+/// Vrai pour un promoteur connecté : ses commandes en attente sont celles du CRM (sinon l'attente locale de démo).
+final attenteCrmActiveProvider = Provider<bool>(
+  (ref) => ref.watch(sessionProvider.select((u) => u?.roleApi)) == 'COMMERCIAL',
+);
+
+/// Commandes en attente du promoteur connecté, de la plus récente à la plus ancienne.
+final attentesCrmProvider = Provider<List<CommandeAttenteCrm>>((ref) {
+  ref.watch(commandesAttenteSynchroProvider);
+  return trierAttentes(attentesServeur() ?? const []);
+});
+
+/// Visites des 60 derniers jours dans le périmètre de l'utilisateur (`GET /visites` : les siennes pour un promoteur,
+/// celles de son équipe pour l'encadrement).
+class VisitesNotifier extends SynchroDomaineNotifier {
+  @override
+  String get domaine => 'visites';
+
+  @override
+  bool get refusTolere => true;
+
+  @override
+  void appliquer(List<Map<String, dynamic>>? lignes) {
+    if (lignes == null) {
+      definirVisitesServeur();
+      return;
+    }
+    final moi = ref.read(sessionProvider);
+    final r = visitesDepuisJson(
+      lignes,
+      moiId: moi?.id,
+      moiNom: moi?.nomAffiche ?? '',
+    );
+    definirVisitesServeur(miennes: r.miennes, autres: r.autres);
+  }
+
+  @override
+  Future<int> telecharger(
+    ApiLecture api,
+    AppDatabase base,
+    void Function(int, int) progression,
+  ) {
+    final depuis = DateTime.now().subtract(const Duration(days: 60));
+    return SyncDomaine(api, base, domaine).telecharger(
+      '/visites',
+      query: {
+        'dateDepuis':
+            '${depuis.year}-${depuis.month.toString().padLeft(2, '0')}-${depuis.day.toString().padLeft(2, '0')}',
+      },
+      maxLignes: 1500,
+      cleTaille: 'limit',
+      progression: progression,
+    );
+  }
+}
+
+final visitesSynchroProvider = NotifierProvider<VisitesNotifier, EtatSynchro>(
+  VisitesNotifier.new,
 );
 
 /// Prospects du périmètre (`GET /prospects`) : chef de secteur, directeur régional, direction. Les autres rôles
@@ -237,6 +472,120 @@ final performanceProvider = NotifierProvider<PerformanceNotifier, EtatSynchro>(
   PerformanceNotifier.new,
 );
 
+/// Rôles API qui tiennent une tournée personnelle (`/tournees`) et ont un rapport d'activité hebdomadaire.
+const _rolesTournee = {
+  'CHEF_SECTEUR',
+  'DIRECTEUR_REGIONAL',
+  'DIRECTION',
+  'ADMIN',
+};
+
+/// Planning de l'utilisateur sur quelques semaines autour de la semaine courante : ses visites planifiées pour un
+/// promoteur (`GET /plannings`), sa tournée personnelle pour l'encadrement (`GET /tournees/me`).
+class PlanningSynchroNotifier extends SynchroDomaineNotifier {
+  @override
+  String get domaine => 'planning';
+
+  @override
+  bool get refusTolere => true;
+
+  @override
+  void appliquer(List<Map<String, dynamic>>? lignes) => definirPlanningServeur(
+    lignes == null ? null : planningDepuisJson(lignes, DemoTemps.lundi),
+  );
+
+  @override
+  Future<int> telecharger(
+    ApiLecture api,
+    AppDatabase base,
+    void Function(int, int) progression,
+  ) async {
+    final moi = ref.read(sessionProvider);
+    if (moi == null) return 0;
+    final f = fenetrePlanning(DemoTemps.lundi);
+    final String src;
+    final Object? reponse;
+    if (moi.roleApi == 'COMMERCIAL') {
+      src = 'planning';
+      reponse = await api.get(
+        '/plannings',
+        query: {'promoteurId': moi.id, 'debut': f.debut, 'fin': f.fin},
+      );
+    } else if (_rolesTournee.contains(moi.roleApi)) {
+      src = 'tournee';
+      reponse = await api.get(
+        '/tournees/me',
+        query: {'debut': f.debut, 'fin': f.fin},
+      );
+    } else {
+      return 0;
+    }
+    if (reponse is! List) throw const ErreurApi(TypeErreurApi.inattendue);
+    return SyncDomaine(api, base, domaine).enregistrer([
+      for (final b in reponse)
+        if (b is Map<String, dynamic>) {...b, '_src': src},
+    ]);
+  }
+}
+
+final planningSynchroProvider =
+    NotifierProvider<PlanningSynchroNotifier, EtatSynchro>(
+      PlanningSynchroNotifier.new,
+    );
+
+/// Rapport d'activité de la semaine courante et historique de « Mes rapports » (chef de secteur, directeur régional,
+/// direction) : état de la semaine (`GET /tournees/semaine`), prévision enregistrée (`/tournees/semaine/prevue`) et
+/// historique (`/tournees/historique`).
+class RapportsSynchroNotifier extends SynchroDomaineNotifier {
+  @override
+  String get domaine => 'rapports';
+
+  @override
+  bool get refusTolere => true;
+
+  @override
+  void appliquer(List<Map<String, dynamic>>? lignes) => definirRapportsServeur(
+    lignes == null || lignes.isEmpty
+        ? null
+        : rapportsDepuisJson(lignes.first, DemoTemps.lundi),
+  );
+
+  @override
+  Future<int> telecharger(
+    ApiLecture api,
+    AppDatabase base,
+    void Function(int, int) progression,
+  ) async {
+    if (!_rolesTournee.contains(ref.read(sessionProvider)?.roleApi)) return 0;
+    final lundi = isoJour(DemoTemps.lundi);
+    final semaine = await api.get(
+      '/tournees/semaine',
+      query: {'semaine': lundi},
+    );
+    final prevue = await api.get(
+      '/tournees/semaine/prevue',
+      query: {'semaine': lundi},
+    );
+    final historique = await api.get('/tournees/historique');
+    if (semaine is! Map<String, dynamic>) {
+      throw const ErreurApi(TypeErreurApi.inattendue);
+    }
+    return SyncDomaine(api, base, domaine).enregistrer([
+      {
+        'id': 'courant',
+        'semaine': semaine,
+        'prevue': prevue,
+        'historique': historique,
+      },
+    ]);
+  }
+}
+
+final rapportsSynchroProvider =
+    NotifierProvider<RapportsSynchroNotifier, EtatSynchro>(
+      RapportsSynchroNotifier.new,
+    );
+
 /// Notifications non lues de l'utilisateur (`GET /notifications/me`), affichées dans la cloche d'alertes.
 class NotificationsNotifier extends SynchroDomaineNotifier {
   @override
@@ -275,10 +624,13 @@ final jeuxDeDonneesProvider = Provider<List<(String, EtatSynchro)>>(
     ('Catalogue', ref.watch(catalogueProvider)),
     ('Clients', ref.watch(clientsProvider)),
     ('Commandes', ref.watch(commandesProvider)),
+    ('Visites', ref.watch(visitesSynchroProvider)),
     ('Prospects', ref.watch(prospectsSynchroProvider)),
     ('Actualités', ref.watch(newsProvider)),
     ('Équipe', ref.watch(equipeProvider)),
     ('Activité', ref.watch(performanceProvider)),
+    ('Planning', ref.watch(planningSynchroProvider)),
+    ('Rapports', ref.watch(rapportsSynchroProvider)),
     ('Notifications', ref.watch(notificationsSynchroProvider)),
   ],
 );
@@ -288,9 +640,13 @@ void rafraichirTout(WidgetRef ref) {
   ref.read(catalogueProvider.notifier).rafraichir();
   ref.read(clientsProvider.notifier).rafraichir();
   ref.read(commandesProvider.notifier).rafraichir();
+  ref.read(commandesAttenteSynchroProvider.notifier).rafraichir();
+  ref.read(visitesSynchroProvider.notifier).rafraichir();
   ref.read(prospectsSynchroProvider.notifier).rafraichir();
   ref.read(newsProvider.notifier).rafraichir();
   ref.read(equipeProvider.notifier).rafraichir();
   ref.read(performanceProvider.notifier).rafraichir();
+  ref.read(planningSynchroProvider.notifier).rafraichir();
+  ref.read(rapportsSynchroProvider.notifier).rafraichir();
   ref.read(notificationsSynchroProvider.notifier).rafraichir();
 }

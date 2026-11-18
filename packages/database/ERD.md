@@ -121,6 +121,13 @@ PERDUE PERDUE
 ANNULEE ANNULEE
         }
     
+
+
+        StatutCommandeApk {
+            EN_ATTENTE EN_ATTENTE
+VALIDEE VALIDEE
+        }
+    
   "users" {
     String id "🗝️"
     String username 
@@ -364,6 +371,7 @@ ANNULEE ANNULEE
     String alerteRaison "❓"
     String alerteObs "❓"
     String idCommandeApk "❓"
+    Boolean commandeEnRayon "❓"
     DateTime createdAt 
     DateTime updatedAt 
     DateTime deletedAt "❓"
@@ -391,6 +399,21 @@ ANNULEE ANNULEE
     }
   
 
+  "visite_kits" {
+    String id "🗝️"
+    String code 
+    Int nbReferences 
+    DateTime createdAt 
+    }
+  
+
+  "visite_colis" {
+    String id "🗝️"
+    String code 
+    DateTime createdAt 
+    }
+  
+
   "visite_photos" {
     String id "🗝️"
     String fichier 
@@ -400,6 +423,7 @@ ANNULEE ANNULEE
     String mime "❓"
     Bytes donnees "❓"
     String idApk "❓"
+    String etape "❓"
     DateTime createdAt 
     }
   
@@ -434,6 +458,7 @@ ANNULEE ANNULEE
 
   "visite_promos" {
     String id "🗝️"
+    Boolean presente "❓"
     DateTime createdAt 
     }
   
@@ -544,6 +569,12 @@ ANNULEE ANNULEE
     String idCommandeApk 
     String commentaire "❓"
     DateTime dateCommande 
+    StatutCommandeApk statut 
+    String emailValidation "❓"
+    DateTime emailEnvoyeLe "❓"
+    DateTime valideeLe "❓"
+    DateTime nePasLivrerAvant "❓"
+    String motifNePasLivrerAvant "❓"
     DateTime createdAt 
     DateTime updatedAt 
     }
@@ -756,6 +787,8 @@ ANNULEE ANNULEE
     "visites" |o--|o visites : "visiteLiee"
     "visite_dns" }o--|| visites : "visite"
     "visite_dns" |o--|| "TypeDn" : "enum:type"
+    "visite_kits" }o--|| visites : "visite"
+    "visite_colis" }o--|| visites : "visite"
     "visite_photos" }o--|| visites : "visite"
     "visite_steps" }o--|| visites : "visite"
     "questions_visite" |o--|| "TypeQuestion" : "enum:type"
@@ -764,6 +797,7 @@ ANNULEE ANNULEE
     "visite_reponses" }o--|| questions_visite : "question"
     "visite_promos" }o--|| visites : "visite"
     "visite_promos" }o--|o articles : "article"
+    "visite_promos" }o--|o promos : "promo"
     "plannings" }o--|| users : "promoteur"
     "plannings" }o--|| clients : "client"
     "plannings" }o--|o plannifications : "plannification"
@@ -781,6 +815,7 @@ ANNULEE ANNULEE
     "commande_lignes" }o--|o articles : "article"
     "commandes_apk" }o--|| users : "promoteur"
     "commandes_apk" }o--|| clients : "client"
+    "commandes_apk" |o--|| "StatutCommandeApk" : "enum:statut"
     "commande_apk_lignes" }o--|| commandes_apk : "commandeApk"
     "commande_apk_lignes" }o--|| articles : "article"
     "prospects" }o--|o secteurs : "secteur"

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/logic/logic.dart';
+import '../../core/sync/planning_equipe_provider.dart';
 import '../../core/theme/theme.dart';
 import '../../core/ui/ui.dart';
 import 'data/rapports_demo.dart';
@@ -45,6 +46,37 @@ class RapportDetailSheet extends ConsumerWidget {
         liste = const Vide(
           "Prévision non renseignée cette semaine : il n'y a pas de comparaison possible.",
         );
+      }
+    } else if (DemoTemps.reel) {
+      // Rapport d'une semaine passée du CRM : prévision et tournée réalisée chargées à l'ouverture.
+      final r = ref
+          .watch(rapportsPrecedentsProvider)
+          .where((x) => x.numero == numSemaine)
+          .firstOrNull;
+      if (r == null || r.lundi == null) {
+        titre = 'Semaine $numSemaine';
+        chiffres = null;
+        liste = const Vide('Aucun rapport pour cette semaine.');
+      } else {
+        titre = 'Semaine ${r.numero} · ${r.periode}';
+        final detail = ref.watch(rapportPersonnelProvider(r.lundi!));
+        final e = detail.value?.ecarts;
+        if (detail.value == null) {
+          chiffres = null;
+          liste = Vide(
+            detail.isLoading
+                ? 'Chargement du rapport…'
+                : 'Rapport indisponible : réseau coupé et aucune copie locale.',
+          );
+        } else if (e == null) {
+          chiffres = null;
+          liste = const Vide(
+            "Prévision non renseignée cette semaine : il n'y a pas de comparaison possible.",
+          );
+        } else {
+          chiffres = 'Prévu ${e.prevues} · Réalisé ${e.realisees} (${e.pct} %)';
+          liste = EcartsListe(e.lignes);
+        }
       }
     } else {
       final r = rapportsDemo.where((x) => x.numero == numSemaine).firstOrNull;

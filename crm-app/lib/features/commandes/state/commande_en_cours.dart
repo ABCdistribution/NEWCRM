@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 
 import '../../../core/data/data.dart';
 import '../../../core/models/models.dart';
+import '../logic/attente_crm.dart';
 
 /// Une ligne du panier : un produit, sa quantité et, le cas échéant, le produit qu'elle remplace
 /// (maquette : `{ id, qty, remplace }`).
@@ -57,6 +58,8 @@ class CommandeEnCours {
     this.depuisVisite,
     this.masquer = false,
     this.jeton,
+    this.crm,
+    this.idApk,
   });
 
   /// Client de la commande ; nul à l'étape « choisissez le client ».
@@ -90,6 +93,14 @@ class CommandeEnCours {
   /// Identifie l'écran de prise de commande qui a démarré cette commande (voir `PriseCommandeScreen`).
   final Object? jeton;
 
+  /// Commande déjà enregistrée en attente dans le CRM, telle qu'elle y est : sert à ne modifier que ce qui change.
+  /// Nulle tant que la commande n'a pas été envoyée au CRM.
+  final CommandeAttenteCrm? crm;
+
+  /// Identifiant mobile de la commande (`idCommandeApk`) : fixé à la première tentative d'envoi, pour qu'un nouvel
+  /// essai après une coupure ne crée pas de doublon.
+  final String? idApk;
+
   LigneCommande? ligne(String produitId) {
     for (final l in lignes) {
       if (l.produitId == produitId) return l;
@@ -120,6 +131,8 @@ class CommandeEnCours {
     String? motifPas,
     String? motifAutre,
     bool? masquer,
+    Object? crm = _inchange,
+    String? idApk,
   }) {
     return CommandeEnCours(
       magasinId: identical(magasinId, _inchange)
@@ -137,6 +150,8 @@ class CommandeEnCours {
       depuisVisite: depuisVisite,
       masquer: masquer ?? this.masquer,
       jeton: jeton,
+      crm: identical(crm, _inchange) ? this.crm : crm as CommandeAttenteCrm?,
+      idApk: idApk ?? this.idApk,
     );
   }
 }

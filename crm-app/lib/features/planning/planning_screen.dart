@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/data/planning_serveur.dart';
 import '../../core/logic/logic.dart';
 import '../../core/models/models.dart';
 import '../../core/nav/nav.dart';
@@ -26,19 +27,32 @@ class PlanningScreen extends ConsumerWidget {
     final etat = ref.watch(crmProvider);
     final plan = ref.watch(planningProvider);
     final jour = ref.watch(jourPlanningProvider);
-    final lectureSeule = role == Role.promoteur;
+    final promoteur = role == Role.promoteur;
+    // Connecté, le planning vient du CRM et se lit sans se modifier : rien ne repart vers le CRM depuis l'application.
+    final reel = DemoTemps.reel;
+    final lectureSeule = promoteur || reel;
     final u = context.univers;
 
-    // Le promoteur lit le planning que son encadrement a composé pour lui (semaine courante).
-    final lignesPlan = lectureSeule ? etat.planDe(profil.nom) : etat.etapes;
-    final sem = lectureSeule ? 0 : null;
+    // Connecté : le planning du CRM sur quelques semaines, semaine par semaine. Démonstration : le promoteur lit le
+    // planning que son encadrement a composé pour lui (semaine courante).
+    final decalage = reel ? ref.watch(semainePlanningProvider) : 0;
+    final lignesPlan = reel
+        ? etat.planningFenetre
+        : promoteur
+        ? etat.planDe(profil.nom)
+        : etat.etapes;
+    final sem = reel || promoteur ? decalage : null;
     final lignes = lignesDuJour(lignesPlan, jour, sem: sem);
     final modifiee = previsionModifiee(plan.prevision, etat.etapes);
+    final info = semaineInfo(decalage);
+    final semaineCourante = decalage == 0;
 
-    void changerSemaine() => AppToast.show(
-      context,
-      'Navigation entre semaines : non détaillée dans la démo.',
-    );
+    void changerSemaine(int delta) => reel
+        ? ref.read(semainePlanningProvider.notifier).decaler(delta)
+        : AppToast.show(
+            context,
+            'Navigation entre semaines : non détaillée dans la démo.',
+          );
 
     final entete = AppEntete.libre(
       child: Column(
@@ -57,13 +71,13 @@ class PlanningScreen extends ConsumerWidget {
                 const SizedBox(width: 8),
                 RondB(
                   '‹',
-                  onTap: changerSemaine,
+                  onTap: () => changerSemaine(-1),
                   semantique: 'Semaine précédente',
                 ),
                 const SizedBox(width: 8),
                 RondB(
                   '›',
-                  onTap: changerSemaine,
+                  onTap: () => changerSemaine(1),
                   semantique: 'Semaine suivante',
                 ),
               ],
@@ -72,7 +86,9 @@ class PlanningScreen extends ConsumerWidget {
           Padding(
             padding: const EdgeInsets.only(top: 2),
             child: Text(
-              'Semaine ${DemoTemps.semaineCourante} · ${DemoTemps.semaineLibelle}',
+              reel
+                  ? 'Semaine ${info.num} · ${DemoTemps.libellePeriodeSemaine(DateTime(DemoTemps.lundi.year, DemoTemps.lundi.month, DemoTemps.lundi.day + 7 * decalage))}'
+                  : 'Semaine ${DemoTemps.semaineCourante} · ${DemoTemps.semaineLibelle}',
               style: AppText.t(12.5, c: u.encre2),
             ),
           ),
@@ -81,7 +97,7 @@ class PlanningScreen extends ConsumerWidget {
               for (var i = 0; i < 5; i++)
                 JourItem(
                   libelle: joursCourts[i],
-                  numero: semaineInfo(0).dates[i],
+                  numero: info.dates[i],
                   compte: '${lignesDuJour(lignesPlan, i, sem: sem).length} RDV',
                 ),
             ],
@@ -95,19 +111,35 @@ class PlanningScreen extends ConsumerWidget {
     // Bandeau de phase (`icone`, `titre`, `detail` de pageTournee).
     final prevision = plan.prevision;
     final nbPrevision = prevision?.length ?? 0;
+    final semaineRapport = reel ? rapportsServeur()?.semaine : null;
+    // Connecté : dates et heures venues du CRM ; démonstration : celles de la maquette.
+    final prevuAt = semaineRapport?.prevuAt;
+    final jourPrevu = prevuAt == null
+        ? DemoTemps.lundiLibelle
+        : DemoTemps.libelleJour(prevuAt);
+    final quandPrevu = semaineRapport?.prevuAt == null
+        ? '${DemoTemps.lundiLibelle} à 09:10'
+        : '${DemoTemps.libelleJour(semaineRapport!.prevuAt!)} à ${deuxChiffres(semaineRapport.prevuAt!.hour)}:${deuxChiffres(semaineRapport.prevuAt!.minute)}';
     String icone;
     String titre;
     String? detail;
     switch (plan.phase) {
       case PhasePlanning.valide:
         icone = '🔒';
-        titre = 'Validé auto le ${DemoTemps.lundiSuivantLibelle} à 04:00';
+        titre = reel
+            ? piedValidation(
+                semaineRapport?.valideAt,
+                auto: semaineRapport?.valideAuto ?? true,
+              )
+            : 'Validé auto le ${DemoTemps.lundiSuivantLibelle} à 04:00';
         detail = "La semaine est verrouillée : plus rien n'est modifiable.";
       case PhasePlanning.prevision:
         titre = prevision == null
-            ? 'Prévision à saisir'
-            : 'Prévision enregistrée le ${DemoTemps.lundiLibelle} à 09:10 (${nbLignes(nbPrevision)})';
-        detail = prevision == null
+            ? (reel ? 'Prévision non enregistrée' : 'Prévision à saisir')
+            : 'Prévision enregistrée le $quandPrevu (${nbLignes(nbPrevision)})';
+        detail = reel
+            ? null
+            : prevision == null
             ? "Planifiez vos RDV de la semaine avec le « + », puis enregistrez votre prévision. Elle reste modifiable jusqu'au lundi soir, puis se fige."
             : modifiee
             ? "⚠ Des lignes ont changé depuis l'enregistrement : mettez la prévision à jour."
@@ -117,10 +149,11 @@ class PlanningScreen extends ConsumerWidget {
         icone = '⏳';
         titre = 'Rapport en cours';
         detail = prevision != null
-            ? 'Prévision figée le ${DemoTemps.lundiLibelle} (${nbLignes(nbPrevision)}).'
+            ? 'Prévision figée le $jourPrevu (${nbLignes(nbPrevision)}).'
             : 'Prévision non renseignée cette semaine.';
     }
-    if (lectureSeule) {
+    // Le promoteur n'a pas de rapport ; les semaines voisines n'ont pas la phase de la semaine courante.
+    if (promoteur || (reel && !semaineCourante)) {
       icone = '👁';
       titre = 'Planning de la semaine';
       detail = null;
@@ -150,7 +183,7 @@ class PlanningScreen extends ConsumerWidget {
     );
 
     final montrerEcarts =
-        !lectureSeule && plan.phase != PhasePlanning.prevision;
+        !promoteur && semaineCourante && plan.phase != PhasePlanning.prevision;
     return PageUnivers(
       entete: entete,
       paddingBasFab: true,
@@ -181,6 +214,7 @@ class PlanningScreen extends ConsumerWidget {
             _CarteLigne(
               ligne: e,
               lectureSeule: lectureSeule,
+              promoteur: promoteur,
               masquerFait: plan.phase == PhasePlanning.prevision,
               prospect: e.cible == CiblePlanning.prospect
                   ? etat.prospectParId(e.ref ?? '')
@@ -218,12 +252,18 @@ class _CarteLigne extends ConsumerWidget {
   const _CarteLigne({
     required this.ligne,
     required this.lectureSeule,
+    required this.promoteur,
     required this.masquerFait,
     required this.prospect,
   });
 
   final EtapePlanning ligne;
+
+  /// Aucune modification : promoteur, ou connecté au CRM (rien ne repart vers le CRM).
   final bool lectureSeule;
+
+  /// Le promoteur ne consulte pas les fiches depuis son planning ; l'encadrement, oui.
+  final bool promoteur;
   final bool masquerFait;
   final Prospect? prospect;
 
@@ -245,8 +285,11 @@ class _CarteLigne extends ConsumerWidget {
       libelle: style.libelle,
       fond: Color(style.fond),
       texte: Color(style.texte),
-      detail: detailLigne(e, lectureSeule: lectureSeule),
-      onTap: lectureSeule ? null : () => _ouvrir(context, avecFiche),
+      detail: detailLigne(e, lectureSeule: promoteur),
+      // Sans modification possible, seule une ligne qui vise un client ou un prospect s'ouvre (sa fiche).
+      onTap: promoteur || (lectureSeule && !avecFiche)
+          ? null
+          : () => _ouvrir(context, avecFiche),
       onModifier: !lectureSeule && avecFiche
           ? () => AppRoutes.formulaireRdv(context, etapeId: e.id)
           : null,

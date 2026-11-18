@@ -3,6 +3,7 @@
 library;
 
 import '../../../core/data/data.dart';
+import '../../../core/data/planning_serveur.dart';
 import '../../../core/logic/logic.dart';
 import '../../../core/models/models.dart';
 import '../data/rapports_demo.dart';
@@ -79,4 +80,41 @@ List<Magasin> clientsDe(String nom, List<Magasin> magasins) {
   final noms = activite.visites.map((v) => v.client).toSet();
   final l = magasins.where((m) => noms.contains(m.nom)).toList();
   return l.length >= 2 ? l : magasins;
+}
+
+/// « Validé automatiquement le lun. 2 nov. à 04:00 », « Validé le mer. 4 nov. à 17:12 » ; « Rapport non validé » sans
+/// date de validation.
+String piedValidation(DateTime? valideAt, {required bool auto}) {
+  if (valideAt == null) return 'Rapport non validé';
+  final heure = '${deuxChiffres(valideAt.hour)}:${deuxChiffres(valideAt.minute)}';
+  return 'Validé${auto ? ' automatiquement' : ''} le ${DemoTemps.libelleJour(valideAt)} à $heure';
+}
+
+/// Rapport d'une semaine de l'historique du CRM (`GET /tournees/historique`). Les écarts avec la prévision ne sont pas
+/// donnés par cette liste : ils sont chargés à l'ouverture du détail.
+RapportSemaine rapportDepuisHistorique(SemaineHistorique s) {
+  final lundi = DateTime.tryParse(s.lundi) ?? DemoTemps.lundi;
+  return RapportSemaine(
+    numero: s.numero,
+    periode: DemoTemps.libellePeriodeSemaine(lundi),
+    visites: s.visites,
+    pct: s.pourcentPrevu,
+    rdv: s.rdv,
+    prevues: s.nbPrevues,
+    pied: piedValidation(s.valideAt, auto: s.valideAuto),
+    ecarts: const [],
+    auto: s.valideAuto,
+    valide: s.valide,
+    ecartsConnus: false,
+    lundi: s.lundi,
+  );
+}
+
+/// Rapports précédents du CRM : les semaines de l'historique, la semaine courante seulement une fois validée.
+List<RapportSemaine> rapportsReels(RapportsServeur? r) {
+  final courant = isoJour(DemoTemps.lundi);
+  return [
+    for (final s in r?.semaines ?? const <SemaineHistorique>[])
+      if (s.valide || s.lundi != courant) rapportDepuisHistorique(s),
+  ];
 }

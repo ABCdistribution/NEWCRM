@@ -15,17 +15,23 @@ import {
 import { FileInterceptor } from '@nestjs/platform-express';
 import type { Response } from 'express';
 import { ApiBearerAuth, ApiOperation, ApiProperty, ApiPropertyOptional, ApiTags } from '@nestjs/swagger';
-import { Type } from 'class-transformer';
+import { Transform, Type } from 'class-transformer';
 import {
+  ArrayMaxSize,
   IsArray,
+  IsBoolean,
+  IsIn,
   IsInt,
+  IsISO8601,
   IsNotEmpty,
   IsOptional,
   IsString,
   IsUUID,
   Matches,
+  Max,
   MaxLength,
   Min,
+  MinLength,
   ValidateNested,
 } from 'class-validator';
 import { User } from '@crm/database';
@@ -35,7 +41,9 @@ import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { ROLES_COMMANDES_VISITES } from '../common/roles.constants';
 import { lireModifieDepuis, ModifieDepuisQuery } from '../common/modifie-depuis';
-import { auteursDeVisitesVisibles, VisitesService } from './visites.service';
+import { auteursDeVisitesVisibles, ETAPES_PHOTO, ETAPES_VISITE, VisitesService } from './visites.service';
+
+const rognerChaine = ({ value }: { value: unknown }) => (typeof value === 'string' ? value.trim() : value);
 
 class ReponseDto {
   @ApiProperty({ description: 'UUID de la question du questionnaire' })
@@ -46,6 +54,41 @@ class ReponseDto {
   @IsString()
   @MaxLength(2000)
   valeur!: string;
+}
+
+class KitDto {
+  @ApiProperty({ example: 'KIT91265', description: 'Code du kit constaté en rayon' })
+  @Transform(rognerChaine)
+  @IsString({ message: 'Le code du kit doit être un texte' })
+  @MinLength(1, { message: 'Le code du kit est obligatoire' })
+  @MaxLength(64, { message: 'Le code du kit ne doit pas dépasser 64 caractères' })
+  code!: string;
+
+  @ApiProperty({ example: 5, description: 'Nombre de références du kit constatées en rayon' })
+  @IsInt({ message: 'Le nombre de références doit être un entier' })
+  @Min(0, { message: 'Le nombre de références ne peut pas être négatif' })
+  @Max(1000, { message: 'Le nombre de références ne doit pas dépasser 1000' })
+  references!: number;
+}
+
+class PromoOpDto {
+  @ApiProperty({ description: 'UUID de la promotion pointée' })
+  @IsUUID(undefined, { message: "promoId doit être l'identifiant d'une promotion" })
+  promoId!: string;
+
+  @ApiProperty({ description: 'Promotion en place en rayon ?' })
+  @IsBoolean({ message: 'presente doit être vrai ou faux' })
+  presente!: boolean;
+}
+
+class EtapeDto {
+  @ApiProperty({ enum: ETAPES_VISITE })
+  @IsIn(ETAPES_VISITE, { message: `etape doit être l'une des valeurs : ${ETAPES_VISITE.join(', ')}` })
+  etape!: string;
+
+  @ApiProperty({ example: '2026-11-18T08:30:00.000Z', description: "Date et heure ISO 8601 de l'étape" })
+  @IsISO8601({ strict: true }, { message: 'horodatage doit être une date ISO 8601 (ex. 2026-11-18T08:30:00Z)' })
+  horodatage!: string;
 }
 
 class CreateVisiteDto {
@@ -112,6 +155,45 @@ class CreateVisiteDto {
   @ValidateNested({ each: true })
   @Type(() => ReponseDto)
   reponses?: ReponseDto[];
+
+  @ApiPropertyOptional({ description: 'Étape « commande à mettre en rayon ? » — absent ou null = pas répondu' })
+  @IsOptional()
+  @IsBoolean({ message: 'commandeEnRayon doit être vrai ou faux' })
+  commandeEnRayon?: boolean;
+
+  @ApiPropertyOptional({ type: [String], description: 'Codes de colis scannés / saisis (1 à 64 caractères, 200 max, dédoublonnés)' })
+  @IsOptional()
+  @IsArray({ message: 'colis doit être une liste' })
+  @ArrayMaxSize(200, { message: 'Pas plus de 200 colis par visite' })
+  @Transform(({ value }) => (Array.isArray(value) ? value.map((v) => rognerChaine({ value: v })) : value))
+  @IsString({ each: true, message: 'Chaque code de colis doit être un texte' })
+  @MinLength(1, { each: true, message: 'Un code de colis ne peut pas être vide' })
+  @MaxLength(64, { each: true, message: 'Un code de colis ne doit pas dépasser 64 caractères' })
+  colis?: string[];
+
+  @ApiPropertyOptional({ type: [KitDto], description: 'Kits constatés en rayon (vérification DN) : code et nombre de références' })
+  @IsOptional()
+  @IsArray({ message: 'kits doit être une liste' })
+  @ArrayMaxSize(100, { message: 'Pas plus de 100 kits par visite' })
+  @ValidateNested({ each: true })
+  @Type(() => KitDto)
+  kits?: KitDto[];
+
+  @ApiPropertyOptional({ type: [PromoOpDto], description: 'Pointage OP : promotion et présence en rayon' })
+  @IsOptional()
+  @IsArray({ message: 'promosOp doit être une liste' })
+  @ArrayMaxSize(200, { message: 'Pas plus de 200 promotions pointées par visite' })
+  @ValidateNested({ each: true })
+  @Type(() => PromoOpDto)
+  promosOp?: PromoOpDto[];
+
+  @ApiPropertyOptional({ type: [EtapeDto], description: 'Chrono : horodatage de chaque étape faite' })
+  @IsOptional()
+  @IsArray({ message: 'etapes doit être une liste' })
+  @ArrayMaxSize(20, { message: 'Pas plus de 20 étapes par visite' })
+  @ValidateNested({ each: true })
+  @Type(() => EtapeDto)
+  etapes?: EtapeDto[];
 }
 
 class PhotoDto {
@@ -120,6 +202,11 @@ class PhotoDto {
   @IsString()
   @MaxLength(64)
   idApk?: string;
+
+  @ApiPropertyOptional({ enum: ETAPES_PHOTO, description: 'Étape du parcours à laquelle appartient la photo' })
+  @IsOptional()
+  @IsIn(ETAPES_PHOTO, { message: `etape doit être l'une des valeurs : ${ETAPES_PHOTO.join(', ')}` })
+  etape?: string;
 }
 
 @ApiTags('visites')
@@ -140,6 +227,7 @@ export class VisitesController {
     @Query('page') page: string | undefined,
     @Query('search') search: string | undefined,
     @Query('tous') tous: string | undefined,
+    @Query('dateDepuis') dateDepuis: string | undefined,
     @Query() { modifieDepuis }: ModifieDepuisQuery,
     @CurrentUser() me: User,
   ) {
@@ -153,13 +241,14 @@ export class VisitesController {
       search,
       equipe: equipe ?? undefined,
       modifieDepuis: lireModifieDepuis(modifieDepuis),
+      dateDepuis: dateDepuis && !Number.isNaN(new Date(dateDepuis).getTime()) ? new Date(dateDepuis) : undefined,
     });
   }
 
   @Post()
   @ApiOperation({
     summary:
-      "Compte-rendu de visite (app mobile) : questionnaire, DN, motif — idempotent par idApk, solde la visite planifiée liée",
+      "Compte-rendu de visite (app mobile) : parcours (colis, kits DN, pointage OP, chrono), questionnaire, motif — idempotent par idApk, solde la visite planifiée liée",
   })
   create(@Body() dto: CreateVisiteDto, @CurrentUser() me: User) {
     return this.visites.create(me, dto);
@@ -168,7 +257,7 @@ export class VisitesController {
   @Post(':id/photos')
   @UseInterceptors(FileInterceptor('photo', { limits: { fileSize: 10 * 1024 * 1024 } }))
   @ApiOperation({
-    summary: 'Photo de rayon attachée à une visite (multipart, champ « photo », 10 Mo max) — idempotent par idApk',
+    summary: 'Photo de rayon attachée à une visite (multipart, champs « photo », « idApk », « etape » ; 10 Mo max) — idempotent par idApk',
   })
   addPhoto(
     @Param('id', ParseUUIDPipe) id: string,
@@ -177,7 +266,7 @@ export class VisitesController {
     @CurrentUser() me: User,
   ) {
     if (!photo) throw new BadRequestException('Aucune photo reçue (champ « photo »).');
-    return this.visites.addPhoto(me, id, photo, dto.idApk);
+    return this.visites.addPhoto(me, id, photo, dto.idApk, dto.etape);
   }
 
   @Get(':id/photos')

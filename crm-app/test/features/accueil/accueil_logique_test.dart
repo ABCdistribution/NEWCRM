@@ -290,4 +290,57 @@ void main() {
     final moi = promoteurParNom(CrmEtat.initial(Role.promoteur).nomProfil)!;
     expect([moi.real, moi.cible], [4200, 4900]);
   });
+
+  group('prochaineVisitePrevue', () {
+    final base = CrmEtat.initial(Role.promoteur);
+    final m = base.magasins.first;
+    EtapePlanning ligne(
+      String id,
+      int jour, {
+      String heure = '',
+      int? sem,
+      bool fait = false,
+      bool visite = true,
+    }) => EtapePlanning(
+      id: id,
+      jour: jour,
+      heure: heure,
+      cible: CiblePlanning.client,
+      ref: m.id,
+      titre: m.nom,
+      sem: sem,
+      fait: fait,
+      visite: visite,
+    );
+
+    test('la première ligne à faire après aujourd’hui (mercredi en démo)', () {
+      final e = base.copyWith(
+        etapes: [
+          ligne('a', 1),
+          ligne('b', 4, heure: '14:00'),
+          ligne('c', 3, heure: '10:00'),
+          ligne('d', 3, heure: '09:00', fait: true),
+        ],
+      );
+      final p = prochaineVisitePrevue(e)!;
+      expect(p.heure, '10:00');
+      expect(p.date, 'jeu. 5 nov.');
+      expect(p.magasin.id, m.id);
+    });
+
+    test('la semaine suivante passe après la semaine courante, rien sinon', () {
+      final e = base.copyWith(
+        etapes: [ligne('a', 0, sem: 1), ligne('b', 4)],
+      );
+      expect(prochaineVisitePrevue(e)!.date, 'ven. 6 nov.');
+      expect(
+        prochaineVisitePrevue(
+          base.copyWith(
+            etapes: [ligne('a', 2), ligne('b', 4, visite: false)],
+          ),
+        ),
+        isNull,
+      );
+    });
+  });
 }

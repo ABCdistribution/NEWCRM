@@ -7,7 +7,6 @@ import '../../core/state/state.dart';
 import '../../core/theme/theme.dart';
 import '../../core/ui/ui.dart';
 import 'data/visites_data.dart';
-import 'logic/visites_logique.dart';
 import 'widgets/badge_visite.dart';
 
 /// Compte rendu d'une visite terminée ou d'un autre promoteur (écran empilé `cr`), en lecture seule.
@@ -33,32 +32,15 @@ class CompteRenduScreen extends ConsumerWidget {
     final moi = ref.watch(profilActifProvider).nom;
     final m = ref.watch(magasinParIdProvider(v.magasinId));
     final cpVille = m?.adresse.split(', ').last.toUpperCase() ?? '';
-    final conc = v.concurrence;
     return PageUnivers(
       entete: TopbarEcran(
-        titre: 'Visite #${v.num}',
+        titre: v.num > 0 ? 'Visite #${v.num}' : 'Visite',
         sous: 'réalisée par ${v.par}',
         tailleTitre: 16,
         droite: BadgeVisite(v.etat),
       ),
       enfants: [
         SectionTitre('Compte rendu de la visite', couleur: bleu, margeHaut: 0),
-        Padding(
-          padding: const EdgeInsets.only(bottom: 6),
-          child: Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: [
-              const Pastille('Visite DPH', variante: VariantePastille.vert),
-              Pastille(
-                'Visite PEM${v.pem.realisee == true ? '' : ' · non réalisée'}',
-                variante: v.pem.realisee == true
-                    ? VariantePastille.vert
-                    : VariantePastille.gris,
-              ),
-            ],
-          ),
-        ),
         SectionTitre('Le client', couleur: bleu),
         LigneCle(
           'Enseigne',
@@ -88,14 +70,19 @@ class CompteRenduScreen extends ConsumerWidget {
         SectionTitre('La visite', couleur: bleu),
         LigneCle('Réception visite', v.recu ?? '—'),
         LigneCle('Réalisée par', v.par),
-        SectionTitre('Commande liée à la visite DPH', couleur: bleu),
+        SectionTitre('Commande liée à la visite', couleur: bleu),
         if (v.cmd != null)
           LigneCle('Commande', '#${v.cmd!.id} : ${v.cmd!.ht} - ${v.cmd!.liv}')
         else
           const LigneCle('Aucune commande liée', ''),
-        if (v.pem.realisee != true) ...[
-          SectionTitre('Visite PEM', couleur: bleu),
-          LigneCle('Pas de visite PEM car', v.pem.raison),
+        if (v.cmd == null && v.raisonAbsence.isNotEmpty)
+          LigneCle("Raison de l'absence de commande", v.raisonAbsence),
+        if (v.commandeEnRayon == true) ...[
+          SectionTitre('Commande à mettre en rayon', couleur: bleu),
+          if (v.colis.isEmpty)
+            const LigneCle('Aucun colis saisi', '')
+          else
+            for (final c in v.colis) LigneCle('Colis', c),
         ],
         if (v.kits.isNotEmpty) ...[
           SectionTitre('Distribution numérique par kit', couleur: bleu),
@@ -105,12 +92,6 @@ class CompteRenduScreen extends ConsumerWidget {
               onTap: () => AppRoutes.detailKit(context, code),
             ),
         ],
-        SectionTitre('Concurrence', couleur: bleu),
-        if (conc.aucune || conc.liste.isEmpty)
-          const LigneCle('Aucune marque concurrente en rayon', '')
-        else
-          for (final c in conc.liste)
-            LigneCle(c.marque, '${nombreFr(c.metrage)} m'),
         SectionTitre('Timing de visite', couleur: bleu),
         for (final e in EtapeDph.values)
           LigneEcart(titre: e.libelle, detail: v.chrono[e] ?? ''),

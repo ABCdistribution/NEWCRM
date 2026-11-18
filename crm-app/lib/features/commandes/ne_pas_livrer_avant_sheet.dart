@@ -3,11 +3,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/theme/theme.dart';
 import '../../core/ui/ui.dart';
+import 'logic/attente_crm.dart';
 import 'state/commande_provider.dart';
 import 'widgets/champ_date.dart';
 
 /// Motifs proposés pour une consigne « Ne pas livrer avant » (`motifs` de la modale `cmd-pas`).
-const List<String> motifsConsigne = ['Impératif', 'Inventaire'];
+const List<String> motifsConsigne = motifsConsigneConnus;
 
 /// Ouvre la feuille « Ne pas livrer avant… ». Maquette : modale `cmd-pas` l.1359-1368 et actions l.1495-1508.
 /// Appelée par `AppRoutes.nePasLivrerAvant(context)`.

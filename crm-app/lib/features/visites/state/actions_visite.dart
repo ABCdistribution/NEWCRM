@@ -53,57 +53,62 @@ class ActionsVisite {
     },
   );
 
-  /// « Aucune marque concurrente en rayon » : cocher vide la liste (`conc-aucune`).
-  void basculerAucuneMarque() => _maj((v) {
-    final aucune = !v.concurrence.aucune;
-    return v.copyWith(
-      concurrence: Concurrence(
-        aucune: aucune,
-        liste: aucune ? const [] : v.concurrence.liste,
-      ),
-    );
+  /// Réponse à « une commande à mettre en rayon ? » ; « non » efface les colis (`colis`).
+  void definirCommandeEnRayon({required bool oui}) => _maj(
+    (v) => v.copyWith(commandeEnRayon: oui, colis: oui ? v.colis : const []),
+  );
+
+  void ajouterColis(String code) => _maj(
+    (v) => v.colis.contains(code)
+        ? v
+        : v.copyWith(colis: [...v.colis, code]),
+  );
+
+  void retirerColis(String code) =>
+      _maj((v) => v.copyWith(colis: v.colis.where((c) => c != code).toList()));
+
+  /// Choisit la raison d'absence de commande (identifiant CRM et libellé).
+  void choisirRaisonAbsence(String id, String libelle) =>
+      _maj((v) => v.copyWith(raisonAbsenceId: id, raisonAbsence: libelle));
+
+  /// Une commande prise efface la raison d'absence (les deux s'excluent).
+  void effacerRaisonAbsence() => _maj(
+    (v) => Visite(
+      id: v.id,
+      num: v.num,
+      magasinId: v.magasinId,
+      par: v.par,
+      parId: v.parId,
+      etat: v.etat,
+      date: v.date,
+      age: v.age,
+      chrono: v.chrono,
+      photos: v.photos,
+      recu: v.recu,
+      dn: v.dn,
+      kits: v.kits,
+      commandeEnRayon: v.commandeEnRayon,
+      colis: v.colis,
+      reponses: v.reponses,
+      op: v.op,
+      cmd: v.cmd,
+    ),
+  );
+
+  /// Réponse à une question du questionnaire ; une valeur vide retire la réponse.
+  void repondre(String questionId, String valeur) => _maj((v) {
+    final r = {...v.reponses};
+    if (valeur.isEmpty) {
+      r.remove(questionId);
+    } else {
+      r[questionId] = valeur;
+    }
+    return v.copyWith(reponses: r);
   });
 
-  void retirerMarque(int index) => _maj((v) {
-    final liste = [...v.concurrence.liste]..removeAt(index);
-    return v.copyWith(
-      concurrence: Concurrence(aucune: v.concurrence.aucune, liste: liste),
-    );
-  });
-
-  void ajouterMarque(String marque, double metrage) => _maj(
-    (v) => v.copyWith(
-      concurrence: Concurrence(
-        aucune: v.concurrence.aucune,
-        liste: [
-          ...v.concurrence.liste,
-          MarqueConcurrente(marque: marque, metrage: metrage),
-        ],
-      ),
-    ),
-  );
-
-  void basculerBilan() => _maj((v) => v.copyWith(bilanValide: !v.bilanValide));
-
-  void noterBilan(String texte) => _maj((v) => v.copyWith(bilanNote: texte));
-
-  void definirPromos({required bool conformes}) =>
-      _maj((v) => v.copyWith(promosConformes: conformes));
-
-  void noterPromos(String texte) => _maj((v) => v.copyWith(promosNote: texte));
-
-  /// Visite PEM réalisée ou non ; réalisée efface la raison (`v-pem`).
-  void definirPemRealisee({required bool realisee}) => _maj(
-    (v) => v.copyWith(
-      pem: VisitePem(realisee: realisee, raison: realisee ? '' : v.pem.raison),
-    ),
-  );
-
-  void definirRaisonPem(String raison) => _maj(
-    (v) => v.copyWith(
-      pem: VisitePem(realisee: v.pem.realisee, raison: raison),
-    ),
-  );
+  /// Pointage d'une promotion : présente ou non en rayon.
+  void pointer(String promoId, {required bool presente}) =>
+      _maj((v) => v.copyWith(op: {...v.op, promoId: presente}));
 
   /// Termine la visite : « À envoyer » et heure de réception (`v-valider-ok`).
   void terminer() => _maj(

@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/auth/session.dart';
 import '../../core/models/models.dart';
+import '../../core/state/state.dart';
 import '../../core/nav/nav.dart';
 import '../../core/ui/ui.dart';
 import 'data/secteur_demo.dart';
@@ -21,7 +23,13 @@ class SecteurScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final visites = genre == GenreSecteur.visites;
     final f = ref.watch(filtresSecteurProvider.select((s) => s.de(genre)));
-    final liste = listeSecteur(genre, f);
+    final moi = ref.watch(sessionProvider)?.nomAffiche ?? '';
+    final liste = listeSecteur(
+      genre,
+      f,
+      etat: ref.watch(crmProvider),
+      moiNom: moi,
+    );
     final n = liste.length;
     return PageUnivers(
       entete: AppEntete(

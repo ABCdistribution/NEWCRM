@@ -67,7 +67,9 @@ export async function AdminUtilisateursOnglet({
                       <p className="font-medium">{u.displayName}</p>
                       <p className="font-mono text-xs text-neutral-400">{u.username}</p>
                     </td>
-                    <td className="px-3 py-2.5 text-neutral-500">{u.email ?? '—'}</td>
+                    <td className="max-w-[12rem] truncate px-3 py-2.5 text-neutral-500" title={u.email ?? undefined}>
+                      {u.email ?? '—'}
+                    </td>
                     <td className="px-3 py-2.5 font-mono text-xs">
                       {u.idRepr ?? <span className="text-neutral-400">—</span>}
                     </td>

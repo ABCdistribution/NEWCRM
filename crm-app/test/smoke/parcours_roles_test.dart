@@ -16,7 +16,6 @@ import 'package:crm_app/features/prospects/fiche_prospect_screen.dart';
 import 'package:crm_app/features/prospects/nouveau_prospect_screen.dart';
 import 'package:crm_app/features/shell/shell_screen.dart';
 import 'package:crm_app/features/visites/compte_rendu_screen.dart';
-import 'package:crm_app/features/visites/saisie_etape_screen.dart';
 import 'package:crm_app/features/visites/visite_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -239,15 +238,6 @@ void main() {
       () => AppRoutes.visite(ctx(), 'd0'),
       'Visite #218082',
       ecran: CompteRenduScreen,
-    );
-    await verifier(
-      () => AppRoutes.saisieEtapeVisite(
-        ctx(),
-        visiteId: 'd0',
-        etape: EtapeDph.dn,
-      ),
-      'Vérification DN',
-      ecran: SaisieEtapeScreen,
     );
     await verifier(
       () => AppRoutes.priseCommande(ctx()),

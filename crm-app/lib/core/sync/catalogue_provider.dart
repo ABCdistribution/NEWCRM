@@ -82,6 +82,11 @@ final apiClientProvider = Provider<ApiLecture>(
   (ref) => ApiClient(jeton: () => ref.read(stockageSessionProvider).jeton()),
 );
 
+/// Écritures sur l'API : réservées aux commandes en attente (l'app reste en lecture seule pour le reste).
+final apiEcritureProvider = Provider<ApiEcriture>(
+  (ref) => ApiClient(jeton: () => ref.read(stockageSessionProvider).jeton()),
+);
+
 /// Jeu de données réel : lu d'abord dans la base locale (instantané, hors connexion), puis rafraîchi depuis le CRM.
 ///
 /// Actif seulement avec une session (utilisateur connecté) ; en démonstration les données de la maquette servent.

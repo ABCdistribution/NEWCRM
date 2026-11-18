@@ -16,55 +16,31 @@ enum EtatVisite {
   final String libelleBadge;
 }
 
-/// Étapes de la visite DPH, dans l'ordre (`ETAPES_DPH`).
+/// Étapes de la visite, dans l'ordre (`ETAPES_DPH` de la maquette, remplacées par le parcours réel). `debut` est posée à
+/// la création ; les huit autres sont parcourues avec « Précédent » / « Suivant ».
 enum EtapeDph {
-  debut('debut', 'Début visite DPH'),
-  arrivee('arrivee', "Photos d'arrivée sur site"),
-  rayonArrivee('rayonArrivee', "Photo(s) du rayon à l'arrivée"),
+  debut('debut', 'Début de visite'),
+  arrivee('arrivee', "Photo d'arrivée sur site"),
+  rayonArrivee('rayonArrivee', 'Photo du rayon'),
+  colis('colis', 'Commande à mettre en rayon'),
   dn('dn', 'Vérification DN'),
-  concurrence('concurrence', 'Concurrence'),
-  promos('promos', 'Vérification Promos'),
-  face('face', 'Photos vue de face'),
-  rayonFin('rayonFin', 'Photos du rayon de fin de visite DPH'),
-  bilan('bilan', 'Bilan de visite');
+  commande('commande', 'Commande liée à la visite'),
+  questionnaire('questionnaire', 'Questionnaire de fin de visite'),
+  op('op', 'Pointage OP'),
+  rayonFin('rayonFin', 'Photo du rayon de fin de visite');
 
   const EtapeDph(this.cle, this.libelle);
   final String cle;
   final String libelle;
 
-  /// Étapes qui consistent à prendre des photos (`PHOTO_CLES`).
-  bool get estPhoto =>
-      this == arrivee ||
-      this == rayonArrivee ||
-      this == face ||
-      this == rayonFin;
-}
+  /// Étapes qui consistent à prendre des photos.
+  bool get estPhoto => this == arrivee || this == rayonArrivee || this == rayonFin;
 
-/// Marque concurrente relevée en rayon, avec son métrage linéaire.
-class MarqueConcurrente {
-  const MarqueConcurrente({required this.marque, required this.metrage});
-  final String marque;
-
-  /// Mètres linéaires.
-  final double metrage;
-}
-
-/// Relevé de la concurrence d'une visite.
-class Concurrence {
-  const Concurrence({this.aucune = false, this.liste = const []});
-
-  /// Vrai si le promoteur a coché « Aucune marque concurrente en rayon ».
-  final bool aucune;
-  final List<MarqueConcurrente> liste;
-}
-
-/// Visite PEM : réalisée ou non, avec la raison de l'absence (`pem`).
-class VisitePem {
-  const VisitePem({this.realisee, this.raison = ''});
-
-  /// Nul tant que le promoteur n'a pas répondu.
-  final bool? realisee;
-  final String raison;
+  /// Étapes du parcours « Précédent / Suivant » (toutes sauf le début).
+  static List<EtapeDph> get parcours => [
+    for (final e in values)
+      if (e != debut) e,
+  ];
 }
 
 /// Commande liée à une visite (`cmd` : `{ id, ht, liv }`).
@@ -91,14 +67,15 @@ class Visite {
     required this.chrono,
     required this.photos,
     this.recu,
+    this.parId,
     this.dn = const {},
     this.kits = const [],
-    this.promosConformes,
-    this.promosNote = '',
-    this.bilanValide = false,
-    this.bilanNote = '',
-    this.concurrence = const Concurrence(),
-    this.pem = const VisitePem(),
+    this.commandeEnRayon,
+    this.colis = const [],
+    this.raisonAbsenceId,
+    this.raisonAbsence = '',
+    this.reponses = const {},
+    this.op = const {},
     this.cmd,
   });
 
@@ -110,6 +87,9 @@ class Visite {
 
   /// Auteur de la visite (nom court du promoteur).
   final String par;
+
+  /// Identifiant CRM de l'auteur (visites venues du CRM).
+  final String? parId;
   final EtatVisite etat;
 
   /// « 4 nov. 08:30 ».
@@ -133,13 +113,21 @@ class Visite {
   /// Codes des kits constatés en rayon.
   final List<String> kits;
 
-  /// Promotions conformes ? Nul = pas encore indiqué.
-  final bool? promosConformes;
-  final String promosNote;
-  final bool bilanValide;
-  final String bilanNote;
-  final Concurrence concurrence;
-  final VisitePem pem;
+  /// Y a-t-il une commande à mettre en rayon ? Nul tant que le promoteur n'a pas répondu.
+  final bool? commandeEnRayon;
+
+  /// Codes des colis de la commande à mettre en rayon.
+  final List<String> colis;
+
+  /// Raison d'absence de commande choisie (identifiant CRM et libellé), vides tant qu'aucune n'est choisie.
+  final String? raisonAbsenceId;
+  final String raisonAbsence;
+
+  /// Réponses au questionnaire de fin de visite : identifiant de la question → valeur (« true », texte, nombre, note).
+  final Map<String, String> reponses;
+
+  /// Pointage OP : identifiant de la promotion → présente en rayon ?
+  final Map<String, bool> op;
   final CommandeLiee? cmd;
 
   bool etapeFaite(EtapeDph e) => chrono.containsKey(e);
@@ -152,12 +140,12 @@ class Visite {
     Map<EtapeDph, int>? photos,
     Map<String, int>? dn,
     List<String>? kits,
-    bool? promosConformes,
-    String? promosNote,
-    bool? bilanValide,
-    String? bilanNote,
-    Concurrence? concurrence,
-    VisitePem? pem,
+    bool? commandeEnRayon,
+    List<String>? colis,
+    String? raisonAbsenceId,
+    String? raisonAbsence,
+    Map<String, String>? reponses,
+    Map<String, bool>? op,
     CommandeLiee? cmd,
   }) {
     return Visite(
@@ -165,6 +153,7 @@ class Visite {
       num: num,
       magasinId: magasinId,
       par: par,
+      parId: parId,
       etat: etat ?? this.etat,
       date: date,
       age: age ?? this.age,
@@ -173,12 +162,12 @@ class Visite {
       recu: recu ?? this.recu,
       dn: dn ?? this.dn,
       kits: kits ?? this.kits,
-      promosConformes: promosConformes ?? this.promosConformes,
-      promosNote: promosNote ?? this.promosNote,
-      bilanValide: bilanValide ?? this.bilanValide,
-      bilanNote: bilanNote ?? this.bilanNote,
-      concurrence: concurrence ?? this.concurrence,
-      pem: pem ?? this.pem,
+      commandeEnRayon: commandeEnRayon ?? this.commandeEnRayon,
+      colis: colis ?? this.colis,
+      raisonAbsenceId: raisonAbsenceId ?? this.raisonAbsenceId,
+      raisonAbsence: raisonAbsence ?? this.raisonAbsence,
+      reponses: reponses ?? this.reponses,
+      op: op ?? this.op,
       cmd: cmd ?? this.cmd,
     );
   }

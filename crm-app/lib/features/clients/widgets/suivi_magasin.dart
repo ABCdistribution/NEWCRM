@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/data/fiche_client.dart';
+import '../../../core/logic/logic.dart';
 import '../../../core/models/models.dart';
 import '../../../core/theme/theme.dart';
 import '../../../core/ui/ui.dart';
@@ -28,9 +29,9 @@ enum OngletMagasin {
 const Color _fondIconeSuivi = Color(0xFFEEF0F8);
 
 /// Notes du client (onglet « Notes » du promoteur) : textes de la maquette.
-const List<String> notesDuClient = [
-  'Nouveau chef de rayon arrivé, à rencontrer · 10 sept.',
-  'Demande une implantation tête de gondole · 2 sept.',
+List<String> get notesDuClient => [
+  'Nouveau chef de rayon arrivé, à rencontrer · ${DemoTemps.jourRelatif(-55)}',
+  'Demande une implantation tête de gondole · ${DemoTemps.jourRelatif(-63)}',
 ];
 
 /// Carte blanche qui porte le contenu d'un onglet (`.tl`) : même décor que `Timeline`, contenu libre.
@@ -132,10 +133,10 @@ class OngletSuivi extends StatelessWidget {
   Widget build(BuildContext context) {
     final c = derniereCommande;
     return Timeline([
-      const TimelineItem(
+      TimelineItem(
         icone: '📅',
         titre: 'Visite chef de secteur prévue',
-        date: 'lun. 2 nov.',
+        date: DemoTemps.lundiLibelle,
         detail: 'Relance baisse de CA avec le chef de rayon',
       ),
       if (c != null)
@@ -145,22 +146,22 @@ class OngletSuivi extends StatelessWidget {
           date: c.date,
           detail: '${c.ht} HT · ${c.statut.libelle}',
         ),
-      const TimelineItem(
+      TimelineItem(
         icone: '⚠️',
         titre: 'Alerte rupture',
-        date: '22 oct.',
+        date: DemoTemps.jourRelatif(-13),
         detail: 'Sérum éclat 30 ml absent du rayon',
       ),
-      const TimelineItem(
+      TimelineItem(
         icone: '📍',
         titre: 'Visite promoteur',
-        date: '19 sept.',
+        date: DemoTemps.jourRelatif(-46),
         detail: 'Relevé linéaire · 12 facings · photos',
       ),
-      const TimelineItem(
+      TimelineItem(
         icone: '✎',
         titre: 'Note',
-        date: '10 sept.',
+        date: DemoTemps.jourRelatif(-55),
         detail: 'Nouveau chef de rayon arrivé, à rencontrer',
       ),
     ]);

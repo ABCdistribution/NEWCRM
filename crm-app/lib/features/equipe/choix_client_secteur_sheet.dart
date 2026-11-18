@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/auth/session.dart';
 import '../../core/models/models.dart';
+import '../../core/state/state.dart';
 import '../../core/ui/ui.dart';
 import 'data/secteur_demo.dart';
 import 'filtres_secteur_sheet.dart';
@@ -51,7 +53,11 @@ class ChoixClientSecteurSheet extends ConsumerWidget {
             selectionne: choisi == filtreTous,
             onTap: () => choisir(filtreTous),
           ),
-          for (final c in clientsSecteur(genre))
+          for (final c in clientsSecteur(
+            genre,
+            etat: ref.watch(crmProvider),
+            moiNom: ref.watch(sessionProvider)?.nomAffiche ?? '',
+          ))
             OptionRadio(
               label: c,
               selectionne: choisi == c,
