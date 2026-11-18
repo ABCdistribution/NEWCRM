@@ -42,7 +42,7 @@ export class VisitesService {
    */
   async findAll(
     promoteurId: string | null,
-    opts: { page?: number; search?: string; equipe?: Prisma.UserWhereInput; modifieDepuis?: Date } = {},
+    opts: { page?: number; search?: string; equipe?: Prisma.UserWhereInput; modifieDepuis?: Date; dateDepuis?: Date } = {},
   ) {
     const page = opts.page && opts.page > 0 ? opts.page : 1;
     const limit = 30;
@@ -55,6 +55,8 @@ export class VisitesService {
       ...(opts.equipe ? { promoteur: opts.equipe } : {}),
       ...filtreSupprimes(depuis),
       ...filtreModifieDepuis(depuis),
+      // Fenêtre de dates (l'app mobile ne garde que les visites récentes).
+      ...(opts.dateDepuis ? { createdAt: { gte: opts.dateDepuis } } : {}),
       ...(opts.search
         ? {
             client: {

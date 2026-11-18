@@ -105,9 +105,25 @@ export class CommandesService {
       : [];
     const byId = new Map(sums.map((s) => [s.commandeId, s]));
 
+    // Auteur de chaque commande : l'utilisateur dont le code représentant correspond (comparaison sur les variantes
+    // d'écriture « 68 » / « 068 »), pour les écrans d'activité par promoteur de l'app mobile.
+    const codesAuteurs = [...new Set(rows.map((r) => r.idRepr?.trim()).filter((c): c is string => !!c))];
+    const variantes = codesAuteurs.flatMap((c) => idReprVariants(c));
+    const auteurs = variantes.length
+      ? await this.prisma.user.findMany({
+          where: { idRepr: { in: variantes } },
+          select: { id: true, displayName: true, idRepr: true },
+        })
+      : [];
+    const auteurParCode = new Map<string, { id: string; displayName: string }>();
+    for (const u of auteurs) {
+      for (const v of idReprVariants(u.idRepr!.trim())) auteurParCode.set(v, { id: u.id, displayName: u.displayName });
+    }
+
     return {
       data: rows.map(({ idCommandeApk, ...r }) => ({
         ...r,
+        auteur: (r.idRepr && auteurParCode.get(r.idRepr.trim())) || null,
         viaMobile: idCommandeApk !== null,
         annulee: r.dateAnnulation !== null,
         nbLignes: byId.get(r.id)?._count._all ?? 0,

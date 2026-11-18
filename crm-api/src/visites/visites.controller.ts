@@ -140,6 +140,7 @@ export class VisitesController {
     @Query('page') page: string | undefined,
     @Query('search') search: string | undefined,
     @Query('tous') tous: string | undefined,
+    @Query('dateDepuis') dateDepuis: string | undefined,
     @Query() { modifieDepuis }: ModifieDepuisQuery,
     @CurrentUser() me: User,
   ) {
@@ -153,6 +154,7 @@ export class VisitesController {
       search,
       equipe: equipe ?? undefined,
       modifieDepuis: lireModifieDepuis(modifieDepuis),
+      dateDepuis: dateDepuis && !Number.isNaN(new Date(dateDepuis).getTime()) ? new Date(dateDepuis) : undefined,
     });
   }
 
