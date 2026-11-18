@@ -63,6 +63,52 @@ List<LigneTournee> lignesTournee(CrmEtat e) {
   return lignes;
 }
 
+/// Prochaine visite planifiée du promoteur : une ligne « client » à faire, après aujourd'hui.
+class VisitePrevue {
+  const VisitePrevue({
+    required this.magasin,
+    required this.date,
+    required this.heure,
+  });
+
+  final Magasin magasin;
+
+  /// « jeu. 5 nov. ».
+  final String date;
+
+  /// « 09:30 » ou vide.
+  final String heure;
+}
+
+/// La première visite planifiée (ligne « client » pas encore faite) strictement après aujourd'hui, ou nulle. Le planning
+/// vient du CRM : le promoteur ne le modifie pas, il le consulte. Les visites du jour sont dans « Ma tournée du jour ».
+VisitePrevue? prochaineVisitePrevue(CrmEtat e) {
+  final lignes = e.planningFenetre.isNotEmpty ? e.planningFenetre : e.etapes;
+  final aujourdhui = DemoTemps.aujourdhui.weekday - 1;
+  VisitePrevue? meilleure;
+  var meilleurRang = 1 << 30;
+  for (final l in lignes) {
+    if (l.cible != CiblePlanning.client || !l.visite || l.fait) continue;
+    final magasin = e.magasinParId(l.ref ?? '');
+    if (magasin == null) continue;
+    final decalage = (l.sem ?? 0) * 7 + l.jour;
+    if (decalage <= aujourdhui) continue;
+    final rang =
+        decalage * 10000 + (int.tryParse(l.heure.replaceAll(':', '')) ?? 0);
+    if (rang >= meilleurRang) continue;
+    meilleurRang = rang;
+    final lundi = DemoTemps.lundi;
+    meilleure = VisitePrevue(
+      magasin: magasin,
+      date: DemoTemps.libelleJour(
+        DateTime(lundi.year, lundi.month, lundi.day + decalage),
+      ),
+      heure: l.heure,
+    );
+  }
+  return meilleure;
+}
+
 /// Commandes des clients visibles pas encore livrées, les plus urgentes d'abord (maquette : `livs`).
 List<Commande> livraisonsEnCours(CrmEtat e) => triStable<Commande>(
   e.commandesVisibles.where((c) => c.statut != StatutLivraison.livree),

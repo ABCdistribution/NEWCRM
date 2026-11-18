@@ -31,6 +31,7 @@ class AccueilPromoteur extends ConsumerWidget {
     final realisees = lignes
         .where((l) => l.etat == EtatTournee.realisee)
         .length;
+    final prochaine = prochaineVisitePrevue(etat);
     final brouillons = etat.visites
         .where((v) => v.etat == EtatVisite.brouillon)
         .toList();
@@ -78,6 +79,26 @@ class AccueilPromoteur extends ConsumerWidget {
         if (!connecte || lignes.isNotEmpty)
           const TitreLigne('Ma tournée du jour', taille: 18),
         for (final l in lignes) _CarteTournee(ligne: l),
+        if (prochaine != null) ...[
+          const TitreLigne('Prochaine visite', taille: 16, margeHaut: 18),
+          AppCarte(
+            onTap: () => AppRoutes.ficheMagasin(context, prochaine.magasin.id),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(prochaine.magasin.nom, style: AppText.titreCarte),
+                const SizedBox(height: 3),
+                Text(
+                  [
+                    prochaine.date,
+                    if (prochaine.heure.isNotEmpty) prochaine.heure,
+                  ].join(' · '),
+                  style: AppText.sousCarte,
+                ),
+              ],
+            ),
+          ),
+        ],
         if (brouillons.isNotEmpty) ...[
           const TitreLigne('Brouillons', taille: 16, margeHaut: 18),
           for (final v in brouillons)
