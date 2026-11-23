@@ -1,10 +1,11 @@
 name: Déploiement
 
-# Se déclenche à chaque push sur main et lance le script de déploiement
-# sur le serveur (runner auto-hébergé : srvfr-helios).
+# Se déclenche à chaque push sur staging et lance le script de déploiement
+# sur le serveur STAGING (runner auto-hébergé : srvfr-helios). main reste la branche de référence
+# de la future production : elle ne déclenche aucun déploiement ici.
 on:
   push:
-    branches: [main]
+    branches: [staging]
   workflow_dispatch: {}
 
 concurrency:

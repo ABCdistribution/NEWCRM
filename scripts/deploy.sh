@@ -1,9 +1,11 @@
 #!/usr/bin/env bash
-# Déploiement automatique : si origin/main a avancé, met à jour et redémarre ce qui a changé.
+# Déploiement automatique du serveur STAGING : si origin/staging a avancé, met à jour et redémarre ce qui a changé.
+#   (main = branche de référence de la future production ; DEPLOY_BRANCH permet de viser une autre branche.)
 #   cron : */3 * * * * /var/www/scripts/deploy.sh >> /home/admininfo/logs/deploy.log 2>&1
 #   FORCE=1 ./scripts/deploy.sh   → redéploie tout même sans nouveau commit
 set -Eeuo pipefail
 cd /var/www
+BRANCHE=${DEPLOY_BRANCH:-staging}
 LOGS=/home/admininfo/logs
 mkdir -p "$LOGS"
 exec 9>"${LOCK:-/tmp/crm-deploy.lock}"
@@ -12,10 +14,10 @@ flock -n 9 || { log_busy=1; exit 0; }   # un déploiement à la fois
 log() { echo "[$(date '+%F %T')] $*"; }
 trap 'log "ÉCHEC du déploiement (ligne $LINENO) — services non redémarrés au-delà de cette étape"' ERR
 
-git fetch -q origin main
-[ "$(git rev-parse --abbrev-ref HEAD)" = main ] || { log "branche courante != main, abandon"; exit 1; }
+git fetch -q origin "$BRANCHE"
+[ "$(git rev-parse --abbrev-ref HEAD)" = "$BRANCHE" ] || { log "branche courante != $BRANCHE, abandon"; exit 1; }
 git diff --quiet HEAD -- || { log "modifications locales non commitées sur des fichiers suivis, abandon"; exit 1; }
-git merge --ff-only -q origin/main 2>/dev/null || true   # tolère un HEAD local en avance sur origin
+git merge --ff-only -q "origin/$BRANCHE" 2>/dev/null || true   # tolère un HEAD local en avance sur origin
 NEW=$(git rev-parse HEAD)
 # Dernier commit réellement DÉPLOYÉ (et non le HEAD local : un `git pull` manuel ne doit pas masquer un déploiement).
 MARQUEUR=/var/www/.deployed-sha
@@ -36,8 +38,16 @@ RANGE_CHANGED '^(crm-web/|packages/)' && DEPLOY_WEB=1
 # --- Migrations : on refuse les migrations destructrices non validées ---
 if RANGE_CHANGED '^packages/database/prisma/migrations/'; then
   NOUVELLES=$(git diff --name-only --diff-filter=A "$OLD" "$NEW" -- 'packages/database/prisma/migrations/*/migration.sql' || true)
-  if [ -n "$NOUVELLES" ] && [ ! -f /var/www/.deploy-allow-destructive ] \
-     && grep -HniE 'DROP (TABLE|COLUMN|SCHEMA)|TRUNCATE|DELETE FROM' $NOUVELLES; then
+  # Les commentaires SQL (« -- Retour arrière : DROP COLUMN … ») ne sont pas des commandes : on ne les analyse pas.
+  DESTRUCTIF=""
+  if [ -n "$NOUVELLES" ] && [ ! -f /var/www/.deploy-allow-destructive ]; then
+    for f in $NOUVELLES; do
+      TROUVE=$(sed -E 's/--.*$//' "$f" | grep -niE 'DROP (TABLE|COLUMN|SCHEMA)|TRUNCATE|DELETE FROM' | sed "s#^#$f:#" || true)
+      if [ -n "$TROUVE" ]; then DESTRUCTIF+="$TROUVE"$'\n'; fi
+    done
+  fi
+  if [ -n "$DESTRUCTIF" ]; then
+    echo "$DESTRUCTIF"
     log "Migration destructrice détectée (ci-dessus). Relire puis: touch /var/www/.deploy-allow-destructive"
     exit 1
   fi
