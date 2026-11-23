@@ -58,6 +58,20 @@ enum NiveauClass {
   G
 }
 
+/// Nature d'une visite : commerciale (parcours classique) ou PEM (merchandising, programmée par cycle).
+enum TypeVisite {
+  COMMERCIALE
+  PEM
+}
+
+/// Cycle de vie d'une proposition de visite PEM : ouverte = PROPOSEE ou ACCEPTEE.
+enum StatutPropositionPem {
+  PROPOSEE
+  ACCEPTEE
+  REALISEE
+  ANNULEE
+}
+
 /// Type de distribution numérique relevée en visite.
 enum TypeDn {
   ABC
@@ -182,6 +196,7 @@ model User {
 
   // Terrain
   visites          Visite[]
+  propositionsPem  PropositionPem[]
   plannings        Planning[]
   plannifications  Plannification[]
   tournees         Tournee[]
@@ -301,6 +316,8 @@ model Client {
   // --- Champs CRM / statuts ---
   actif          Boolean      @default(true) // repersisté après import Minos
   niveauClass    NiveauClass? // note CRM A→G
+  // Soumis au suivi PEM : le magasin reçoit une proposition de visite PEM selon la fréquence de sa classe (administré par la direction régionale).
+  suiviPem       Boolean      @default(false)
   statutCommande String?
   statutLivre    String?
   statutFacture  String?
@@ -337,6 +354,12 @@ model Client {
   commandes    Commande[]
   commandesApk CommandeApk[]
 
+  // Visites PEM proposées au magasin.
+  propositionsPem PropositionPem[]
+
+  // Notifications qui concernent ce magasin (ex. relance d'une visite non effectuée).
+  notifications Notification[]
+
   // Prospection : prospect d'origine (si converti) et opportunités portées.
   prospectOrigine Prospect?     @relation("ProspectConverti")
   opportunites    Opportunite[]
@@ -350,6 +373,7 @@ model Client {
   @@index([secteurId])
   @@index([creeParId])
   @@index([centraleId])
+  @@index([suiviPem])
   @@map("clients")
 }
 
@@ -366,6 +390,8 @@ model Centrale {
   enfants  Centrale[] @relation("CentraleHierarchie")
 
   clients Client[]
+
+  produitsIndispensables ProduitIndispensable[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -560,6 +586,10 @@ model Article {
   commandeApkLignes CommandeApkLigne[]
   opportunites      Opportunite[]      @relation("OpportuniteArticles")
 
+  produitsIndispensables ProduitIndispensable[]
+  visiteIndispensables   VisiteIndispensable[]
+  visitePemArticles      VisitePemArticle[]
+
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
   deletedAt DateTime?
@@ -715,6 +745,9 @@ model Visite {
   // Étape « commande à mettre en rayon ? » du parcours mobile : nul tant que le promoteur n'a pas répondu.
   commandeEnRayon Boolean?
 
+  // Nature de la visite : le parcours PEM (photos, articles PEM, questionnaire) est distinct du parcours commercial.
+  typeVisite TypeVisite @default(COMMERCIALE)
+
   dns      VisiteDN[]
   kits     VisiteKit[]
   colis    VisiteColis[]
@@ -722,6 +755,10 @@ model Visite {
   steps    VisiteStep[]
   promos   VisitePromo[]
   reponses VisiteReponse[]
+  indispensables VisiteIndispensable[]
+  pemArticles    VisitePemArticle[]
+  // Proposition PEM réalisée par cette visite (sans colonne ici : le lien est porté par PropositionPem.visiteId).
+  propositionPem PropositionPem?
 
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
@@ -733,6 +770,7 @@ model Visite {
   @@index([visiteLieeId])
   @@index([idCommandeApk])
   @@index([raisonAbsenceCommandeId])
+  @@index([clientId, typeVisite])
   @@map("visites")
 }
 
@@ -752,6 +790,104 @@ model RaisonAbsenceCommande {
 
   @@index([ordre])
   @@map("raisons_absence_commande")
+}
+
+/// Produit indispensable d'une enseigne (= centrale) : liste administrable, relevée « présent / absent » en visite.
+model ProduitIndispensable {
+  id         String   @id @default(uuid()) @db.Uuid
+  centraleId String   @db.Uuid
+  centrale   Centrale @relation(fields: [centraleId], references: [id])
+  articleId  String   @db.Uuid
+  article    Article  @relation(fields: [articleId], references: [id])
+  ordre      Int      @default(0)
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  @@unique([centraleId, articleId])
+  @@index([centraleId])
+  @@index([articleId])
+  @@map("produits_indispensables")
+}
+
+/// Relevé d'un produit indispensable pendant une visite : présent ou absent en rayon.
+model VisiteIndispensable {
+  id        String  @id @default(uuid()) @db.Uuid
+  visiteId  String  @db.Uuid
+  visite    Visite  @relation(fields: [visiteId], references: [id])
+  articleId String  @db.Uuid
+  article   Article @relation(fields: [articleId], references: [id])
+  present   Boolean
+
+  createdAt DateTime @default(now())
+
+  @@unique([visiteId, articleId])
+  @@index([visiteId])
+  @@index([articleId])
+  @@map("visite_indispensables")
+}
+
+/// Relevé d'un article PEM pendant une visite PEM : présent ou absent, mis en avant ou non.
+model VisitePemArticle {
+  id         String  @id @default(uuid()) @db.Uuid
+  visiteId   String  @db.Uuid
+  visite     Visite  @relation(fields: [visiteId], references: [id])
+  articleId  String  @db.Uuid
+  article    Article @relation(fields: [articleId], references: [id])
+  present    Boolean
+  misEnAvant Boolean
+
+  createdAt DateTime @default(now())
+
+  @@unique([visiteId, articleId])
+  @@index([visiteId])
+  @@index([articleId])
+  @@map("visite_pem_articles")
+}
+
+/// Fréquence des visites PEM (en semaines) par classe de magasin A→G ; administrable. Un magasin sans classe : 4 semaines.
+model FrequencePemClasse {
+  id          String      @id @default(uuid()) @db.Uuid
+  niveauClass NiveauClass @unique
+  semaines    Int         @default(4)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("frequences_pem_classes")
+}
+
+/// Visite PEM proposée à un promoteur pour un magasin soumis au suivi PEM. Au plus UNE proposition ouverte
+/// (PROPOSEE / ACCEPTEE) par magasin : index unique partiel créé en SQL (non exprimable en Prisma).
+/// Après 3 refus / reports successifs, la visite devient obligatoire (acceptée d'office, plus de report possible).
+model PropositionPem {
+  id                 String               @id @default(uuid()) @db.Uuid
+  clientId           String               @db.Uuid
+  client             Client               @relation(fields: [clientId], references: [id])
+  promoteurId        String               @db.Uuid
+  promoteur          User                 @relation(fields: [promoteurId], references: [id])
+  dateProposee       DateTime             @db.Date
+  statut             StatutPropositionPem @default(PROPOSEE)
+  nbReports          Int                  @default(0)
+  obligatoire        Boolean              @default(false)
+  motifDernierReport String?
+
+  // Ligne de planning créée à l'acceptation.
+  planningId String?   @db.Uuid
+  planning   Planning? @relation(fields: [planningId], references: [id])
+  // Visite PEM qui a réalisé la proposition.
+  visiteId String? @unique @db.Uuid
+  visite   Visite? @relation(fields: [visiteId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([clientId])
+  @@index([promoteurId, statut])
+  @@index([planningId])
+  @@index([updatedAt])
+  @@map("propositions_pem")
 }
 
 /// Distribution numérique relevée en visite (ex-`visite_dn`).
@@ -912,6 +1048,9 @@ model Planning {
 
   plannificationId String?         @db.Uuid
   plannification   Plannification? @relation(fields: [plannificationId], references: [id])
+
+  // Propositions PEM acceptées qui ont créé cette ligne.
+  propositionsPem PropositionPem[]
 
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
@@ -1445,10 +1584,14 @@ model Notification {
   titre      String
   message    String
   lien       String? // chemin dans l'app (ex. /tournees)
+  // Magasin concerné, quand il est connu (lien explicite, sans passer par le texte du message).
+  clientId   String?   @db.Uuid
+  client     Client?   @relation(fields: [clientId], references: [id])
   luAt       DateTime?
   createdAt  DateTime  @default(now())
 
   @@index([userId, luAt])
+  @@index([clientId])
   @@map("notifications")
 }
 
