@@ -1,5 +1,7 @@
 import { listQuestionnaire, listRaisonsAbsence } from '@/lib/visites-admin-api';
 import { QuestionnaireEditeur, RaisonsEditeur } from './visites-editeurs';
+import { AdminProduitsIndispensables } from './produits-indispensables';
+import { AdminPemFrequences } from './pem-frequences';
 
 const INDISPONIBLE = (
   <p className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
@@ -24,6 +26,18 @@ export async function AdminVisitesOnglet() {
           Raisons d&apos;absence de commande
         </h2>
         {raisons ? <RaisonsEditeur raisons={raisons} /> : INDISPONIBLE}
+      </section>
+      <section aria-labelledby="titre-indispensables" className="flex flex-col gap-3">
+        <h2 id="titre-indispensables" className="text-base font-semibold">
+          Produits indispensables par enseigne
+        </h2>
+        <AdminProduitsIndispensables />
+      </section>
+      <section aria-labelledby="titre-pem-frequences" className="flex flex-col gap-3">
+        <h2 id="titre-pem-frequences" className="text-base font-semibold">
+          Visites PEM — fréquence par classe
+        </h2>
+        <AdminPemFrequences />
       </section>
     </div>
   );

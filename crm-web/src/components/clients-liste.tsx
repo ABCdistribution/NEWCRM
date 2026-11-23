@@ -64,6 +64,14 @@ export function ClientsListe({ clients, maintenant = Date.now() }: { clients: Cl
                   {estNouveau(c.createdAt, maintenant) ? (
                     <span className="ml-2 rounded-full bg-badge px-2 py-0.5 text-[11px] font-semibold text-brand">Nouveau</span>
                   ) : null}
+                  {c.suiviPem ? (
+                    <span
+                      className="ml-2 rounded-full bg-emerald-500/10 px-2 py-0.5 text-[11px] font-semibold text-emerald-700"
+                      title="Suivi PEM"
+                    >
+                      PEM
+                    </span>
+                  ) : null}
                 </td>
                 <td className="px-4 py-3 font-mono text-xs text-neutral-500">{c.codeAs400}</td>
                 <td className="px-4 py-3 uppercase text-neutral-700">

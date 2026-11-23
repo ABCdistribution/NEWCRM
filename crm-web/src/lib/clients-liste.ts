@@ -12,6 +12,8 @@ export type ClientListe = {
   niveauClass: string | null;
   actif: boolean;
   createdAt: string;
+  /** Magasin soumis au suivi PEM (absent d'une ancienne réponse de l'API). */
+  suiviPem?: boolean;
 };
 
 export type StatutClients = 'actifs' | 'inactifs' | 'tous';

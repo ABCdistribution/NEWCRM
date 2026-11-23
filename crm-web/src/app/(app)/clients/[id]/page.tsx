@@ -16,6 +16,9 @@ import {
 import { getClient, getClientHistorique, idReprVariants, idSur, listPeriodicites } from '@/lib/api';
 import { EDITEURS_CLIENT } from '@/lib/client-roles';
 import { estEncadrement, requireRole, ROLES_COMMANDES_VISITES, TOUS_ROLES } from '@/lib/roles';
+import { getFrequencesPem, getPropositionOuverte } from '@/lib/pem-api';
+import { frequenceDuMagasin, ROLES_LECTURE_PROPOSITIONS_PEM, ROLES_SUIVI_PEM, type AvecSuiviPem } from '@/lib/pem';
+import { PemSuiviCard } from '@/components/pem-suivi-card';
 import { ActiveBadge } from '@/components/badges';
 import { CaChart } from '@/components/ca-chart';
 import { ClassBadge } from '@/components/class-badge';
@@ -73,6 +76,13 @@ export default async function ClientFiche({ params }: { params: Promise<{ id: st
     listPeriodicites(),
   ]);
   if (!client) notFound();
+
+  // Suivi PEM : pastille pour tous, interrupteur pour les rôles de la Server Action (la région du DR est jugée par l'API).
+  const suiviPem = (client as AvecSuiviPem).suiviPem === true;
+  const peutAdministrerPem = ROLES_SUIVI_PEM.includes(me.role);
+  const frequences = suiviPem && voitCommandesVisites ? await getFrequencesPem() : null;
+  const frequencePem = frequences ? frequenceDuMagasin(frequences, client.niveauClass) : null;
+  const propositionPem = suiviPem && ROLES_LECTURE_PROPOSITIONS_PEM.includes(me.role) ? await getPropositionOuverte(client.id) : null;
 
   // Formes équivalentes de MON code représentant, pour repérer mes commandes.
   const mesCodes = me.idRepr ? idReprVariants(me.idRepr) : [];
@@ -218,6 +228,14 @@ export default async function ClientFiche({ params }: { params: Promise<{ id: st
             actuelle={client.periodicites[0]?.periodicite ?? null}
             referentiel={periodicites}
             peutEditer={peutEditer}
+          />
+
+          <PemSuiviCard
+            clientId={client.id}
+            suiviPem={suiviPem}
+            peutAdministrer={peutAdministrerPem}
+            frequenceSemaines={frequencePem}
+            propositionOuverte={propositionPem}
           />
         </section>
 

@@ -88,6 +88,12 @@ describe('liste des clients', () => {
     expect(rendreListe([CLIENT({ createdAt: 'pas une date' })])).not.toContain('Nouveau');
   });
 
+  it('pastille « PEM » seulement pour un magasin soumis au suivi PEM', () => {
+    expect(rendreListe([CLIENT({ suiviPem: true })])).toContain('title="Suivi PEM"');
+    expect(rendreListe([CLIENT({ suiviPem: false })])).not.toContain('Suivi PEM');
+    expect(rendreListe([CLIENT()])).not.toContain('Suivi PEM');
+  });
+
   it('client inactif, sans niveau, sans ville : affichés proprement', () => {
     const html = rendreListe([CLIENT({ actif: false, niveauClass: null, ville: null, codePostal: null })]);
     expect(html).toContain('Inactif');
