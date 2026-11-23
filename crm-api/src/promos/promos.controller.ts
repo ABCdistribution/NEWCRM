@@ -81,8 +81,9 @@ export class PromosController {
   @Get()
   @ApiOperation({ summary: 'Liste des promos (?actives=1 pour seulement celles en cours)' })
   @ApiQuery({ name: 'actives', required: false })
-  listPromos(@Query('actives') actives?: string) {
-    return this.promos.listPromos(actives === '1' || actives === 'true');
+  @ApiQuery({ name: 'avenir', required: false, description: 'Avec actives=1 : inclut aussi les promos à venir' })
+  listPromos(@Query('actives') actives?: string, @Query('avenir') avenir?: string) {
+    return this.promos.listPromos(actives === '1' || actives === 'true', avenir === '1' || avenir === 'true');
   }
 
   @Post()

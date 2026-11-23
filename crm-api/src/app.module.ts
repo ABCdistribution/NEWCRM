@@ -17,6 +17,9 @@ import { SecteursModule } from './secteurs/secteurs.module';
 import { VisitesModule } from './visites/visites.module';
 import { QuestionnaireModule } from './questionnaire/questionnaire.module';
 import { RaisonsAbsenceModule } from './raisons-absence/raisons-absence.module';
+import { ProduitsIndispensablesModule } from './produits-indispensables/produits-indispensables.module';
+import { CentralesModule } from './centrales/centrales.module';
+import { PemModule } from './pem/pem.module';
 import { PromosModule } from './promos/promos.module';
 import { ImportModule } from './import/import.module';
 import { ProspectionModule } from './prospection/prospection.module';
@@ -52,6 +55,9 @@ import { SearchModule } from './search/search.module';
     VisitesModule,
     QuestionnaireModule,
     RaisonsAbsenceModule,
+    ProduitsIndispensablesModule,
+    CentralesModule,
+    PemModule,
     PromosModule,
     ProspectionModule,
     ImportModule,

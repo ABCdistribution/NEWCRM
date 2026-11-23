@@ -25,6 +25,7 @@ export class NotificationsService {
         fait: true,
         datePassage: true,
         promoteurId: true,
+        clientId: true,
         client: { select: { enseigne: true, ville: true } },
       },
     });
@@ -46,8 +47,9 @@ export class NotificationsService {
         titre: 'Relance visite',
         message: `${lieu} : la visite du ${quand} n'a pas été effectuée. Merci de la replanifier ou de la réaliser.`,
         lien: '/tournees',
+        clientId: planning.clientId, // lien explicite vers le magasin concerné
       },
-      select: { id: true, userId: true, titre: true, message: true, createdAt: true },
+      select: { id: true, userId: true, titre: true, message: true, clientId: true, createdAt: true },
     });
   }
 
@@ -90,6 +92,7 @@ export class NotificationsService {
           titre: true,
           message: true,
           lien: true,
+          clientId: true,
           luAt: true,
           createdAt: true,
           emetteur: { select: { displayName: true } },

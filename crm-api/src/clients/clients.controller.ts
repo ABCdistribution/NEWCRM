@@ -222,9 +222,12 @@ export class ClientsController {
   }
 
   @Get(':id')
-  @ApiOperation({ summary: "Détail d'un client" })
-  async findOne(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: { role: string }) {
-    const detail = await this.clients.findOneDetail(id);
+  @ApiOperation({ summary: "Détail d'un client (limité au périmètre de l'appelant : hors périmètre = 404)" })
+  async findOne(
+    @Param('id', ParseUUIDPipe) id: string,
+    @CurrentUser() user: { id: string; role: string; idRepr: string | null; regionId: string | null },
+  ) {
+    const detail = await this.clients.findOneDetail(id, user);
     // Le marketing ne voit ni commandes ni visites : pas non plus leurs compteurs.
     if (user.role === Role.MARKETING) {
       const { _count, ...reste } = detail as typeof detail & { _count?: unknown };

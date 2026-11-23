@@ -81,6 +81,30 @@ class PromoOpDto {
   presente!: boolean;
 }
 
+class IndispensableDto {
+  @ApiProperty({ description: "UUID de l'article indispensable relevé" })
+  @IsUUID(undefined, { message: "articleId doit être l'identifiant d'un article" })
+  articleId!: string;
+
+  @ApiProperty({ description: 'Produit présent en rayon ?' })
+  @IsBoolean({ message: 'present doit être vrai ou faux' })
+  present!: boolean;
+}
+
+class ArticlePemDto {
+  @ApiProperty({ description: "UUID de l'article PEM vérifié" })
+  @IsUUID(undefined, { message: "articleId doit être l'identifiant d'un article" })
+  articleId!: string;
+
+  @ApiProperty({ description: 'Article présent en rayon ?' })
+  @IsBoolean({ message: 'present doit être vrai ou faux' })
+  present!: boolean;
+
+  @ApiProperty({ description: 'Article mis en avant ? (ignoré, donc faux, si l’article est absent)' })
+  @IsBoolean({ message: 'misEnAvant doit être vrai ou faux' })
+  misEnAvant!: boolean;
+}
+
 class EtapeDto {
   @ApiProperty({ enum: ETAPES_VISITE })
   @IsIn(ETAPES_VISITE, { message: `etape doit être l'une des valeurs : ${ETAPES_VISITE.join(', ')}` })
@@ -186,6 +210,32 @@ class CreateVisiteDto {
   @ValidateNested({ each: true })
   @Type(() => PromoOpDto)
   promosOp?: PromoOpDto[];
+
+  @ApiPropertyOptional({ type: [IndispensableDto], description: 'Produits indispensables : article et présence en rayon (dédoublonnés par article, dernier gagnant)' })
+  @IsOptional()
+  @IsArray({ message: 'indispensables doit être une liste' })
+  @ArrayMaxSize(200, { message: 'Pas plus de 200 produits indispensables par visite' })
+  @ValidateNested({ each: true })
+  @Type(() => IndispensableDto)
+  indispensables?: IndispensableDto[];
+
+  @ApiPropertyOptional({ enum: ['COMMERCIALE', 'PEM'], description: 'Nature de la visite (défaut COMMERCIALE ; PEM si propositionPemId est fourni)' })
+  @IsOptional()
+  @IsIn(['COMMERCIALE', 'PEM'], { message: 'typeVisite doit être COMMERCIALE ou PEM' })
+  typeVisite?: 'COMMERCIALE' | 'PEM';
+
+  @ApiPropertyOptional({ description: 'Visite PEM : proposition réalisée par cette visite (passe à REALISEE, compteur de reports remis à zéro)' })
+  @IsOptional()
+  @IsUUID(undefined, { message: "propositionPemId doit être l'identifiant d'une proposition PEM" })
+  propositionPemId?: string;
+
+  @ApiPropertyOptional({ type: [ArticlePemDto], description: 'Visite PEM : articles PEM vérifiés (présent / absent, mis en avant), dédoublonnés par article' })
+  @IsOptional()
+  @IsArray({ message: 'articlesPem doit être une liste' })
+  @ArrayMaxSize(200, { message: 'Pas plus de 200 articles PEM par visite' })
+  @ValidateNested({ each: true })
+  @Type(() => ArticlePemDto)
+  articlesPem?: ArticlePemDto[];
 
   @ApiPropertyOptional({ type: [EtapeDto], description: 'Chrono : horodatage de chaque étape faite' })
   @IsOptional()

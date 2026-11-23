@@ -7,6 +7,7 @@ import { QueryClientsDto } from './dto/query-clients.dto';
 import { CreateContactDto, UpdateContactDto } from './dto/contact.dto';
 import { idReprVariants } from '../common/id-repr.util';
 import { codesRepresentantsDuPerimetre } from '../common/perimetre-codes.util';
+import { filtreClientsDuPerimetre } from '../common/perimetre-clients.util';
 import { filtreModifieDepuis, filtreSupprimes, lireModifieDepuis, TRI_MODIFIE_DEPUIS } from '../common/modifie-depuis';
 
 /** Intervalle en jours déduit du libellé de périodicité (référentiel legacy 1..6). */
@@ -40,6 +41,7 @@ type EnrichInput = {
   codePostal: string | null;
   actif: boolean;
   niveauClass: string | null;
+  suiviPem: boolean;
   idCommercial1: string | null;
   idCommercial2: string | null;
   commerciaux: { id: string; displayName: string; idRepr: string | null }[];
@@ -308,6 +310,7 @@ export class ClientsService {
         codePostal: c.codePostal,
         actif: c.actif,
         niveauClass: c.niveauClass,
+        suiviPem: c.suiviPem,
         cs: cs ? { id: cs.id, displayName: cs.displayName, idRepr: cs.idRepr } : null,
         caMois: ca,
         deltaPct,
@@ -331,10 +334,13 @@ export class ClientsService {
     return client;
   }
 
-  /** Fiche magasin complète : relations CRM + compteurs (visites, commandes). */
-  async findOneDetail(id: string) {
+  /**
+   * Fiche magasin complète : relations CRM + compteurs (visites, commandes). Limitée au périmètre de l'appelant (même
+   * règle que « Mes clients ») : un magasin hors périmètre répond 404, comme un magasin inexistant.
+   */
+  async findOneDetail(id: string, user: { id: string; role: string; idRepr: string | null; regionId?: string | null }) {
     const client = await this.prisma.client.findFirst({
-      where: { id, deletedAt: null },
+      where: { id, deletedAt: null, ...(await filtreClientsDuPerimetre(this.prisma, user)) },
       include: {
         secteur: { select: { id: true, code: true, nom: true } },
         centrale: { select: { id: true, code: true, nom: true } },
@@ -370,12 +376,14 @@ export class ClientsService {
           select: { id: true, periodicite: { select: { id: true, code: true, libelle: true } } },
         },
         _count: { select: { visites: true, commandes: true } },
+        // Objectif de CA annuel de l'année en cours (briefing de visite de l'app mobile).
+        objectifs: { where: { annee: new Date().getFullYear() }, select: { annee: true, cibleCa: true } },
       },
     });
     if (!client) {
       throw new NotFoundException(`Client ${id} introuvable`);
     }
-    return client;
+    return { ...client, objectifs: client.objectifs.map((o) => ({ annee: o.annee, cibleCa: Number(o.cibleCa) })) };
   }
 
   /**

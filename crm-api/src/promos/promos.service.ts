@@ -21,15 +21,19 @@ export class PromosService {
 
   // --- Promos -----------------------------------------------------------
 
-  /** Promos, actives d'abord ; `actives` = seulement celles en cours (dates + actif). */
-  listPromos(actives = false) {
+  /**
+   * Promos, actives d'abord ; `actives` = seulement celles en cours (dates + actif).
+   * `avenir` (avec `actives`) ajoute celles dont le début est dans le futur (briefing de visite).
+   * Une promo porte sur un article et vaut pour tous les magasins : aucun filtre par magasin.
+   */
+  async listPromos(actives = false, avenir = false) {
     const now = new Date();
     return this.prisma.promo.findMany({
       where: actives
         ? {
             actif: true,
             AND: [
-              { OR: [{ dateDebut: null }, { dateDebut: { lte: now } }] },
+              ...(avenir ? [] : [{ OR: [{ dateDebut: null }, { dateDebut: { lte: now } }] }]),
               { OR: [{ dateFin: null }, { dateFin: { gte: now } }] },
             ],
           }

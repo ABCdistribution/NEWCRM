@@ -1,4 +1,4 @@
-import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ConflictException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { Prisma } from '@crm/database';
 import { PrismaService } from '../prisma/prisma.service';
 import { perimetreEquipe } from '../common/perimetre-users.util';
@@ -12,7 +12,7 @@ export function auteursDeVisitesVisibles(me: { id: string; role: string; regionI
 }
 
 /** Étapes du parcours de visite de l'app mobile (clés de `VisiteStep.etape`). */
-export const ETAPES_VISITE = ['debut', 'arrivee', 'rayonArrivee', 'colis', 'dn', 'commande', 'questionnaire', 'op', 'rayonFin'] as const;
+export const ETAPES_VISITE = ['debut', 'arrivee', 'rayonArrivee', 'colis', 'dn', 'indispensables', 'articlesPem', 'commande', 'questionnaire', 'op', 'rayonFin'] as const;
 /** Étapes qui portent des photos (`VisitePhoto.etape`). */
 export const ETAPES_PHOTO = ['arrivee', 'rayonArrivee', 'rayonFin'] as const;
 
@@ -34,7 +34,11 @@ export interface CreationVisite {
   colis?: string[]; // codes de colis (dédoublonnés ici)
   kits?: { code: string; references: number }[]; // kits constatés en rayon (DN)
   promosOp?: { promoId: string; presente: boolean }[]; // pointage OP
+  indispensables?: { articleId: string; present: boolean }[]; // produits indispensables relevés présent / absent
   etapes?: { etape: string; horodatage: string }[]; // chrono des étapes faites
+  typeVisite?: 'COMMERCIALE' | 'PEM'; // défaut COMMERCIALE (PEM si propositionPemId est fourni)
+  propositionPemId?: string | null; // visite PEM : proposition réalisée par cette visite
+  articlesPem?: { articleId: string; present: boolean; misEnAvant: boolean }[]; // visite PEM : relevé des articles PEM
 }
 
 /**
@@ -111,6 +115,18 @@ export class VisitesService {
             where: { promoId: { not: null } },
             select: { promoId: true, presente: true, promo: { select: { libelle: true, article: { select: { libelle: true } } } } },
           },
+          // Produits indispensables relevés (présent / absent).
+          indispensables: {
+            select: { articleId: true, present: true, article: { select: { libelle: true, codeAs400: true } } },
+            orderBy: { createdAt: 'asc' },
+          },
+          // Visite PEM : proposition réalisée et relevé des articles PEM.
+          typeVisite: true,
+          propositionPem: { select: { id: true } },
+          pemArticles: {
+            select: { articleId: true, present: true, misEnAvant: true, article: { select: { libelle: true, codeAs400: true } } },
+            orderBy: { createdAt: 'asc' },
+          },
           // Métadonnées seulement : jamais le contenu binaire dans la liste.
           photos: { select: { id: true, etape: true }, orderBy: { createdAt: 'asc' } },
           _count: { select: { photos: true } },
@@ -119,8 +135,10 @@ export class VisitesService {
       this.prisma.visite.count({ where }),
     ]);
 
-    const data = rows.map(({ colis, kits, promos, ...v }) => ({
+    const data = rows.map(({ colis, kits, promos, propositionPem, pemArticles, ...v }) => ({
       ...v,
+      propositionPemId: propositionPem?.id ?? null,
+      articlesPem: pemArticles,
       colis: colis.map((c) => c.code),
       kits: kits.map((k) => ({ code: k.code, references: k.nbReferences })),
       promosOp: promos.map((p) => ({
@@ -149,6 +167,18 @@ export class VisitesService {
       return { id: existante.id, idApk: dto.idApk, dejaSynchronisee: true };
     }
 
+    // Visite PEM : parcours distinct (photos, articles PEM, questionnaire), toujours sur un magasin.
+    const typeVisite = dto.typeVisite ?? (dto.propositionPemId ? 'PEM' : 'COMMERCIALE');
+    if (dto.propositionPemId && typeVisite !== 'PEM') {
+      throw new BadRequestException("propositionPemId n'est accepté que pour une visite PEM");
+    }
+    if (typeVisite !== 'PEM' && dto.articlesPem?.length) {
+      throw new BadRequestException("articlesPem n'est accepté que pour une visite PEM");
+    }
+    if (typeVisite === 'PEM' && !dto.clientId) {
+      throw new BadRequestException('Une visite PEM porte sur un magasin : clientId est obligatoire');
+    }
+
     // Visite magasin OU visite de prospection — exactement l'un des deux.
     if (Boolean(dto.clientId) === Boolean(dto.prospectId)) {
       throw new BadRequestException('Fournir exactement un des deux : clientId ou prospectId');
@@ -163,6 +193,26 @@ export class VisitesService {
         where: { id: dto.prospectId!, deletedAt: null },
       });
       if (!prospect) throw new NotFoundException(`Prospect ${dto.prospectId} introuvable`);
+    }
+
+    // La proposition réalisée doit être celle du promoteur, pour ce magasin, et encore ouverte.
+    let propositionPem: { id: string; planningId: string | null } | null = null;
+    if (dto.propositionPemId) {
+      const proposition = await this.prisma.propositionPem.findUnique({
+        where: { id: dto.propositionPemId },
+        select: { id: true, clientId: true, promoteurId: true, statut: true, planningId: true },
+      });
+      if (!proposition) throw new NotFoundException(`Proposition PEM ${dto.propositionPemId} introuvable`);
+      if (proposition.promoteurId !== promoteur.id) {
+        throw new ForbiddenException("Cette visite PEM n'est pas attribuée à votre compte");
+      }
+      if (proposition.clientId !== dto.clientId) {
+        throw new BadRequestException('La proposition PEM concerne un autre magasin que celui de la visite');
+      }
+      if (proposition.statut !== 'PROPOSEE' && proposition.statut !== 'ACCEPTEE') {
+        throw new ConflictException("Cette visite PEM n'est plus ouverte");
+      }
+      propositionPem = { id: proposition.id, planningId: proposition.planningId };
     }
 
     // Fin de visite : soit une commande liée, soit une raison d'absence de commande — jamais les deux.
@@ -219,6 +269,43 @@ export class VisitesService {
       }
     }
 
+    // Produits indispensables : un article n'est gardé qu'une fois (le dernier relevé gagne) et doit exister.
+    const indispensables = [...new Map((dto.indispensables ?? []).map((i) => [i.articleId, i.present] as const)).entries()];
+    if (indispensables.length) {
+      const trouves = new Set(
+        (
+          await this.prisma.article.findMany({
+            where: { id: { in: indispensables.map(([id]) => id) }, deletedAt: null },
+            select: { id: true },
+          })
+        ).map((a) => a.id),
+      );
+      const inconnus = indispensables.map(([id]) => id).filter((id) => !trouves.has(id));
+      if (inconnus.length) {
+        throw new BadRequestException(`Article(s) introuvable(s) pour les produits indispensables : ${inconnus.join(', ')}`);
+      }
+    }
+
+    // Articles PEM : un article n'est gardé qu'une fois (le dernier relevé gagne) et doit exister ; « mis en avant »
+    // n'a de sens que pour un article présent.
+    const articlesPem = [
+      ...new Map((dto.articlesPem ?? []).map((a) => [a.articleId, { present: a.present, misEnAvant: a.present && a.misEnAvant }] as const)).entries(),
+    ];
+    if (articlesPem.length) {
+      const trouves = new Set(
+        (
+          await this.prisma.article.findMany({
+            where: { id: { in: articlesPem.map(([id]) => id) }, deletedAt: null },
+            select: { id: true },
+          })
+        ).map((a) => a.id),
+      );
+      const inconnus = articlesPem.map(([id]) => id).filter((id) => !trouves.has(id));
+      if (inconnus.length) {
+        throw new BadRequestException(`Article(s) introuvable(s) pour la vérification PEM : ${inconnus.join(', ')}`);
+      }
+    }
+
     // Tout est créé dans une seule transaction : un rejeu (idApk déjà connu) ne duplique donc rien.
     const visite = await this.prisma.$transaction(async (tx) => {
       const creee = await tx.visite.create({
@@ -236,6 +323,7 @@ export class VisitesService {
           idCommandeApk: dto.idCommandeApk ?? null,
           raisonAbsenceCommandeId: dto.raisonAbsenceCommandeId ?? null,
           commandeEnRayon: dto.commandeEnRayon ?? null,
+          typeVisite,
         },
       });
       // Pas de colis si la réponse est « non » : comme dans l'app, qui efface les colis dans ce cas.
@@ -256,6 +344,30 @@ export class VisitesService {
           data: promosOp.map(([promoId, presente]) => ({ visiteId: creee.id, promoId, presente })),
           skipDuplicates: true,
         });
+      }
+      if (indispensables.length) {
+        await tx.visiteIndispensable.createMany({
+          data: indispensables.map(([articleId, present]) => ({ visiteId: creee.id, articleId, present })),
+          skipDuplicates: true,
+        });
+      }
+      if (articlesPem.length) {
+        await tx.visitePemArticle.createMany({
+          data: articlesPem.map(([articleId, a]) => ({ visiteId: creee.id, articleId, present: a.present, misEnAvant: a.misEnAvant })),
+          skipDuplicates: true,
+        });
+      }
+      if (propositionPem) {
+        // La proposition passe à REALISEE et son compteur de reports repart de zéro pour le cycle suivant. La garde sur
+        // le statut évite qu'une autre visite réalise la même proposition en parallèle.
+        const maj = await tx.propositionPem.updateMany({
+          where: { id: propositionPem.id, statut: { in: ['PROPOSEE', 'ACCEPTEE'] } },
+          data: { statut: 'REALISEE', visiteId: creee.id, nbReports: 0 },
+        });
+        if (maj.count === 0) throw new ConflictException("Cette visite PEM n'est plus ouverte");
+        if (propositionPem.planningId) {
+          await tx.planning.updateMany({ where: { id: propositionPem.planningId, deletedAt: null }, data: { fait: true } });
+        }
       }
       if (questionsValides.size > 0) {
         await tx.visiteReponse.createMany({
