@@ -21,8 +21,9 @@ import 'widgets/planning_equipe_reel.dart';
 /// Page d'un chef de secteur vue par son directeur (écran empilé `equipe-cs`). Maquette : pageCS l.851-877.
 /// Ouverte par `AppRoutes.pageChefSecteur(context, csId)` ; `csId` doit être « n », « k » ou « s ».
 ///
-/// Actions « Appeler » et « Envoyer un mail », puis quatre onglets en lecture seule : « Planning » (planning du chef de
-/// secteur, semaine par semaine, avec la carte de son rapport d'activité), « Visites », « Commandes » et « Promoteurs ».
+/// Quatre onglets en lecture seule : « Planning » (planning du chef de secteur, semaine par semaine, avec la carte de
+/// son rapport d'activité), « Visites », « Commandes » et « Promoteurs ». Pas d'actions « Appeler » ni « Mail » : le CRM
+/// ne fournit ni téléphone ni e-mail du chef de secteur.
 class ChefSecteurScreen extends ConsumerStatefulWidget {
   const ChefSecteurScreen({super.key, required this.csId});
 
@@ -112,27 +113,6 @@ class _ChefSecteurScreenState extends ConsumerState<ChefSecteurScreen> {
       corps: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 0, 16, 4),
-            child: RangeeActions(
-              actions: [
-                ActionRapide(
-                  label: 'Appeler',
-                  icone: AppIcons.tel,
-                  onTap: () =>
-                      AppToast.show(context, 'Appel de ${cs.nom} en cours.'),
-                ),
-                ActionRapide(
-                  label: 'Envoyer un mail',
-                  icone: AppIcons.mail,
-                  onTap: () => AppToast.show(
-                    context,
-                    'Ouverture de la messagerie : nouveau mail à ${cs.nom}.',
-                  ),
-                ),
-              ],
-            ),
-          ),
           CorpsSousTopbar(
             children: [
               Segment(

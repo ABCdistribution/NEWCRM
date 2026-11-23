@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/data/data.dart';
+import '../../core/logic/logic.dart';
 import '../../core/models/models.dart';
 import '../../core/nav/nav.dart';
 import '../../core/state/state.dart';
@@ -16,7 +17,7 @@ import 'state/prospects_state.dart';
 /// Ouvert par `AppRoutes.nouveauProspect(context)`.
 ///
 /// Sections Identité (enseigne et raison sociale obligatoires, ville, code postal, téléphone, email) et Qualification
-/// (secteur, source, classe, étape, probabilité, potentiel). « Créer le prospect » vérifie les champs et affiche les
+/// (secteur en démonstration seulement, source, classe, étape, probabilité, potentiel). « Créer le prospect » vérifie les champs et affiche les
 /// erreurs sous chaque champ ; s'ils sont valides, le prospect entre dans le store « En attente d'envoi », la page
 /// Prospects s'ouvre sur « Mes prospects » sans filtre et le toast « Prospect créé… » s'affiche.
 class NouveauProspectScreen extends ConsumerWidget {
@@ -102,12 +103,15 @@ class NouveauProspectScreen extends ConsumerWidget {
             const SectionTitre('Qualification'),
             Rangee(
               children: [
-                ChampListe<String>(
-                  label: 'Secteur',
-                  valeur: f.secteur,
-                  options: {'': '— aucun —', ...secteursDemo},
-                  onChanged: (v) => notifier.maj((b) => b.copyWith(secteur: v)),
-                ),
+                // Secteurs de la maquette : proposés en démonstration seulement (champ sans effet sur le prospect).
+                if (!DemoTemps.reel)
+                  ChampListe<String>(
+                    label: 'Secteur',
+                    valeur: f.secteur,
+                    options: {'': '— aucun —', ...secteursDemo},
+                    onChanged: (v) =>
+                        notifier.maj((b) => b.copyWith(secteur: v)),
+                  ),
                 ChampListe<String>(
                   label: 'Source',
                   valeur: f.source,

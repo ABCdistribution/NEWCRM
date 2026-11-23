@@ -3,13 +3,26 @@ import '../models/models.dart';
 
 /// Contact et historique d'un prospect du CRM (`GET /prospects/:id` et `/prospects/:id/historique`).
 class DetailProspect {
-  const DetailProspect({this.contact, required this.timeline});
+  const DetailProspect({
+    this.contact,
+    required this.timeline,
+    this.telephone,
+    this.mail,
+    this.adresse,
+  });
 
   /// Premier contact de la fiche (nom, poste), nul s'il n'y en a pas.
   final String? contact;
 
   /// Événements du plus récent au plus ancien.
   final List<EvenementProspect> timeline;
+
+  /// Téléphone et e-mail de la fiche (à défaut, ceux du premier contact qui en a un), nuls s'ils manquent.
+  final String? telephone;
+  final String? mail;
+
+  /// Adresse postale complète de la fiche (rue, code postal, ville), nulle si elle manque.
+  final String? adresse;
 }
 
 String? _texte(Object? v) =>
@@ -128,22 +141,33 @@ DetailProspect detailProspectDepuisJson(
   Map<String, dynamic>? historique,
 ) {
   String? contact;
+  String? telContact;
+  String? mailContact;
   final contacts = detail['contacts'];
   if (contacts is List) {
     for (final c in contacts) {
       if (c is! Map<String, dynamic>) continue;
+      telContact ??= _texte(c['portable']) ?? _texte(c['fixe']);
+      mailContact ??= _texte(c['mail']);
       final nom = [
         _texte(c['prenom']),
         _texte(c['nom']),
       ].whereType<String>().join(' ');
       if (nom.isEmpty) continue;
       final poste = _texte(c['poste']);
-      contact = poste == null ? nom : '$nom ($poste)';
-      break;
+      contact ??= poste == null ? nom : '$nom ($poste)';
     }
   }
+  final ville = _texte(detail['ville']);
+  final adresse = [
+    _texte(detail['adresse1']),
+    [_texte(detail['codePostal']), ville].whereType<String>().join(' '),
+  ].whereType<String>().where((s) => s.isNotEmpty).join(', ');
   return DetailProspect(
     contact: contact,
+    telephone: _texte(detail['telephone']) ?? telContact,
+    mail: _texte(detail['email']) ?? mailContact,
+    adresse: adresse.isEmpty ? null : adresse,
     timeline: [
       if (historique != null && historique['data'] is List)
         for (final l in (historique['data'] as List))

@@ -243,7 +243,9 @@ class ActionRapide {
   });
 
   final String label;
-  final VoidCallback onTap;
+
+  /// Nul : action inactive (donnée absente), affichée estompée et sans effet au toucher.
+  final VoidCallback? onTap;
 
   /// Icône SVG (`AppIcons.tel`…) ; nulle pour l'action pleine « ＋ Visite ».
   final String? icone;
@@ -265,7 +267,7 @@ class RangeeActions extends StatelessWidget {
   Widget build(BuildContext context) {
     final u = context.univers;
     Widget bouton(ActionRapide a) {
-      return GestureDetector(
+      final contenu = GestureDetector(
         onTap: a.onTap,
         child: Container(
           padding: const EdgeInsets.fromLTRB(0, 11, 0, 9),
@@ -302,6 +304,7 @@ class RangeeActions extends StatelessWidget {
                 ),
         ),
       );
+      return a.onTap == null ? Opacity(opacity: 0.4, child: contenu) : contenu;
     }
 
     Widget rangee(List<ActionRapide> l) => IntrinsicHeight(

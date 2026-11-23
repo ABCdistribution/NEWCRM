@@ -1,3 +1,4 @@
+import 'package:crm_app/core/logic/logic.dart';
 import 'package:crm_app/core/models/models.dart';
 import 'package:crm_app/core/nav/nav_bar.dart';
 import 'package:crm_app/core/state/state.dart';
@@ -66,6 +67,18 @@ List<Prospect> _prospects(WidgetTester tester) =>
 
 void main() {
   group('formulaire', () {
+    testWidgets('connecté au CRM : pas de secteurs de démonstration', (
+      tester,
+    ) async {
+      DemoTemps.reel = true;
+      addTearDown(() => DemoTemps.reel = false);
+      await pumpEcran(tester, const NouveauProspectScreen(), role: Role.cs);
+      expect(find.text('Secteur'), findsNothing);
+      expect(find.text('— aucun —'), findsNothing);
+      expect(find.text('Source'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    });
+
     testWidgets(
       'sections, champs, valeurs par défaut et boutons de la maquette',
       (tester) async {

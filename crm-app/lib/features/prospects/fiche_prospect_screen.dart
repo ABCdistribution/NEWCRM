@@ -61,7 +61,13 @@ class _FicheProspectScreenState extends ConsumerState<FicheProspectScreen> {
     }
     final prochaine = prochaineEtape(ref.watch(etapesProvider), id);
 
-    void toast(String message) => AppToast.show(context, message);
+    // Actions externes : inactives (onTap nul) tant que le CRM ne fournit pas la donnée.
+    final lanceur = ref.read(lanceurExterneProvider);
+    VoidCallback? lancer(Uri? uri) =>
+        uri == null ? null : () => lancerExterne(context, lanceur, uri);
+    final uriCarte = uriItineraire(
+      detail?.adresse ?? (p.cp.isEmpty ? null : p.cp),
+    );
 
     return PageUnivers(
       entete: AppEntete.libre(
@@ -96,21 +102,17 @@ class _FicheProspectScreenState extends ConsumerState<FicheProspectScreen> {
                 ActionRapide(
                   label: 'Appeler',
                   icone: AppIcons.tel,
-                  onTap: () => toast("Lancement de l'appel téléphonique."),
+                  onTap: lancer(uriAppel(detail?.telephone)),
                 ),
                 ActionRapide(
                   label: 'Mail',
                   icone: AppIcons.mail,
-                  onTap: () => toast(
-                    'Ouverture de la messagerie : nouveau mail au contact du client.',
-                  ),
+                  onTap: lancer(uriMail(detail?.mail)),
                 ),
                 ActionRapide(
                   label: 'Itinéraire',
                   icone: AppIcons.nav,
-                  onTap: () => toast(
-                    "Ouverture de l'application de cartes (adresse renseignée).",
-                  ),
+                  onTap: lancer(uriCarte),
                 ),
                 ActionRapide(
                   label: 'Planifier',

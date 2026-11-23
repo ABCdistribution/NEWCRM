@@ -1,5 +1,7 @@
+import 'package:crm_app/core/data/detail_prospect.dart';
 import 'package:crm_app/core/models/models.dart';
 import 'package:crm_app/core/state/state.dart';
+import 'package:crm_app/core/sync/detail_prospect_provider.dart';
 import 'package:crm_app/core/ui/ui.dart';
 import 'package:crm_app/features/prospects/fiche_prospect_screen.dart';
 import 'package:flutter/material.dart';
@@ -7,6 +9,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import '../../support/app_test_support.dart';
+import '../../support/lanceur_factice.dart';
 
 /// Fiche d'un prospect : maquette `fichePros` l.1776-1792 et `ongletMagasinsProspect` l.1768-1775.
 Future<void> _ouvrir(WidgetTester tester, String id, Role role) =>
@@ -307,30 +310,74 @@ void main() {
   });
 
   group('actions', () {
-    testWidgets('Appeler, Mail et Itinéraire affichent leur message', (
-      tester,
-    ) async {
-      await _ouvrir(tester, 'p1', Role.cs);
-      for (final (action, message) in [
-        ('Appeler', "Lancement de l'appel téléphonique."),
-        (
-          'Mail',
-          'Ouverture de la messagerie : nouveau mail au contact du client.',
-        ),
-        (
-          'Itinéraire',
-          "Ouverture de l'application de cartes (adresse renseignée).",
-        ),
-      ]) {
-        await tester.tap(_action(action));
+    testWidgets(
+      "Itinéraire ouvre la ville du prospect ; Appeler et Mail inactifs sans donnée",
+      (tester) async {
+        final lanceur = LanceurFactice();
+        await pumpEcran(
+          tester,
+          const FicheProspectScreen(prospectId: 'p1'),
+          role: Role.cs,
+          overrides: [lanceurExterneProvider.overrideWithValue(lanceur)],
+        );
+        await tester.tap(_action('Appeler'));
+        await tester.tap(_action('Mail'));
         await tester.pump();
-        expect(find.text(message), findsOneWidget, reason: action);
-      }
-      await tester.pump(const Duration(seconds: 3));
-      expect(
-        find.text("Ouverture de l'application de cartes (adresse renseignée)."),
-        findsNothing,
+        expect(lanceur.ouverts, isEmpty);
+        await tester.tap(_action('Itinéraire'));
+        await tester.pump();
+        expect(lanceur.ouverts.map((u) => u.toString()), [
+          'geo:0,0?q=78000%20Versailles',
+        ]);
+      },
+    );
+
+    testWidgets(
+      "prospect du CRM : Appeler, Mail et Itinéraire utilisent les coordonnées de la fiche",
+      (tester) async {
+        final lanceur = LanceurFactice();
+        await pumpEcran(
+          tester,
+          const FicheProspectScreen(prospectId: 'p1'),
+          role: Role.cs,
+          overrides: [
+            lanceurExterneProvider.overrideWithValue(lanceur),
+            detailProspectProvider.overrideWith(
+              (ref, id) => Stream.value(
+                const DetailProspect(
+                  timeline: [],
+                  telephone: '04 67 00 11 22',
+                  mail: 'contact@exemple.fr',
+                  adresse: '12 rue du Port, 34400 Lunel',
+                ),
+              ),
+            ),
+          ],
+        );
+        for (final a in ['Appeler', 'Mail', 'Itinéraire']) {
+          await tester.tap(_action(a));
+          await tester.pump();
+        }
+        expect(lanceur.ouverts.map((u) => u.toString()), [
+          'tel:0467001122',
+          'mailto:contact@exemple.fr',
+          'geo:0,0?q=12%20rue%20du%20Port%2C%2034400%20Lunel',
+        ]);
+      },
+    );
+
+    testWidgets("échec du lancement : toast d'erreur sobre", (tester) async {
+      final lanceur = LanceurFactice(reussit: false);
+      await pumpEcran(
+        tester,
+        const FicheProspectScreen(prospectId: 'p1'),
+        role: Role.cs,
+        overrides: [lanceurExterneProvider.overrideWithValue(lanceur)],
       );
+      await tester.tap(_action('Itinéraire'));
+      await tester.pump();
+      expect(find.text("Impossible d'ouvrir l'application."), findsOneWidget);
+      await tester.pump(const Duration(seconds: 3));
     });
 
     testWidgets('Planifier ouvre le formulaire de planning, Note le dialogue', (

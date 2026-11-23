@@ -11,6 +11,7 @@ export 'controles.dart';
 export 'entete.dart';
 export 'feuilles.dart';
 export 'formulaires.dart';
+export 'lanceur_externe.dart';
 export 'liste_paginee.dart';
 export 'page_univers.dart';
 export 'progression.dart';

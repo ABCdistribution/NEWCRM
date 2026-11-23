@@ -56,16 +56,20 @@ class _FicheMagasinScreenState extends ConsumerState<FicheMagasinScreen> {
     final actif = _onglet ?? onglets.first;
     final u = context.univers;
 
-    void appeler() =>
-        AppToast.show(context, "Lancement de l'appel téléphonique.");
-    void mail() => AppToast.show(
-      context,
-      'Ouverture de la messagerie : nouveau mail au contact du client.',
-    );
-    void itineraire() => AppToast.show(
-      context,
-      "Ouverture de l'application de cartes (adresse renseignée).",
-    );
+    // Actions externes : inactives (onTap nul) tant que le CRM ne fournit pas la donnée.
+    final lanceur = ref.read(lanceurExterneProvider);
+    final uriTel =
+        uriAppel(fiche?.telephone) ??
+        fiche?.contacts.map((c) => uriAppel(c.telephone)).nonNulls.firstOrNull;
+    final uriCourriel =
+        uriMail(fiche?.mail) ??
+        fiche?.contacts.map((c) => uriMail(c.mail)).nonNulls.firstOrNull;
+    final uriCarte = uriItineraire(m.adresse);
+    VoidCallback? lancer(Uri? uri) =>
+        uri == null ? null : () => lancerExterne(context, lanceur, uri);
+    final appeler = lancer(uriTel);
+    final mail = lancer(uriCourriel);
+    final itineraire = lancer(uriCarte);
     void planifier() => AppRoutes.formulaireRdv(
       context,
       cible: CiblePlanning.client,

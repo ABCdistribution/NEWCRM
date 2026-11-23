@@ -1,6 +1,8 @@
+import 'package:crm_app/core/data/fiche_client.dart';
 import 'package:crm_app/core/logic/logic.dart';
 import 'package:crm_app/core/models/models.dart';
 import 'package:crm_app/core/state/state.dart';
+import 'package:crm_app/core/sync/fiche_client_provider.dart';
 import 'package:crm_app/core/ui/ui.dart';
 import 'package:crm_app/features/clients/fiche_magasin_screen.dart';
 import 'package:crm_app/features/clients/note_client_dialog.dart';
@@ -8,9 +10,26 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import '../../support/app_test_support.dart';
+import '../../support/lanceur_factice.dart';
 import 'aide_clients.dart';
 
 /// Fiche d'un client : `ficheMag` l.1808-1824, `blocObjMag` l.1800-1804, actions l.1752-1755 et l.1987-2003.
+/// Client du CRM (non démo) : seules les données qu'il porte sont utilisables.
+const _magasinCrm = Magasin(
+  id: 'cr',
+  nom: 'Auchan – Lyon',
+  statut: 'Client actif',
+  classe: 'B',
+  adresse: '5 rue Haute, 69000 Lyon',
+  ca: '—',
+  evo: '',
+  cde: '—',
+  cdeDate: '',
+  visites: 0,
+  objectif: 0,
+  reel: true,
+);
+
 void main() {
   Future<void> ouvrir(WidgetTester tester, Role role, String id) =>
       pumpEcran(tester, FicheMagasinScreen(magasinId: id), role: role);
@@ -219,26 +238,151 @@ void main() {
       expect(find.text('Alerte rupture'), findsOneWidget);
     });
 
-    testWidgets('Appeler, Mail et Itinéraire affichent leur toast', (
+    testWidgets(
+      "Itinéraire ouvre l'adresse du client ; Appeler et Mail sont inactifs sans donnée",
+      (tester) async {
+        final lanceur = LanceurFactice();
+        await pumpEcran(
+          tester,
+          const FicheMagasinScreen(magasinId: 'm1'),
+          overrides: [lanceurExterneProvider.overrideWithValue(lanceur)],
+        );
+        await tapAction(tester, 'Appeler');
+        await tapAction(tester, 'Mail');
+        expect(lanceur.ouverts, isEmpty);
+        await tapAction(tester, 'Itinéraire');
+        expect(lanceur.ouverts, [
+          Uri.parse(
+            'geo:0,0?q=104%20avenue%20des%20Champs%2C%2078000%20Versailles',
+          ),
+        ]);
+        expect(find.text("Impossible d'ouvrir l'application."), findsNothing);
+      },
+    );
+
+    testWidgets(
+      'client du CRM : Appeler ouvre tel:, Mail ouvre mailto: (contact à défaut de la fiche)',
+      (tester) async {
+        final lanceur = LanceurFactice();
+        await pumpEcran(
+          tester,
+          const FicheMagasinScreen(magasinId: 'cr'),
+          overrides: [
+            lanceurExterneProvider.overrideWithValue(lanceur),
+            magasinParIdProvider.overrideWith((ref, id) => _magasinCrm),
+            ficheClientProvider.overrideWith(
+              (ref, id) => Stream.value(
+                const FicheClient(
+                  contacts: [
+                    ContactClient(nom: 'Léa Martin'),
+                    ContactClient(
+                      nom: 'Paul Durand',
+                      telephone: '06 12 34 56 78',
+                      mail: 'paul@exemple.fr',
+                    ),
+                  ],
+                  notes: [],
+                  visites: [],
+                  commandes: [],
+                  visitesMois: 0,
+                ),
+              ),
+            ),
+          ],
+        );
+        await tapAction(tester, 'Appeler');
+        await tapAction(tester, 'Mail');
+        await tapAction(tester, 'Itinéraire');
+        expect(lanceur.ouverts.map((u) => u.toString()), [
+          'tel:0612345678',
+          'mailto:paul@exemple.fr',
+          'geo:0,0?q=5%20rue%20Haute%2C%2069000%20Lyon',
+        ]);
+      },
+    );
+
+    testWidgets('le numéro de la fiche passe avant celui des contacts', (
       tester,
     ) async {
-      await ouvrir(tester, Role.promoteur, 'm1');
+      final lanceur = LanceurFactice();
+      await pumpEcran(
+        tester,
+        const FicheMagasinScreen(magasinId: 'cr'),
+        overrides: [
+          lanceurExterneProvider.overrideWithValue(lanceur),
+          magasinParIdProvider.overrideWith((ref, id) => _magasinCrm),
+          ficheClientProvider.overrideWith(
+            (ref, id) => Stream.value(
+              const FicheClient(
+                contacts: [],
+                notes: [],
+                visites: [],
+                commandes: [],
+                visitesMois: 0,
+                telephone: '+33 1 23 45 67 89',
+                mail: 'magasin@exemple.fr',
+              ),
+            ),
+          ),
+        ],
+      );
       await tapAction(tester, 'Appeler');
-      expect(find.text("Lancement de l'appel téléphonique."), findsOneWidget);
       await tapAction(tester, 'Mail');
-      expect(
-        find.text(
-          'Ouverture de la messagerie : nouveau mail au contact du client.',
-        ),
-        findsOneWidget,
+      expect(lanceur.ouverts.map((u) => u.toString()), [
+        'tel:+33123456789',
+        'mailto:magasin@exemple.fr',
+      ]);
+    });
+
+    testWidgets(
+      'client du CRM sans adresse ni coordonnées : les trois actions sont inactives',
+      (tester) async {
+        final lanceur = LanceurFactice();
+        await pumpEcran(
+          tester,
+          const FicheMagasinScreen(magasinId: 'cr'),
+          overrides: [
+            lanceurExterneProvider.overrideWithValue(lanceur),
+            magasinParIdProvider.overrideWith(
+              (ref, id) => Magasin(
+                id: _magasinCrm.id,
+                nom: _magasinCrm.nom,
+                statut: _magasinCrm.statut,
+                classe: '—',
+                adresse: '',
+                ca: '—',
+                evo: '',
+                cde: '—',
+                cdeDate: '',
+                visites: 0,
+                objectif: 0,
+                reel: true,
+              ),
+            ),
+            ficheClientProvider.overrideWith((ref, id) => Stream.value(null)),
+          ],
+        );
+        for (final a in ['Appeler', 'Mail', 'Itinéraire']) {
+          await tapAction(tester, a);
+        }
+        expect(lanceur.ouverts, isEmpty);
+      },
+    );
+
+    testWidgets("aucune application pour l'adresse : toast d'erreur", (
+      tester,
+    ) async {
+      final lanceur = LanceurFactice(reussit: false);
+      await pumpEcran(
+        tester,
+        const FicheMagasinScreen(magasinId: 'm1'),
+        overrides: [lanceurExterneProvider.overrideWithValue(lanceur)],
       );
       await tapAction(tester, 'Itinéraire');
-      expect(
-        find.text("Ouverture de l'application de cartes (adresse renseignée)."),
-        findsOneWidget,
-      );
+      await tester.pump();
+      expect(lanceur.ouverts, hasLength(1));
+      expect(find.text("Impossible d'ouvrir l'application."), findsOneWidget);
       await laisserPasserToast(tester);
-      expect(find.textContaining('Ouverture de'), findsNothing);
     });
 
     testWidgets('« ＋ Visite » démarre un brouillon et ouvre la visite', (
@@ -409,17 +553,20 @@ void main() {
       },
     );
 
-    testWidgets('Appeler, Mail et Itinéraire : mêmes toasts', (tester) async {
-      await ouvrir(tester, Role.cs, 'm1');
-      await tapAction(tester, 'Appeler');
-      expect(find.text("Lancement de l'appel téléphonique."), findsOneWidget);
-      await laisserPasserToast(tester);
-      await tapAction(tester, 'Itinéraire');
-      expect(
-        find.text("Ouverture de l'application de cartes (adresse renseignée)."),
-        findsOneWidget,
+    testWidgets("Itinéraire ouvre l'adresse ; Appeler inactif sans donnée", (
+      tester,
+    ) async {
+      final lanceur = LanceurFactice();
+      await pumpEcran(
+        tester,
+        const FicheMagasinScreen(magasinId: 'm1'),
+        role: Role.cs,
+        overrides: [lanceurExterneProvider.overrideWithValue(lanceur)],
       );
-      await laisserPasserToast(tester);
+      await tapAction(tester, 'Appeler');
+      expect(lanceur.ouverts, isEmpty);
+      await tapAction(tester, 'Itinéraire');
+      expect(lanceur.ouverts.single.scheme, 'geo');
     });
   });
 

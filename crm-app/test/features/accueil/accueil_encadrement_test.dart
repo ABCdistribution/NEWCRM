@@ -9,6 +9,7 @@ import 'package:crm_app/features/prospects/fiche_prospect_screen.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import '../../support/app_test_support.dart';
+import '../../support/lanceur_factice.dart';
 import 'aide_accueil.dart';
 
 /// Accueil du chef de secteur « Nadia H. » et du directeur « Cindy R. » : maquette `pageAccueil` l.671-687,
@@ -18,8 +19,18 @@ import 'aide_accueil.dart';
 /// Jour affiché : mercredi (2). Planning de Nadia ce jour-là : 11:30 Carrefour – Paris (prospect p2, RDV) et
 /// 16:00 Administratif ; celui de Cindy y ajoute 09:00 Carrefour – Rouen (client m3).
 void main() {
-  Future<void> monter(WidgetTester tester, Role role) =>
-      pumpEcran(tester, const AccueilScreen(), role: role);
+  Future<void> monter(
+    WidgetTester tester,
+    Role role, {
+    LanceurExterne? lanceur,
+  }) => pumpEcran(
+    tester,
+    const AccueilScreen(),
+    role: role,
+    overrides: [
+      if (lanceur != null) lanceurExterneProvider.overrideWithValue(lanceur),
+    ],
+  );
 
   /// Cartes d'étape affichées, avec leur titre et leur état « prochain ».
   Map<String, bool> etapes(WidgetTester tester) => {
@@ -121,18 +132,28 @@ void main() {
       );
     });
 
-    testWidgets('« Itinéraire » affiche le toast des cartes', (tester) async {
-      await monter(tester, Role.cs);
+    testWidgets("« Itinéraire » ouvre l'adresse de l'étape", (tester) async {
+      final lanceur = LanceurFactice();
+      await monter(tester, Role.cs, lanceur: lanceur);
       await tester.ensureVisible(find.text('Itinéraire'));
       await tester.pumpAndSettle();
       await tester.tap(find.text('Itinéraire'));
       await tester.pump();
-      expect(
-        find.text("Ouverture de l'application de cartes (adresse renseignée)."),
-        findsOneWidget,
-      );
-      // Le toast n'ouvre pas la fiche de l'étape.
+      expect(lanceur.ouverts, hasLength(1));
+      expect(lanceur.ouverts.single.scheme, 'geo');
+      // Le bouton n'ouvre pas la fiche de l'étape.
       expect(routeCourante(tester), '/');
+    });
+
+    testWidgets("« Itinéraire » : toast d'erreur si aucune application", (
+      tester,
+    ) async {
+      await monter(tester, Role.cs, lanceur: LanceurFactice(reussit: false));
+      await tester.ensureVisible(find.text('Itinéraire'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Itinéraire'));
+      await tester.pump();
+      expect(find.text("Impossible d'ouvrir l'application."), findsOneWidget);
       await laisserPasserToast(tester);
     });
 

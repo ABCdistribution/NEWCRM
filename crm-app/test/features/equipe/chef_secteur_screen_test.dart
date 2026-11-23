@@ -36,8 +36,10 @@ void main() {
       find.text('Chef de secteur · Secteur Île-de-France'),
       findsOneWidget,
     );
-    expect(find.text('Appeler'), findsOneWidget);
-    expect(find.text('Envoyer un mail'), findsOneWidget);
+    // Le CRM ne fournit ni téléphone ni e-mail du chef de secteur : aucune action d'appel ou de mail.
+    expect(find.text('Appeler'), findsNothing);
+    expect(find.text('Envoyer un mail'), findsNothing);
+    expect(find.byType(RangeeActions), findsNothing);
     for (final onglet in ['Planning', 'Visites', 'Commandes', 'Promoteurs']) {
       expect(find.text(onglet), findsOneWidget, reason: onglet);
     }
@@ -55,29 +57,6 @@ void main() {
     );
     await _ouvrir(tester, 's');
     expect(find.text('Chef de secteur · Secteur Sud-Est'), findsOneWidget);
-  });
-
-  group('actions Appeler et Envoyer un mail', () {
-    testWidgets('toast d’appel', (tester) async {
-      await _ouvrir(tester, 'n');
-      await tester.tap(find.text('Appeler'));
-      await tester.pump();
-      expect(find.text('Appel de Nadia H. en cours.'), findsOneWidget);
-      await tester.pump(const Duration(seconds: 3));
-      expect(find.text('Appel de Nadia H. en cours.'), findsNothing);
-    });
-
-    testWidgets('toast de messagerie', (tester) async {
-      await _ouvrir(tester, 'k');
-      await tester.tap(find.text('Envoyer un mail'));
-      await tester.pump();
-      // Le point final du nom court est suivi de celui de la phrase, comme dans la maquette.
-      expect(
-        find.text('Ouverture de la messagerie : nouveau mail à Karim B..'),
-        findsOneWidget,
-      );
-      await tester.pump(const Duration(seconds: 3));
-    });
   });
 
   group('onglet Planning (lecture seule)', () {
