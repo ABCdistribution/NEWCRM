@@ -77,7 +77,8 @@ restart_next() { # dossier port
     '') log "COOKIE_SECURE non défini : false (prod en HTTP interne) ; définir true dans /var/www/.env dès que HTTPS est en place"; cs=false ;;
     *) log "COOKIE_SECURE « ${COOKIE_SECURE} » non reconnu (attendu true ou false) : false appliqué"; cs=false ;;
   esac
-  (exec 9>&-; cd "$dir" && RUNNER_TRACKING_ID= TZ=Europe/Paris COOKIE_SECURE="$cs" setsid nohup pnpm exec next start -p "$port" >> "$LOGS/$(basename "$dir").log" 2>&1 < /dev/null &)
+  # crm-web n'écoute que sur 127.0.0.1 : le public passe par le nginx du port 80 (/home/admininfo/proxy-staging). WEB_HOST=0.0.0.0 pour rouvrir le port.
+  (exec 9>&-; cd "$dir" && RUNNER_TRACKING_ID= TZ=Europe/Paris COOKIE_SECURE="$cs" setsid nohup pnpm exec next start -p "$port" -H "${WEB_HOST:-127.0.0.1}" >> "$LOGS/$(basename "$dir").log" 2>&1 < /dev/null &)
   # OK seulement si ça répond ET si le port n'est plus tenu par l'ancien processus (sinon faux « OK » sur l'ancien front).
   for _ in $(seq 1 30); do
     curl -sf -o /dev/null "http://localhost:$port/" && { [ -z "$pid" ] || [ "$(port_pid "$port" || true)" != "$pid" ]; } && { log "$dir OK (:$port)"; return; }
