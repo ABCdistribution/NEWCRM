@@ -55,7 +55,13 @@ class _ChefSecteurScreenState extends ConsumerState<ChefSecteurScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final cs = chefActuelParId(widget.csId)!;
+    final cs = chefActuelParId(widget.csId);
+    if (cs == null) {
+      return const PageUnivers(
+        entete: TopbarEcran(titre: 'Chef de secteur'),
+        enfants: [Vide('Chef de secteur introuvable.')],
+      );
+    }
     final promoteurs = promoteursDuChef(cs.id);
     if (cs.reel) {
       return ResumeActivite(
@@ -200,9 +206,7 @@ class _ChefSecteurScreenState extends ConsumerState<ChefSecteurScreen> {
     final base = DemoTemps.lundi;
     final lundi = DateTime(base.year, base.month, base.day + 7 * _semaine);
     final rapport = ref
-        .watch(
-          rapportEquipeProvider((userId: cs.id, lundi: isoJour(lundi))),
-        )
+        .watch(rapportEquipeProvider((userId: cs.id, lundi: isoJour(lundi))))
         .value;
     if (rapport == null || rapportVide(rapport)) return null;
     final semaine = semaineCsDepuisRapport(rapport);

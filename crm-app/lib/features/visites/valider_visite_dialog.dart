@@ -20,7 +20,7 @@ Future<void> ouvrirValiderVisite(BuildContext context, String visiteId) =>
       builder: (_) => ValiderVisiteDialog(visiteId: visiteId),
     );
 
-/// Dialogue « Valider la visite ? » : « Valider la visite ? » si les 7 étapes sont horodatées, sinon « Visite incomplète » et la liste de ce qui manque.
+/// Dialogue « Valider la visite ? » : « Valider la visite ? » si le parcours est complet, sinon « Visite incomplète » et la liste de ce qui manque.
 class ValiderVisiteDialog extends ConsumerWidget {
   const ValiderVisiteDialog({super.key, required this.visiteId});
 
@@ -36,6 +36,13 @@ class ValiderVisiteDialog extends ConsumerWidget {
       questions: ref.watch(questionnaireProvider).value ?? const [],
       raisonsDisponibles:
           (ref.watch(raisonsAbsenceProvider).value ?? const []).isNotEmpty,
+      indispensables: visite.estPem
+          ? const []
+          : ref.watch(produitsIndispensablesProvider(visite.magasinId)).value ??
+                const [],
+      articlesPem: visite.estPem
+          ? ref.watch(articlesPemProvider).value ?? const []
+          : const [],
     );
     final ok = manque.isEmpty;
     return DialogueBase(

@@ -9,6 +9,7 @@ import 'package:crm_app/features/visites/compte_rendu_screen.dart';
 import 'package:crm_app/features/visites/kit_detail_sheet.dart';
 import 'package:crm_app/features/visites/kits_sheet.dart';
 import 'package:crm_app/features/visites/state/actions_visite.dart';
+import 'package:crm_app/features/visites/widgets/badge_visite.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/misc.dart' show Override;
 import 'package:flutter_test/flutter_test.dart';
@@ -51,8 +52,9 @@ Future<String> ouvrirALEtape(
   EtapeDph etape, {
   List<Override> overrides = const [],
   Visite Function(Visite v)? preparer,
+  String magasin = 'm1',
 }) async {
-  final id = await brouillonPromoteur(tester, 'm1', overrides: overrides);
+  final id = await brouillonPromoteur(tester, magasin, overrides: overrides);
   conteneurApp(tester).read(crmProvider.notifier).majVisite(id, (v) {
     final prepare = v.copyWith(
       chrono: {
@@ -66,7 +68,7 @@ Future<String> ouvrirALEtape(
   await tester.pumpAndSettle();
   AppRoutes.retourRacine(contexteCoquille(tester));
   await tester.pumpAndSettle();
-  AppRoutes.demarrerVisite(contexteCoquille(tester), 'm1');
+  AppRoutes.demarrerVisite(contexteCoquille(tester), magasin);
   await tester.pumpAndSettle();
   return id;
 }
@@ -79,11 +81,12 @@ Future<void> suivant(WidgetTester tester) async {
 Future<void> attendreRefus(
   WidgetTester tester,
   String message,
-  int etape,
-) async {
+  int etape, {
+  int total = 7,
+}) async {
   await suivant(tester);
   expect(find.text(message), findsOneWidget);
-  expect(find.text('Étape $etape / 8'), findsOneWidget);
+  expect(find.text('Étape $etape / $total'), findsOneWidget);
   await attendreToast(tester);
 }
 
@@ -119,18 +122,12 @@ const raisons = [
   RaisonAbsence(id: 'r2', libelle: 'Gérant absent'),
 ];
 
-const promos = [
-  PromoOp(id: 'p1', libelle: '2 pour 1 shampoings', article: 'Shampoing 250 ml'),
-  PromoOp(id: 'p2', libelle: 'Lot masque'),
-];
-
 final ovQuestions = questionnaireProvider.overrideWith(
   (ref) => Stream.value(questions),
 );
 final ovRaisons = raisonsAbsenceProvider.overrideWith(
   (ref) => Stream.value(raisons),
 );
-final ovPromos = promosOpProvider.overrideWith((ref) => Stream.value(promos));
 
 void main() {
   group('Visite en cours : parcours « Précédent / Suivant »', () {
@@ -144,16 +141,21 @@ void main() {
       expect(v.magasinId, 'm1');
       expect(v.par, 'Julien M.');
       expect(v.commandeEnRayon, isNull);
-      expect(v.colis, isEmpty);
 
       expect(find.text('Carrefour Market – Versailles'), findsOneWidget);
       expect(
         find.text('Visite #218093 · début 04/11/2026 14h23'),
         findsOneWidget,
       );
-      expect(find.text('En cours'), findsOneWidget);
+      expect(
+        find.descendant(
+          of: find.byType(BadgeVisite),
+          matching: find.text('En cours'),
+        ),
+        findsOneWidget,
+      );
       expect(find.text('Visite'), findsOneWidget);
-      expect(find.text('Étape 1 / 8'), findsOneWidget);
+      expect(find.text('Étape 1 / 7'), findsOneWidget);
       expect(find.text("Photo d'arrivée sur site"), findsOneWidget);
       expect(find.text('📷 Prendre une photo'), findsOneWidget);
       expect(find.text('Aucune photo pour cette étape.'), findsOneWidget);
@@ -193,7 +195,9 @@ void main() {
     );
 
     for (final role in [Role.cs, Role.dir]) {
-      testWidgets('${role.profil.libelle} : pas de kilométrage', (tester) async {
+      testWidgets('${role.profil.libelle} : pas de kilométrage', (
+        tester,
+      ) async {
         await demarrerVisiteChez(tester, role, 'm1');
         expect(find.text('Kilométrage de départ'), findsNothing);
         expect(find.text('Carrefour Market – Versailles'), findsOneWidget);
@@ -201,7 +205,7 @@ void main() {
           find.text('Visite #218093 · début 04/11/2026 14h23'),
           findsOneWidget,
         );
-        expect(find.text('Étape 1 / 8'), findsOneWidget);
+        expect(find.text('Étape 1 / 7'), findsOneWidget);
         expect(find.text('Suivant ›'), findsOneWidget);
         expect(tester.takeException(), isNull);
       });
@@ -246,7 +250,7 @@ void main() {
       await tester.pumpAndSettle();
 
       await suivant(tester);
-      expect(find.text('Étape 2 / 8'), findsOneWidget);
+      expect(find.text('Étape 2 / 7'), findsOneWidget);
       expect(find.text('Photo du rayon'), findsOneWidget);
       expect(find.text('‹ Précédent'), findsOneWidget);
       // la photo du rayon est exigée à son tour, et horodatée plus tard : 14:23 + 9 min
@@ -258,19 +262,19 @@ void main() {
         '04/11/2026 14h32',
       );
       await suivant(tester);
-      expect(find.text('Étape 3 / 8'), findsOneWidget);
+      expect(find.text('Étape 3 / 7'), findsOneWidget);
     });
 
     testWidgets('« Précédent » revient sans rien valider', (tester) async {
       final id = await ouvrirALEtape(tester, EtapeDph.colis);
-      expect(find.text('Étape 3 / 8'), findsOneWidget);
+      expect(find.text('Étape 3 / 7'), findsOneWidget);
       await tester.tap(find.text('‹ Précédent'));
       await tester.pumpAndSettle();
-      expect(find.text('Étape 2 / 8'), findsOneWidget);
+      expect(find.text('Étape 2 / 7'), findsOneWidget);
       expect(find.text('Photo du rayon'), findsOneWidget);
       await tester.tap(find.text('‹ Précédent'));
       await tester.pumpAndSettle();
-      expect(find.text('Étape 1 / 8'), findsOneWidget);
+      expect(find.text('Étape 1 / 7'), findsOneWidget);
       expect(find.text('‹ Précédent'), findsNothing);
       // revenir ne horodate pas l'étape qui n'a pas été validée
       expect(visite(tester, id).etapeFaite(EtapeDph.colis), isFalse);
@@ -280,13 +284,16 @@ void main() {
       tester,
     ) async {
       await ouvrirALEtape(tester, EtapeDph.dn);
-      expect(find.text('Étape 4 / 8'), findsOneWidget);
-      expect(find.text('Distribution numérique par kit'.toUpperCase()), findsOneWidget);
+      expect(find.text('Étape 4 / 7'), findsOneWidget);
+      expect(
+        find.text('Distribution numérique par kit'.toUpperCase()),
+        findsOneWidget,
+      );
     });
   });
 
   group('Étape « Commande à mettre en rayon »', () {
-    testWidgets('il faut répondre, « Non » efface les colis', (tester) async {
+    testWidgets('il faut répondre, Oui ou Non', (tester) async {
       final id = await ouvrirALEtape(tester, EtapeDph.colis);
       expect(find.text('Commande à mettre en rayon'), findsOneWidget);
       expect(
@@ -298,42 +305,19 @@ void main() {
         "Indiquez s'il y a une commande à mettre en rayon.",
         3,
       );
-      expect(find.text('Ou saisir le code du colis'), findsNothing);
+      expect(find.byType(TextField), findsNothing);
+      expect(find.textContaining('colis'), findsNothing);
 
       await toucher(tester, find.text('Oui'));
       expect(visite(tester, id).commandeEnRayon, isTrue);
-      expect(find.text('Ou saisir le code du colis'), findsOneWidget);
-      expect(find.text('📷 Scanner un colis'), findsOneWidget);
-
-      await tester.enterText(find.byType(TextField), '  COL-001 ');
-      await toucher(tester, find.text('＋ Ajouter ce colis'));
-      await tester.enterText(find.byType(TextField), 'COL-002');
-      await toucher(tester, find.text('＋ Ajouter ce colis'));
-      // un code déjà saisi ou vide n'est pas ajouté deux fois
-      await tester.enterText(find.byType(TextField), 'COL-002');
-      await toucher(tester, find.text('＋ Ajouter ce colis'));
-      await tester.enterText(find.byType(TextField), '   ');
-      await toucher(tester, find.text('＋ Ajouter ce colis'));
-      expect(visite(tester, id).colis, ['COL-001', 'COL-002']);
-      expect(find.text('COL-001'), findsOneWidget);
-
-      // la croix retire un colis
-      await tester.tap(find.text('✕').first);
-      await tester.pumpAndSettle();
-      expect(visite(tester, id).colis, ['COL-002']);
-
-      // « Oui » avec colis : on avance
       await suivant(tester);
-      expect(find.text('Étape 4 / 8'), findsOneWidget);
+      expect(find.text('Étape 4 / 7'), findsOneWidget);
       expect(visite(tester, id).etapeFaite(EtapeDph.colis), isTrue);
 
-      // « Non » efface les colis
       await tester.tap(find.text('‹ Précédent'));
       await tester.pumpAndSettle();
       await toucher(tester, find.text('Non'));
       expect(visite(tester, id).commandeEnRayon, isFalse);
-      expect(visite(tester, id).colis, isEmpty);
-      expect(find.text('Ou saisir le code du colis'), findsNothing);
     });
   });
 
@@ -350,7 +334,7 @@ void main() {
         findsOneWidget,
       );
       await suivant(tester);
-      expect(find.text('Étape 5 / 8'), findsOneWidget);
+      expect(find.text('Étape 5 / 7'), findsOneWidget);
       expect(visite(tester, id).etapeFaite(EtapeDph.dn), isTrue);
     });
 
@@ -398,6 +382,131 @@ void main() {
     });
   });
 
+  group('Étape « Produits indispensables »', () {
+    const refus =
+        "Indiquez pour chaque produit indispensable s'il est présent ou absent.";
+
+    testWidgets('magasin sans liste : l’étape n’est ni proposée ni comptée', (
+      tester,
+    ) async {
+      final id = await ouvrirALEtape(tester, EtapeDph.dn);
+      expect(find.text('Étape 4 / 7'), findsOneWidget);
+      await suivant(tester);
+      expect(find.text('Étape 5 / 7'), findsOneWidget);
+      expect(find.text('Commande liée à la visite'), findsOneWidget);
+      expect(
+        find.text('Vérification des produits indispensables'),
+        findsNothing,
+      );
+      expect(visite(tester, id).etapeFaite(EtapeDph.indispensables), isFalse);
+    });
+
+    testWidgets('liste vide : le parcours reste à sept étapes', (tester) async {
+      await ouvrirALEtape(
+        tester,
+        EtapeDph.dn,
+        magasin: 'm5',
+        overrides: [
+          produitsIndispensablesProvider.overrideWith(
+            (ref, magasinId) => Stream.value(const <ProduitIndispensable>[]),
+          ),
+        ],
+      );
+      expect(find.text('Étape 4 / 7'), findsOneWidget);
+    });
+
+    testWidgets('magasin avec liste : huit étapes, après le DN', (
+      tester,
+    ) async {
+      await ouvrirALEtape(tester, EtapeDph.dn, magasin: 'm5');
+      expect(find.text('Étape 4 / 8'), findsOneWidget);
+      await suivant(tester);
+      expect(find.text('Étape 5 / 8'), findsOneWidget);
+      expect(
+        find.text('Vérification des produits indispensables'),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets('relever chaque produit débloque « Suivant »', (tester) async {
+      final id = await ouvrirALEtape(
+        tester,
+        EtapeDph.indispensables,
+        magasin: 'm5',
+      );
+      expect(find.text('Étape 5 / 8'), findsOneWidget);
+      expect(find.text('Shampooing doux usage fréquent'), findsOneWidget);
+      expect(find.text('Franck Provost · Réf. 900016'), findsOneWidget);
+      expect(find.text('Présent'), findsNWidgets(5));
+      expect(find.text('Absent'), findsNWidgets(5));
+      expect(find.text('0/5 relevés'), findsOneWidget);
+      // rien n'est présélectionné
+      expect(visite(tester, id).indispensables, isEmpty);
+      await attendreRefus(tester, refus, 5, total: 8);
+
+      await toucher(tester, find.text('Présent').first);
+      expect(visite(tester, id).indispensables, {'a1': true});
+      expect(find.text('1/5 relevés'), findsOneWidget);
+      await toucher(tester, find.text('Absent').at(1));
+      expect(visite(tester, id).indispensables, {'a1': true, 'a2': false});
+      expect(find.text('2/5 relevés'), findsOneWidget);
+      // changer d'avis remplace le relevé
+      await toucher(tester, find.text('Présent').at(1));
+      expect(visite(tester, id).indispensables['a2'], isTrue);
+      await attendreRefus(tester, refus, 5, total: 8);
+
+      await toucher(tester, find.text('Absent').at(2));
+      await toucher(tester, find.text('Présent').at(3));
+      await toucher(tester, find.text('Absent').at(4));
+      expect(find.text('5/5 relevés'), findsOneWidget);
+      expect(visite(tester, id).indispensables, {
+        'a1': true,
+        'a2': true,
+        'a6': false,
+        'a9': true,
+        'a10': false,
+      });
+      expect(visite(tester, id).indispensablesAbsents, 2);
+      await suivant(tester);
+      expect(find.text('Étape 6 / 8'), findsOneWidget);
+      expect(find.text('Commande liée à la visite'), findsOneWidget);
+      expect(visite(tester, id).etapeFaite(EtapeDph.indispensables), isTrue);
+    });
+
+    testWidgets('« Tout présent » relève tout d’un coup', (tester) async {
+      final id = await ouvrirALEtape(
+        tester,
+        EtapeDph.indispensables,
+        magasin: 'm5',
+      );
+      await toucher(tester, find.text('Absent').first);
+      await toucher(tester, find.text('Tout présent'));
+      expect(find.text('5/5 relevés'), findsOneWidget);
+      expect(visite(tester, id).indispensables.values, everyElement(isTrue));
+      expect(visite(tester, id).indispensables, hasLength(5));
+      await suivant(tester);
+      expect(find.text('Étape 6 / 8'), findsOneWidget);
+    });
+
+    testWidgets('la validation tient compte de l’étape', (tester) async {
+      await ouvrirALEtape(
+        tester,
+        EtapeDph.rayonFin,
+        magasin: 'm5',
+        preparer: (v) => v.copyWith(
+          photos: const {EtapeDph.arrivee: 1, EtapeDph.rayonArrivee: 1},
+          commandeEnRayon: false,
+        ),
+      );
+      expect(find.text('Étape 8 / 8'), findsOneWidget);
+      await tester.tap(find.text('✓ Terminer la visite'));
+      await tester.pumpAndSettle();
+      expect(find.text('Visite incomplète'), findsOneWidget);
+      expect(find.text(refus), findsOneWidget);
+      expect(find.byType(MessageErreur), findsOneWidget);
+    });
+  });
+
   group('Étape « Commande liée à la visite »', () {
     testWidgets('sans raison proposée par le CRM, « Suivant » passe', (
       tester,
@@ -409,7 +518,7 @@ void main() {
         findsOneWidget,
       );
       await suivant(tester);
-      expect(find.text('Étape 6 / 8'), findsOneWidget);
+      expect(find.text('Étape 6 / 7'), findsOneWidget);
       expect(visite(tester, id).etapeFaite(EtapeDph.commande), isTrue);
     });
 
@@ -441,7 +550,10 @@ void main() {
       await toucher(tester, find.text('Oui'));
       expect(visite(tester, id).raisonAbsenceId, isNull);
       expect(visite(tester, id).raisonAbsence, '');
-      expect(find.text('Aucune commande prise pour le moment.'), findsOneWidget);
+      expect(
+        find.text('Aucune commande prise pour le moment.'),
+        findsOneWidget,
+      );
       expect(find.text('🛒 Prendre la commande'), findsOneWidget);
       await attendreRefus(tester, refus, 5);
 
@@ -449,7 +561,7 @@ void main() {
       await toucher(tester, find.text('Non'));
       await toucher(tester, find.text('Stock suffisant'));
       await suivant(tester);
-      expect(find.text('Étape 6 / 8'), findsOneWidget);
+      expect(find.text('Étape 6 / 7'), findsOneWidget);
       expect(visite(tester, id).etapeFaite(EtapeDph.commande), isTrue);
     });
 
@@ -488,7 +600,7 @@ void main() {
       expect(find.text('🛒 Modifier la commande'), findsOneWidget);
       expect(find.text('Aucune commande prise pour le moment.'), findsNothing);
       await suivant(tester);
-      expect(find.text('Étape 6 / 8'), findsOneWidget);
+      expect(find.text('Étape 6 / 7'), findsOneWidget);
       expect(visite(tester, id).etapeFaite(EtapeDph.commande), isTrue);
     });
   });
@@ -503,7 +615,7 @@ void main() {
         findsOneWidget,
       );
       await suivant(tester);
-      expect(find.text('Étape 7 / 8'), findsOneWidget);
+      expect(find.text('Étape 7 / 7'), findsOneWidget);
     });
 
     testWidgets('questions obligatoires : réponses de chaque type', (
@@ -538,43 +650,8 @@ void main() {
       expect(visite(tester, id).reponses.containsKey('q3'), isFalse);
 
       await suivant(tester);
-      expect(find.text('Étape 7 / 8'), findsOneWidget);
+      expect(find.text('Étape 7 / 7'), findsOneWidget);
       expect(visite(tester, id).etapeFaite(EtapeDph.questionnaire), isTrue);
-    });
-  });
-
-  group('Étape « Pointage OP »', () {
-    testWidgets('sans promotion : message vide, « Suivant » passe', (
-      tester,
-    ) async {
-      await ouvrirALEtape(tester, EtapeDph.op);
-      expect(
-        find.text('Aucune opération promotionnelle en cours.'),
-        findsOneWidget,
-      );
-      await suivant(tester);
-      expect(find.text('Étape 8 / 8'), findsOneWidget);
-    });
-
-    testWidgets('pointer chaque promotion : en place ou absente', (
-      tester,
-    ) async {
-      final id = await ouvrirALEtape(tester, EtapeDph.op, overrides: [ovPromos]);
-      expect(find.text('2 pour 1 shampoings'), findsOneWidget);
-      expect(find.text('Shampoing 250 ml'), findsOneWidget);
-      expect(find.text('Lot masque'), findsOneWidget);
-      expect(visite(tester, id).op, isEmpty);
-
-      await toucher(tester, find.text('En place').first);
-      await toucher(tester, find.text('Absente').last);
-      expect(visite(tester, id).op, {'p1': true, 'p2': false});
-      // changer d'avis
-      await toucher(tester, find.text('Absente').first);
-      expect(visite(tester, id).op['p1'], isFalse);
-
-      await suivant(tester);
-      expect(find.text('Étape 8 / 8'), findsOneWidget);
-      expect(visite(tester, id).etapeFaite(EtapeDph.op), isTrue);
     });
   });
 
@@ -583,7 +660,7 @@ void main() {
       tester,
     ) async {
       await ouvrirALEtape(tester, EtapeDph.rayonFin);
-      expect(find.text('Étape 8 / 8'), findsOneWidget);
+      expect(find.text('Étape 7 / 7'), findsOneWidget);
       expect(find.text('Photo du rayon de fin de visite'), findsOneWidget);
       expect(find.text('✓ Terminer la visite'), findsOneWidget);
       expect(find.text('Suivant ›'), findsNothing);
@@ -639,13 +716,13 @@ void main() {
       expect(find.text('Valider la visite ?'), findsOneWidget);
     });
 
-    testWidgets('parcours complet : huit étapes puis la validation', (
+    testWidgets('parcours complet : sept étapes puis la validation', (
       tester,
     ) async {
       final id = await brouillonPromoteur(
         tester,
         'm1',
-        overrides: [ovQuestions, ovRaisons, ovPromos],
+        overrides: [ovQuestions, ovRaisons],
       );
       final actions = actionsDe(tester, id);
 
@@ -657,18 +734,15 @@ void main() {
       await suivant(tester);
       await toucher(tester, find.text('Non'));
       await suivant(tester);
-      expect(find.text('Étape 4 / 8'), findsOneWidget);
+      expect(find.text('Étape 4 / 7'), findsOneWidget);
       await suivant(tester); // DN
       await toucher(tester, find.text('Non'));
       await toucher(tester, find.text('Stock suffisant'));
       await suivant(tester);
-      expect(find.text('Étape 6 / 8'), findsOneWidget);
+      expect(find.text('Étape 6 / 7'), findsOneWidget);
       await toucher(tester, find.text('Oui'));
       await suivant(tester);
-      expect(find.text('Étape 7 / 8'), findsOneWidget);
-      await toucher(tester, find.text('En place').first);
-      await suivant(tester);
-      expect(find.text('Étape 8 / 8'), findsOneWidget);
+      expect(find.text('Étape 7 / 7'), findsOneWidget);
       expect(find.text('Suivant ›'), findsNothing);
 
       await tester.tap(find.text('✓ Terminer la visite'));
@@ -677,7 +751,11 @@ void main() {
       expect(find.byType(MessageErreur), findsNothing);
       final v = visite(tester, id);
       for (final e in EtapeDph.values) {
-        expect(v.etapeFaite(e), isTrue, reason: e.cle);
+        if (e == EtapeDph.indispensables || e == EtapeDph.articlesPem) {
+          expect(v.etapeFaite(e), isFalse, reason: 'étape non proposée');
+        } else {
+          expect(v.etapeFaite(e), isTrue, reason: e.cle);
+        }
       }
       expect(v.etat, EtatVisite.brouillon);
       await tester.tap(find.text('Continuer'));

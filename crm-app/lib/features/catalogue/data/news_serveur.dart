@@ -1,3 +1,4 @@
+import '../../../core/logic/dates.dart';
 import 'news_demo.dart';
 
 /// Actualités réelles téléchargées du CRM (nul en démonstration : les news de la maquette servent alors).
@@ -5,8 +6,9 @@ List<News>? _newsServeur;
 
 void definirNewsServeur(List<News>? news) => _newsServeur = news;
 
-/// Actualités à afficher : celles du CRM, sinon celles de la démonstration.
-List<News> newsActuelles() => _newsServeur ?? newsDemo;
+/// Actualités à afficher : celles du CRM, sinon celles de la démonstration (aucune en session réelle).
+List<News> newsActuelles() =>
+    _newsServeur ?? (DemoTemps.reel ? const <News>[] : newsDemo);
 
 News? newsParIdActuelle(String id) {
   for (final n in newsActuelles()) {

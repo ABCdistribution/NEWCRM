@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:crm_app/core/api/erreur_api.dart';
 import 'package:crm_app/core/auth/session.dart';
 import 'package:crm_app/core/auth/utilisateur.dart';
+import 'package:crm_app/core/data/data.dart';
 import 'package:crm_app/core/data/fiche_client.dart';
 import 'package:crm_app/core/logic/logic.dart';
 import 'package:crm_app/core/models/models.dart';
@@ -71,6 +72,9 @@ void main() {
   setUpAll(chargerInter);
 
   setUp(() {
+    // Session réelle : les clients et le catalogue viennent du CRM (ici, les jeux de la maquette).
+    definirClientsServeur(magasinsDemo);
+    definirCatalogueServeur(produitsCatalogue);
     _serveur = FauxServeurCommandes()
       ..commandes['c1'] = detailAttente(
         'c1',
@@ -92,6 +96,8 @@ void main() {
 
   tearDown(() {
     definirAttentesServeur(null);
+    definirClientsServeur(null);
+    definirCatalogueServeur(null);
     DemoTemps.reel = false;
   });
 

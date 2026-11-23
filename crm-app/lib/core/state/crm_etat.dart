@@ -16,7 +16,11 @@ import '../models/models.dart';
 class _Index {
   _Index(CrmEtat e)
     : parId = {
-        for (final liste in [autresClients, e.tousMagasins, e.magasins])
+        for (final liste in [
+          autresClientsActuels(),
+          e.tousMagasins,
+          e.magasins,
+        ])
           for (final m in liste) m.id: m,
       },
       idsVisibles = {for (final m in e.magasins) m.id};
@@ -43,27 +47,39 @@ class CrmEtat {
     required this.commandes,
     required this.prochainNumVisite,
     this.planningFenetre = const [],
+    this.nomUtilisateur,
   });
 
   /// État initial du profil : même filtrage par périmètre que `etatInitial()` de la maquette.
-  factory CrmEtat.initial(Role role) {
+  ///
+  /// Session réelle (`DemoTemps.reel`) : jamais de donnée de démonstration. Ce que le CRM n'a pas encore donné (premier
+  /// lancement, avant la synchronisation) reste vide. `nomUtilisateur` est le nom de l'utilisateur connecté.
+  factory CrmEtat.initial(Role role, {String? nomUtilisateur}) {
     final profil = role.profil;
+    final connecte = DemoTemps.reel;
     // Clients réels (déjà limités au périmètre du rôle par le CRM) : ils remplacent ceux de la démonstration, et les
     // étapes, tournées et visites de démo qui s'y rattachent disparaissent avec (aucun lien avec les vrais clients).
     final reels = clientsServeur();
-    final magasins = reels ?? magasinsDemo.where((m) => visM(role, m)).toList();
+    final magasins =
+        reels ??
+        (connecte
+            ? const <Magasin>[]
+            : magasinsDemo.where((m) => visM(role, m)).toList());
     final tous =
         reels ??
-        magasinsDemo
-            .where((m) => role == Role.dir || m.secteurId == 's1')
-            .toList();
+        (connecte
+            ? const <Magasin>[]
+            : magasinsDemo
+                  .where((m) => role == Role.dir || m.secteurId == 's1')
+                  .toList());
     final prospects =
         prospectsServeur() ??
-        prospectsDemo.where((p) => visP(role, p)).toList();
+        (connecte
+            ? const <Prospect>[]
+            : prospectsDemo.where((p) => visP(role, p)).toList());
     final idsVisibles = {for (final m in magasins) m.id};
     bool visibleMag(String id) => idsVisibles.contains(id);
     final planning = planningServeur();
-    final connecte = DemoTemps.reel;
     bool etapeVisible(EtapePlanning e) => switch (e.cible) {
       CiblePlanning.client => visibleMag(e.ref ?? ''),
       CiblePlanning.prospect => prospects.any((p) => p.id == e.ref),
@@ -92,15 +108,22 @@ class CrmEtat {
           : connecte
           ? const []
           : tourneeDemo.where((t) => visibleMag(t.magasinId)).toList(),
-      // Visites réelles du CRM quand elles sont téléchargées ; sinon celles de la démonstration.
+      // Visites réelles du CRM quand elles sont téléchargées ; sinon celles de la démonstration (jamais connecté).
       visites:
           visitesMiennesServeur() ??
-          visitesDuProfilDemo(
-            profil.nom,
-          ).where((v) => visibleMag(v.magasinId)).toList(),
-      visitesAutres: visitesAutresServeur() ?? visitesAutresDemo,
-      commandes: commandesServeur() ?? List.of(commandesDemo),
+          (connecte
+              ? const <Visite>[]
+              : visitesDuProfilDemo(
+                  profil.nom,
+                ).where((v) => visibleMag(v.magasinId)).toList()),
+      visitesAutres:
+          visitesAutresServeur() ??
+          (connecte ? const <Visite>[] : visitesAutresDemo),
+      commandes:
+          commandesServeur() ??
+          (connecte ? const <Commande>[] : List.of(commandesDemo)),
       prochainNumVisite: premierNumVisiteLibre,
+      nomUtilisateur: nomUtilisateur,
     );
   }
 
@@ -141,8 +164,11 @@ class CrmEtat {
   /// Numéro de la prochaine visite créée.
   final int prochainNumVisite;
 
-  /// Nom court du profil courant.
-  String get nomProfil => role.profil.nom;
+  /// Nom de l'utilisateur connecté au CRM ; nul en démonstration.
+  final String? nomUtilisateur;
+
+  /// Nom court du profil courant : l'utilisateur connecté, sinon le profil de démonstration.
+  String get nomProfil => nomUtilisateur ?? role.profil.nom;
 
   // ---- Recherches par id -------------------------------------------------
 
@@ -227,6 +253,7 @@ class CrmEtat {
       visitesAutres: visitesAutres ?? this.visitesAutres,
       commandes: commandes ?? this.commandes,
       prochainNumVisite: prochainNumVisite ?? this.prochainNumVisite,
+      nomUtilisateur: nomUtilisateur,
     );
   }
 }

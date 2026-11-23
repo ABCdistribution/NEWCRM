@@ -4,8 +4,18 @@ library;
 import '../logic/dates.dart';
 import '../models/models.dart';
 
-/// Décalage en minutes de chaque étape DPH par rapport au début de la visite (dans l'ordre de `EtapeDph`).
-const List<int> _decalagesDph = [0, 57, 104, 104, 120, 122, 122, 126, 128];
+/// Décalage en minutes de chaque étape DPH par rapport au début de la visite (les visites de la démo n'ont pas
+/// d'étape « Produits indispensables »).
+const Map<EtapeDph, int> _decalagesDph = {
+  EtapeDph.debut: 0,
+  EtapeDph.arrivee: 57,
+  EtapeDph.rayonArrivee: 104,
+  EtapeDph.colis: 104,
+  EtapeDph.dn: 120,
+  EtapeDph.commande: 122,
+  EtapeDph.questionnaire: 122,
+  EtapeDph.rayonFin: 126,
+};
 
 /// Numéro de la première visite créée ensuite sur le téléphone (les 12 numéros précédents sont pris).
 const int premierNumVisiteLibre = 218093;
@@ -27,9 +37,9 @@ Visite visiteDemo({
   CommandeLiee? cmd,
 }) {
   final chrono = <EtapeDph, String>{};
-  for (var i = 0; i < EtapeDph.values.length; i++) {
-    final t = heure * 60 + minute + _decalagesDph[i];
-    chrono[EtapeDph.values[i]] = horodatage(jour, mois, (t ~/ 60) % 24, t % 60);
+  for (final e in _decalagesDph.entries) {
+    final t = heure * 60 + minute + e.value;
+    chrono[e.key] = horodatage(jour, mois, (t ~/ 60) % 24, t % 60);
   }
   final date = '$jour $mois. ${deuxChiffres(heure)}:${deuxChiffres(minute)}';
   return Visite(

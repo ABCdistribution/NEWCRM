@@ -7,6 +7,8 @@ import 'core/models/models.dart';
 import 'core/state/state.dart';
 import 'core/sync/catalogue_provider.dart';
 import 'core/sync/domaines_provider.dart';
+import 'core/sync/pem_provider.dart';
+import 'core/sync/referentiels_visite_provider.dart';
 import 'core/theme/theme.dart';
 import 'features/auth/chargement_screen.dart';
 import 'features/auth/login_screen.dart';
@@ -28,6 +30,9 @@ class CrmApp extends ConsumerWidget {
     final jeux = ref.watch(jeuxDeDonneesProvider).map((e) => e.$2);
     // Commandes en attente : téléchargées en arrière-plan, sans retenir l'ouverture de l'application.
     ref.watch(commandesAttenteSynchroProvider);
+    // Visites PEM (propositions et articles à vérifier) : de même, en arrière-plan.
+    ref.watch(propositionsPemSynchroProvider);
+    if (ref.watch(attenteCrmActiveProvider)) ref.watch(articlesPemProvider);
     final continuerSansDonnees = ref.watch(continuerSansDonneesProvider);
     // Juste après une connexion, on attend la fin des téléchargements même avec une copie locale ; ensuite
     // l'attente est levée (elle ne revient qu'à la prochaine connexion).

@@ -12,6 +12,7 @@ import '../../core/theme/theme.dart';
 import '../../core/ui/ui.dart';
 import 'accueil_logique.dart';
 import 'widgets/bloc_livraisons.dart';
+import 'widgets/bloc_visites_pem.dart';
 
 /// Accueil du promoteur (maquette : `salesAccueil` l.1138-1156) : tuiles « Visites » et « CA / objectif du mois »,
 /// bouton « Nouvelle commande », suivi des livraisons, tournée du jour et brouillons de visite.
@@ -79,6 +80,7 @@ class AccueilPromoteur extends ConsumerWidget {
         if (!connecte || lignes.isNotEmpty)
           const TitreLigne('Ma tournée du jour', taille: 18),
         for (final l in lignes) _CarteTournee(ligne: l),
+        const BlocVisitesPem(),
         if (prochaine != null) ...[
           const TitreLigne('Prochaine visite', taille: 16, margeHaut: 18),
           AppCarte(

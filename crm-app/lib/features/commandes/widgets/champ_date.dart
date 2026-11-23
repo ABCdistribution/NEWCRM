@@ -7,7 +7,8 @@ import '../logic/regles_commande.dart';
 
 /// Champ date (`.champ input[type=date]`) : étiquette, cadre arrondi, date au format « 16/11/2026 » et calendrier
 /// à droite. Un appui ouvre le sélecteur de date. La valeur est une date ISO `aaaa-mm-jj`, vide tant qu'aucune
-/// date n'est choisie ; aucune date antérieure à `min` n'est proposée (`min="2026-11-04"`).
+/// date n'est choisie ; aucune date antérieure à `min` (aujourd'hui par défaut, `min="2026-11-04"`) ni postérieure à
+/// `max` (deux ans plus tard par défaut) n'est proposée.
 class ChampDate extends StatelessWidget {
   const ChampDate({
     super.key,
@@ -15,6 +16,8 @@ class ChampDate extends StatelessWidget {
     required this.valeur,
     required this.onChanged,
     this.margeHaut = 0,
+    this.min,
+    this.max,
   });
 
   final String label;
@@ -22,17 +25,25 @@ class ChampDate extends StatelessWidget {
   final ValueChanged<String> onChanged;
   final double margeHaut;
 
+  /// Première et dernière dates proposées (jours, à minuit) ; par défaut aujourd'hui et fin de la deuxième année suivante.
+  final DateTime? min;
+  final DateTime? max;
+
   Future<void> _choisir(BuildContext context) async {
-    final min = DemoTemps.aujourdhui;
+    final premier = min ?? DemoTemps.aujourdhui;
+    final dernier = max ?? DateTime(premier.year + 2, 12, 31);
     final actuelle = valeur.isEmpty ? null : DateTime.tryParse(valeur);
-    final initiale = actuelle != null && !actuelle.isBefore(min)
+    final initiale =
+        actuelle != null &&
+            !actuelle.isBefore(premier) &&
+            !actuelle.isAfter(dernier)
         ? actuelle
-        : min;
+        : premier;
     final choix = await showDatePicker(
       context: context,
       initialDate: initiale,
-      firstDate: min,
-      lastDate: DateTime(min.year + 2, 12, 31),
+      firstDate: premier,
+      lastDate: dernier,
     );
     if (choix == null) return;
     onChanged(

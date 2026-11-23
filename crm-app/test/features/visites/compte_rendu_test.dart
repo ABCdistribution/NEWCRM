@@ -59,7 +59,7 @@ void main() {
       expect(find.text('DISTRIBUTION NUMÉRIQUE PAR KIT'), findsOneWidget);
       expect(find.text('COSMIA ZIPPED PLANE KIT ›'), findsOneWidget);
       expect(find.text('Kit racines brun ›'), findsOneWidget);
-      expect(find.text('✓'), findsNWidgets(2 + 9));
+      expect(find.text('✓'), findsNWidgets(2 + 8));
 
       // plus de rubriques Visite PEM ni Concurrence
       expect(find.text('VISITE PEM'), findsNothing);
@@ -73,13 +73,15 @@ void main() {
         '04/11/2026 11h14',
         '04/11/2026 11h30',
         '04/11/2026 11h32',
-        '04/11/2026 11h38',
       ]) {
         expect(find.text(h), findsWidgets, reason: h);
       }
       for (final e in EtapeDph.values) {
+        // les visites de la démo n'ont relevé ni produits indispensables ni articles PEM
+        if (e == EtapeDph.indispensables || e == EtapeDph.articlesPem) continue;
         expect(find.text(e.libelle), findsWidgets, reason: e.libelle);
       }
+      expect(find.text('PRODUITS INDISPENSABLES'), findsNothing);
       expect(
         find.text("Visite validée : elle n'est plus modifiable."),
         findsOneWidget,
@@ -115,7 +117,7 @@ void main() {
       expect(find.text('Stock suffisant'), findsOneWidget);
     });
 
-    testWidgets('commande à mettre en rayon : les colis sont listés', (
+    testWidgets('commande à mettre en rayon : rubrique seulement si « oui »', (
       tester,
     ) async {
       await ouvrirCompteRendu(tester, Role.promoteur, 'd0');
@@ -126,20 +128,10 @@ void main() {
       actions.definirCommandeEnRayon(oui: true);
       await tester.pumpAndSettle();
       expect(find.text('COMMANDE À METTRE EN RAYON'), findsOneWidget);
-      expect(find.text('Aucun colis saisi'), findsOneWidget);
 
-      actions.ajouterColis('COL-001');
-      actions.ajouterColis('COL-002');
-      await tester.pumpAndSettle();
-      expect(find.text('Aucun colis saisi'), findsNothing);
-      expect(find.text('COL-001'), findsOneWidget);
-      expect(find.text('COL-002'), findsOneWidget);
-
-      // « Non » efface les colis et masque la rubrique
       actions.definirCommandeEnRayon(oui: false);
       await tester.pumpAndSettle();
       expect(find.text('COMMANDE À METTRE EN RAYON'), findsNothing);
-      expect(find.text('COL-001'), findsNothing);
     });
 
     testWidgets('visite d’un autre promoteur : lecture seule', (tester) async {
@@ -153,6 +145,39 @@ void main() {
       );
     });
 
+    testWidgets('produits indispensables : nombre d’absents et libellés', (
+      tester,
+    ) async {
+      await ouvrirCompteRendu(tester, Role.promoteur, 'd0');
+      conteneurApp(tester)
+          .read(crmProvider.notifier)
+          .majVisite(
+            'd0',
+            (v) => v.copyWith(
+              indispensables: {'a1': true, 'a2': false, 'a3': false},
+              libellesIndispensables: {
+                'a2': 'Rouge mat 101',
+                'a3': 'Gloss nude 310',
+              },
+              chrono: {
+                ...v.chrono,
+                EtapeDph.indispensables: '04/11/2026 11h20',
+              },
+            ),
+          );
+      await tester.pumpAndSettle();
+      expect(find.text('PRODUITS INDISPENSABLES'), findsOneWidget);
+      expect(find.text('Produits absents'), findsOneWidget);
+      expect(find.text('2 sur 3'), findsOneWidget);
+      expect(find.text('Rouge mat 101'), findsOneWidget);
+      expect(find.text('Gloss nude 310'), findsOneWidget);
+      expect(find.text('Absent'), findsNWidgets(2));
+      expect(
+        find.text('Vérification des produits indispensables'),
+        findsOneWidget,
+      );
+    });
+
     testWidgets('visite à envoyer : badge bleu', (tester) async {
       await ouvrirCompteRendu(tester, Role.dir, 'x7');
       expect(find.text('Visite #218090'), findsOneWidget);
@@ -161,14 +186,13 @@ void main() {
       expect(badge.couleur, const Color(0xFF2563EB));
     });
 
-    testWidgets('sans kit : pas de rubrique de distribution numérique', (tester) async {
+    testWidgets('sans kit : pas de rubrique de distribution numérique', (
+      tester,
+    ) async {
       await lancerApp(tester, Role.promoteur);
       conteneurApp(tester)
           .read(crmProvider.notifier)
-          .majVisite(
-            'd0',
-            (v) => v.copyWith(kits: const []),
-          );
+          .majVisite('d0', (v) => v.copyWith(kits: const []));
       AppRoutes.compteRendu(contexteCoquille(tester), 'd0');
       await tester.pumpAndSettle();
       expect(find.text('DISTRIBUTION NUMÉRIQUE PAR KIT'), findsNothing);

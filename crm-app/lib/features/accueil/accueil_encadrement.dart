@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../core/data/data.dart';
 import '../../core/data/equipe_serveur.dart';
 import '../../core/logic/logic.dart';
 import '../../core/models/models.dart';
@@ -26,10 +25,7 @@ class AccueilEncadrement extends ConsumerWidget {
     final lignes = lignesDuJour(etat.etapes, jour);
     final faites = lignes.where((e) => e.fait).length;
     final prochain = lignes.where((e) => !e.fait).firstOrNull;
-    final reelle = equipeServeur();
-    final total =
-        reelle?.total ??
-        totalObjectif(cs ? promoteursParChef['n']! : tousPromoteurs());
+    final total = totalEquipe(chefSecteur: cs);
     return PageUnivers(
       entete: AppEntete.libre(
         child: Column(

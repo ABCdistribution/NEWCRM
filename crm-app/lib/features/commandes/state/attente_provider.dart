@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/logic/dates.dart';
 import '../../../core/state/state.dart';
 import '../data/attente_demo.dart';
 import 'commande_en_cours.dart';
@@ -11,7 +12,7 @@ class AttenteNotifier extends Notifier<List<CommandeEnAttente>> {
   @override
   List<CommandeEnAttente> build() {
     ref.watch(roleActifProvider);
-    return List.of(attenteDemo);
+    return DemoTemps.reel ? const [] : List.of(attenteDemo);
   }
 
   /// `cmd-attente` : remplace la commande reprise (`rang`) ou ajoute la nouvelle en tête.

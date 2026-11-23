@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../core/data/data.dart';
+import '../../core/logic/dates.dart';
 import '../../core/models/models.dart';
 import '../../core/theme/theme.dart';
 import '../../core/ui/ui.dart';
@@ -25,7 +26,9 @@ class KitDetailSheet extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final kit = kitDe(codeKit);
-    final composition = compositionKitsDemo[codeKit] ?? const [];
+    final composition = DemoTemps.reel
+        ? const <ComposantKit>[]
+        : (compositionKitsDemo[codeKit] ?? const <ComposantKit>[]);
     final lignes = <Widget>[];
     for (final c in composition) {
       for (final p in produitsCatalogue) {

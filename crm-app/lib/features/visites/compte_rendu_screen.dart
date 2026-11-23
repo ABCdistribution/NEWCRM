@@ -1,12 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/data/referentiels_visite.dart';
 import '../../core/models/models.dart';
 import '../../core/nav/nav.dart';
 import '../../core/state/state.dart';
+import '../../core/sync/referentiels_visite_provider.dart';
 import '../../core/theme/theme.dart';
 import '../../core/ui/ui.dart';
 import 'data/visites_data.dart';
+import 'logic/visites_logique.dart';
 import 'widgets/badge_visite.dart';
 
 /// Compte rendu d'une visite terminée ou d'un autre promoteur (écran empilé `cr`), en lecture seule.
@@ -31,16 +34,35 @@ class CompteRenduScreen extends ConsumerWidget {
     final bleu = context.univers.bleu;
     final moi = ref.watch(profilActifProvider).nom;
     final m = ref.watch(magasinParIdProvider(v.magasinId));
+    final liste = v.indispensables.isEmpty
+        ? const <ProduitIndispensable>[]
+        : ref.watch(produitsIndispensablesProvider(v.magasinId)).value ??
+              const [];
+    final articlesPem = !v.estPem || v.articlesPem.isEmpty
+        ? const <ArticlePem>[]
+        : ref.watch(articlesPemProvider).value ?? const [];
     final cpVille = m?.adresse.split(', ').last.toUpperCase() ?? '';
     return PageUnivers(
       entete: TopbarEcran(
         titre: v.num > 0 ? 'Visite #${v.num}' : 'Visite',
         sous: 'réalisée par ${v.par}',
         tailleTitre: 16,
-        droite: BadgeVisite(v.etat),
+        droite: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (v.estPem) ...[const BadgePem(), const SizedBox(width: 6)],
+            BadgeVisite(v.etat),
+          ],
+        ),
       ),
       enfants: [
-        SectionTitre('Compte rendu de la visite', couleur: bleu, margeHaut: 0),
+        SectionTitre(
+          v.estPem
+              ? 'Compte rendu de la visite PEM'
+              : 'Compte rendu de la visite',
+          couleur: bleu,
+          margeHaut: 0,
+        ),
         SectionTitre('Le client', couleur: bleu),
         LigneCle(
           'Enseigne',
@@ -70,31 +92,57 @@ class CompteRenduScreen extends ConsumerWidget {
         SectionTitre('La visite', couleur: bleu),
         LigneCle('Réception visite', v.recu ?? '—'),
         LigneCle('Réalisée par', v.par),
-        SectionTitre('Commande liée à la visite', couleur: bleu),
-        if (v.cmd != null)
-          LigneCle('Commande', '#${v.cmd!.id} : ${v.cmd!.ht} - ${v.cmd!.liv}')
-        else
-          const LigneCle('Aucune commande liée', ''),
-        if (v.cmd == null && v.raisonAbsence.isNotEmpty)
-          LigneCle("Raison de l'absence de commande", v.raisonAbsence),
-        if (v.commandeEnRayon == true) ...[
-          SectionTitre('Commande à mettre en rayon', couleur: bleu),
-          if (v.colis.isEmpty)
-            const LigneCle('Aucun colis saisi', '')
+        if (v.estPem) ...[
+          SectionTitre('Articles PEM', couleur: bleu),
+          LigneCle(
+            'Articles absents',
+            '${v.articlesPemAbsents} sur ${v.articlesPem.length}',
+          ),
+          LigneCle(
+            'Articles mis en avant',
+            '${v.articlesPemMisEnAvant} sur ${v.articlesPem.length - v.articlesPemAbsents}',
+          ),
+          for (final libelle in articlesPemAbsents(v, articlesPem))
+            LigneCle(libelle, 'Absent'),
+          for (final libelle in articlesPemMisEnAvant(v, articlesPem))
+            LigneCle(libelle, 'Mis en avant'),
+        ] else ...[
+          SectionTitre('Commande liée à la visite', couleur: bleu),
+          if (v.cmd != null)
+            LigneCle('Commande', '#${v.cmd!.id} : ${v.cmd!.ht} - ${v.cmd!.liv}')
           else
-            for (final c in v.colis) LigneCle('Colis', c),
-        ],
-        if (v.kits.isNotEmpty) ...[
-          SectionTitre('Distribution numérique par kit', couleur: bleu),
-          for (final code in v.kits)
-            _LigneKit(
-              nom: kitDe(code).nom,
-              onTap: () => AppRoutes.detailKit(context, code),
+            const LigneCle('Aucune commande liée', ''),
+          if (v.cmd == null && v.raisonAbsence.isNotEmpty)
+            LigneCle("Raison de l'absence de commande", v.raisonAbsence),
+          if (v.commandeEnRayon == true) ...[
+            SectionTitre('Commande à mettre en rayon', couleur: bleu),
+            const LigneCle('Commande à mettre en rayon', 'Oui'),
+          ],
+          if (v.kits.isNotEmpty) ...[
+            SectionTitre('Distribution numérique par kit', couleur: bleu),
+            for (final code in v.kits)
+              _LigneKit(
+                nom: kitDe(code).nom,
+                onTap: () => AppRoutes.detailKit(context, code),
+              ),
+          ],
+          if (v.indispensables.isNotEmpty) ...[
+            SectionTitre('Produits indispensables', couleur: bleu),
+            LigneCle(
+              'Produits absents',
+              '${v.indispensablesAbsents} sur ${v.indispensables.length}',
             ),
+            for (final libelle in indispensablesAbsents(v, liste))
+              LigneCle(libelle, 'Absent'),
+          ],
         ],
         SectionTitre('Timing de visite', couleur: bleu),
         for (final e in EtapeDph.values)
-          LigneEcart(titre: e.libelle, detail: v.chrono[e] ?? ''),
+          if (_dansTiming(v, e))
+            LigneEcart(
+              titre: e.libellePour(v.typeVisite),
+              detail: v.chrono[e] ?? '',
+            ),
         if (v.etat != EtatVisite.brouillon)
           Pied(
             v.par != moi
@@ -105,6 +153,15 @@ class CompteRenduScreen extends ConsumerWidget {
       ],
     );
   }
+}
+
+/// L'étape figure-t-elle dans le timing de cette visite ? Le début toujours ; les étapes du parcours du type de visite ;
+/// « Produits indispensables » et « Articles PEM » seulement si elles ont été faites (la liste peut manquer).
+bool _dansTiming(Visite v, EtapeDph e) {
+  if (e == EtapeDph.debut) return true;
+  if (!v.etapes.contains(e)) return false;
+  return (e != EtapeDph.indispensables && e != EtapeDph.articlesPem) ||
+      v.etapeFaite(e);
 }
 
 /// Un kit de la distribution numérique : nom suivi d'un « › » bleu, coche verte ; un appui ouvre sa composition.

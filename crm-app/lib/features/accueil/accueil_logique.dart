@@ -9,10 +9,13 @@ import '../../core/state/state.dart';
 /// État d'une visite de la tournée du jour du promoteur (maquette : `etatTournee`).
 enum EtatTournee { realisee, enCours, aFaire }
 
-/// Une visite du jour a-t-elle été commencée (brouillon : « En cours ») ou faite chez ce client ?
+/// Une visite du jour a-t-elle été commencée (brouillon : « En cours ») ou faite chez ce client ? Les visites PEM ont
+/// leur propre rubrique : elles ne comptent pas dans la tournée.
 EtatTournee etatTournee(List<Visite> visites, String magasinId) {
   for (final v in visites) {
-    if (v.magasinId == magasinId && v.date.startsWith(DemoTemps.jourCourt)) {
+    if (!v.estPem &&
+        v.magasinId == magasinId &&
+        v.date.startsWith(DemoTemps.jourCourt)) {
       return v.etat == EtatVisite.brouillon
           ? EtatTournee.enCours
           : EtatTournee.realisee;
@@ -82,17 +85,26 @@ class VisitePrevue {
 
 /// La première visite planifiée (ligne « client » pas encore faite) strictement après aujourd'hui, ou nulle. Le planning
 /// vient du CRM : le promoteur ne le modifie pas, il le consulte. Les visites du jour sont dans « Ma tournée du jour ».
-VisitePrevue? prochaineVisitePrevue(CrmEtat e) {
+///
+/// Avec [magasinId], seules les visites de ce client comptent ; avec [inclureAujourdhui], celle du jour aussi (fiche client).
+VisitePrevue? prochaineVisitePrevue(
+  CrmEtat e, {
+  String? magasinId,
+  bool inclureAujourdhui = false,
+}) {
   final lignes = e.planningFenetre.isNotEmpty ? e.planningFenetre : e.etapes;
   final aujourdhui = DemoTemps.aujourdhui.weekday - 1;
   VisitePrevue? meilleure;
   var meilleurRang = 1 << 30;
   for (final l in lignes) {
     if (l.cible != CiblePlanning.client || !l.visite || l.fait) continue;
+    if (magasinId != null && l.ref != magasinId) continue;
     final magasin = e.magasinParId(l.ref ?? '');
     if (magasin == null) continue;
     final decalage = (l.sem ?? 0) * 7 + l.jour;
-    if (decalage <= aujourdhui) continue;
+    if (inclureAujourdhui ? decalage < aujourdhui : decalage <= aujourdhui) {
+      continue;
+    }
     final rang =
         decalage * 10000 + (int.tryParse(l.heure.replaceAll(':', '')) ?? 0);
     if (rang >= meilleurRang) continue;

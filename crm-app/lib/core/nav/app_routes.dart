@@ -37,7 +37,6 @@ import '../../features/visites/filtres_visites_sheet.dart';
 import '../../features/visites/kilometrage_dialog.dart';
 import '../../features/visites/kit_detail_sheet.dart';
 import '../../features/visites/kits_sheet.dart';
-import '../../features/visites/scan_colis_screen.dart';
 import '../../features/visites/valider_visite_dialog.dart';
 import '../../features/visites/visite_screen.dart';
 import '../models/models.dart';
@@ -166,9 +165,18 @@ class AppRoutes {
     return visite(context, id);
   }
 
-  /// Scan des colis d'une commande à mettre en rayon (caméra).
-  static Future<void> scannerColis(BuildContext context, String visiteId) =>
-      _pousser<void>(context, 'scan-colis', ScanColisScreen(visiteId: visiteId));
+  /// Démarre (ou reprend) la visite PEM qui répond à une proposition du CRM : crée le brouillon de type PEM lié à la
+  /// proposition, puis ouvre l'écran de la visite.
+  static Future<void> demarrerVisitePem(
+    BuildContext context,
+    String magasinId,
+    String propositionPemId,
+  ) {
+    final id = _conteneur(
+      context,
+    ).read(crmProvider.notifier).demarrerVisitePem(magasinId, propositionPemId);
+    return visite(context, id);
+  }
 
   /// Compte rendu d'une visite terminée ou d'un autre promoteur (`cr`), en lecture seule.
   static Future<void> compteRendu(BuildContext context, String visiteId) =>

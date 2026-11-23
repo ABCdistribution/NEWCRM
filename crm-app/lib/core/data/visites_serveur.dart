@@ -43,6 +43,36 @@ Visite? visiteDepuisJson(Map<String, dynamic> j, {String? parNom}) {
       : '${deuxChiffres(cree.day)}/${deuxChiffres(cree.month)}/${cree.year} ${deuxChiffres(cree.hour)}h${deuxChiffres(cree.minute)}';
   final photos = (j['_count'] is Map ? (j['_count'] as Map)['photos'] : null);
   final auj = DemoTemps.aujourdhui;
+  final indispensables = <String, bool>{};
+  final libelles = <String, String>{};
+  if (j['indispensables'] is List) {
+    for (final l in j['indispensables'] as List) {
+      if (l is! Map) continue;
+      final article = _texte(l['articleId']);
+      if (article == null || l['present'] is! bool) continue;
+      indispensables[article] = l['present'] as bool;
+      final a = l['article'];
+      final libelle = a is Map ? _texte(a['libelle']) : null;
+      if (libelle != null) libelles[article] = libelle;
+    }
+  }
+  final articlesPem = <String, ReleveArticlePem>{};
+  final libellesPem = <String, String>{};
+  if (j['articlesPem'] is List) {
+    for (final l in j['articlesPem'] as List) {
+      if (l is! Map) continue;
+      final article = _texte(l['articleId']);
+      if (article == null || l['present'] is! bool) continue;
+      articlesPem[article] = (
+        present: l['present'] as bool,
+        misEnAvant: l['present'] == true && l['misEnAvant'] == true,
+      );
+      final a = l['article'];
+      final libelle = a is Map ? _texte(a['libelle']) : null;
+      if (libelle != null) libellesPem[article] = libelle;
+    }
+  }
+  final pem = TypeVisite.depuisCode(j['typeVisite']) == TypeVisite.pem;
   return Visite(
     id: id,
     num: 0,
@@ -59,6 +89,12 @@ Visite? visiteDepuisJson(Map<String, dynamic> j, {String? parNom}) {
     photos: {if (photos is int && photos > 0) EtapeDph.arrivee: photos},
     raisonAbsence: raison is Map ? (_texte(raison['libelle']) ?? '') : '',
     raisonAbsenceId: raison is Map ? _texte(raison['id']) : null,
+    indispensables: indispensables,
+    libellesIndispensables: libelles,
+    typeVisite: pem ? TypeVisite.pem : TypeVisite.commerciale,
+    propositionPemId: pem ? _texte(j['propositionPemId']) : null,
+    articlesPem: articlesPem,
+    libellesArticlesPem: libellesPem,
   );
 }
 

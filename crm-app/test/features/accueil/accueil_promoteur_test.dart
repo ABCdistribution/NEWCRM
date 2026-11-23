@@ -67,7 +67,8 @@ void main() {
       // Pas de lien « Voir mon planning » côté promoteur.
       expect(find.text('Voir mon planning'), findsNothing);
 
-      expect(find.text('Carrefour – Ivry-sur-Seine'), findsOneWidget);
+      // la tournée et la rubrique « Visites PEM » (visite obligatoire chez ce client)
+      expect(find.text('Carrefour – Ivry-sur-Seine'), findsNWidgets(2));
       expect(find.text('09:30 · Planifiée'), findsOneWidget);
       expect(find.text('Réalisée'), findsOneWidget);
       expect(find.text('✅'), findsOneWidget);

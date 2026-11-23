@@ -275,7 +275,7 @@ class LigneProduit extends ConsumerWidget {
               action,
             ],
           ),
-          if (rupture)
+          if (rupture && (p.reappro ?? '').isNotEmpty)
             Astuce('Le produit sera disponible à partir du ${p.reappro}'),
           if (trop)
             ErreurStock(

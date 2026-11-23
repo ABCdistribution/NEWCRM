@@ -114,11 +114,11 @@ class PlanningScreen extends ConsumerWidget {
     final semaineRapport = reel ? rapportsServeur()?.semaine : null;
     // Connecté : dates et heures venues du CRM ; démonstration : celles de la maquette.
     final prevuAt = semaineRapport?.prevuAt;
-    final jourPrevu = prevuAt == null
-        ? DemoTemps.lundiLibelle
+    final String? jourPrevu = prevuAt == null
+        ? (reel ? null : DemoTemps.lundiLibelle)
         : DemoTemps.libelleJour(prevuAt);
-    final quandPrevu = semaineRapport?.prevuAt == null
-        ? '${DemoTemps.lundiLibelle} à 09:10'
+    final String? quandPrevu = semaineRapport?.prevuAt == null
+        ? (reel ? null : '${DemoTemps.lundiLibelle} à 09:10')
         : '${DemoTemps.libelleJour(semaineRapport!.prevuAt!)} à ${deuxChiffres(semaineRapport.prevuAt!.hour)}:${deuxChiffres(semaineRapport.prevuAt!.minute)}';
     String icone;
     String titre;
@@ -136,7 +136,7 @@ class PlanningScreen extends ConsumerWidget {
       case PhasePlanning.prevision:
         titre = prevision == null
             ? (reel ? 'Prévision non enregistrée' : 'Prévision à saisir')
-            : 'Prévision enregistrée le $quandPrevu (${nbLignes(nbPrevision)})';
+            : 'Prévision enregistrée${quandPrevu == null ? '' : ' le $quandPrevu'} (${nbLignes(nbPrevision)})';
         detail = reel
             ? null
             : prevision == null
@@ -149,7 +149,7 @@ class PlanningScreen extends ConsumerWidget {
         icone = '⏳';
         titre = 'Rapport en cours';
         detail = prevision != null
-            ? 'Prévision figée le $jourPrevu (${nbLignes(nbPrevision)}).'
+            ? 'Prévision figée${jourPrevu == null ? '' : ' le $jourPrevu'} (${nbLignes(nbPrevision)}).'
             : 'Prévision non renseignée cette semaine.';
     }
     // Le promoteur n'a pas de rapport ; les semaines voisines n'ont pas la phase de la semaine courante.

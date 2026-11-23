@@ -1,3 +1,4 @@
+import '../logic/logic.dart';
 import '../models/models.dart';
 import 'equipe_demo.dart';
 
@@ -29,22 +30,41 @@ void definirEquipeServeur(EquipeServeur? equipe) => _equipe = equipe;
 
 EquipeServeur? equipeServeur() => _equipe;
 
-/// Chefs de secteur à afficher : ceux du CRM, sinon ceux de la démonstration.
-List<ChefSecteur> chefsActuels() => _equipe?.chefs ?? chefsSecteurDemo;
+/// Chefs de secteur à afficher : ceux du CRM, sinon ceux de la démonstration (jamais en session réelle : tant que
+/// l'équipe n'est pas téléchargée, la liste est vide).
+List<ChefSecteur> chefsActuels() =>
+    _equipe?.chefs ?? (DemoTemps.reel ? const [] : chefsSecteurDemo);
 
 /// Promoteurs d'un chef de secteur.
 List<Promoteur> promoteursDuChef(String id) => _equipe != null
     ? (_equipe!.parChef[id] ?? const [])
+    : DemoTemps.reel
+    ? const []
     : (promoteursParChef[id] ?? const []);
 
 /// Tous les promoteurs de l'équipe.
 List<Promoteur> promoteursTous() => _equipe != null
     ? [for (final l in _equipe!.parChef.values) ...l]
+    : DemoTemps.reel
+    ? const []
     : tousPromoteurs();
 
 /// Promoteurs de l'équipe de l'utilisateur : ceux du périmètre du CRM, sinon ceux de Nadia H. (démonstration).
-List<Promoteur> promoteursDeMonEquipe() =>
-    _equipe != null ? promoteursTous() : (promoteursParChef['n'] ?? const []);
+List<Promoteur> promoteursDeMonEquipe() => _equipe != null
+    ? promoteursTous()
+    : DemoTemps.reel
+    ? const []
+    : (promoteursParChef['n'] ?? const []);
+
+/// Objectif et réalisé du mois de l'équipe : totaux du CRM ; sans équipe téléchargée, zéro en session réelle, sinon
+/// ceux des promoteurs de la démonstration (le chef de secteur ne voit que Nadia H.).
+TotalObjectif totalEquipe({required bool chefSecteur}) =>
+    _equipe?.total ??
+    (DemoTemps.reel
+        ? const TotalObjectif(0, 0)
+        : totalObjectif(
+            chefSecteur ? promoteursParChef['n']! : tousPromoteurs(),
+          ));
 
 /// Promoteur par nom (démonstration : nom court de la maquette).
 Promoteur? promoteurActuelParNom(String nom) {

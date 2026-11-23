@@ -328,16 +328,49 @@ void main() {
       expect(p.magasin.id, m.id);
     });
 
-    test('la semaine suivante passe après la semaine courante, rien sinon', () {
+    test('fiche client : seul ce client compte, et la visite du jour aussi', () {
+      final autre = base.magasins[1];
       final e = base.copyWith(
-        etapes: [ligne('a', 0, sem: 1), ligne('b', 4)],
+        etapes: [
+          EtapePlanning(
+            id: 'x',
+            jour: 3,
+            heure: '08:00',
+            cible: CiblePlanning.client,
+            ref: autre.id,
+            titre: autre.nom,
+            visite: true,
+          ),
+          ligne('a', 2, heure: '15:00'),
+        ],
       );
+      // Mercredi (jour 2) en démo : la visite du jour n'est pas « prochaine » sur l'accueil…
+      expect(prochaineVisitePrevue(e)!.magasin.id, autre.id);
+      // …mais elle apparaît sur la fiche du client, qui ne voit pas les visites des autres.
+      final p = prochaineVisitePrevue(
+        e,
+        magasinId: m.id,
+        inclureAujourdhui: true,
+      )!;
+      expect(p.magasin.id, m.id);
+      expect(p.heure, '15:00');
+      expect(prochaineVisitePrevue(e, magasinId: m.id), isNull);
+      expect(
+        prochaineVisitePrevue(
+          base.copyWith(etapes: [ligne('a', 2, fait: true)]),
+          magasinId: m.id,
+          inclureAujourdhui: true,
+        ),
+        isNull,
+      );
+    });
+
+    test('la semaine suivante passe après la semaine courante, rien sinon', () {
+      final e = base.copyWith(etapes: [ligne('a', 0, sem: 1), ligne('b', 4)]);
       expect(prochaineVisitePrevue(e)!.date, 'ven. 6 nov.');
       expect(
         prochaineVisitePrevue(
-          base.copyWith(
-            etapes: [ligne('a', 2), ligne('b', 4, visite: false)],
-          ),
+          base.copyWith(etapes: [ligne('a', 2), ligne('b', 4, visite: false)]),
         ),
         isNull,
       );

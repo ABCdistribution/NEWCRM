@@ -9,6 +9,7 @@ import '../../core/ui/ui.dart';
 import 'data/visites_data.dart';
 import 'logic/visites_logique.dart';
 import 'state/filtres_visites.dart';
+import 'widgets/badge_visite.dart';
 
 /// Onglet « Visites » (promoteur) : visites du profil et des autres promoteurs, avec recherche et filtres.
 /// Maquette : salesVisites l.1180-1186, visitesListe l.1172-1179.
@@ -105,6 +106,7 @@ class _CarteVisite extends StatelessWidget {
               ],
             ),
           ),
+          if (ligne.pem) ...[const BadgePem(), const SizedBox(width: 6)],
           Pastille(ligne.etat.libelle, variante: variante),
         ],
       ),

@@ -20,7 +20,9 @@ const Color couleurStockBas = Color(0xFFB45309);
 
 InfoStock infoStock(Produit p) => switch (p.stock) {
   NiveauStock.rupture => InfoStock(
-    'Rupture · disponible le ${p.reappro}',
+    (p.reappro ?? '').isEmpty
+        ? 'Rupture de stock'
+        : 'Rupture · disponible le ${p.reappro}',
     AppColors.alert,
   ),
   NiveauStock.stockBas => InfoStock(
@@ -33,8 +35,13 @@ InfoStock infoStock(Produit p) => switch (p.stock) {
 /// Produits de remplacement : même marque, disponibles ; la même famille d'abord, puis le prix le plus proche.
 /// Trois au plus (`remplacements`).
 List<Produit> produitsDeRemplacement(Produit p) {
-  final candidats = produitsCatalogue.where(
-    (x) => x.id != p.id && x.cat == p.cat && x.stock != NiveauStock.rupture,
+  final candidats = tousProduits().where(
+    (x) =>
+        x.id != p.id &&
+        !x.kit &&
+        !x.pem &&
+        x.cat == p.cat &&
+        x.stock != NiveauStock.rupture,
   );
   final tries = triStable<Produit>(candidats, (a, b) {
     final famille = (b.famille == p.famille ? 1 : 0).compareTo(
@@ -55,7 +62,7 @@ List<Produit> produitsProposes({
   bool masquer = false,
 }) {
   final texte = q.toLowerCase();
-  return produitsCatalogue
+  return produitsCommandables()
       .where(
         (p) =>
             (texte.isEmpty ||
@@ -69,13 +76,14 @@ List<Produit> produitsProposes({
 }
 
 /// Nombre de produits annoncé par « Voir N produits » : la marque et les ruptures, sans la recherche (`cmd-filtres`).
-int nbProduitsFiltres({String? cat, bool masquer = false}) => produitsCatalogue
-    .where(
-      (p) =>
-          (cat == null || p.cat == cat) &&
-          !(masquer && p.stock == NiveauStock.rupture),
-    )
-    .length;
+int nbProduitsFiltres({String? cat, bool masquer = false}) =>
+    produitsCommandables()
+        .where(
+          (p) =>
+              (cat == null || p.cat == cat) &&
+              !(masquer && p.stock == NiveauStock.rupture),
+        )
+        .length;
 
 /// Passe de la forme ISO `aaaa-mm-jj` à « 16/11/2026 » (affichage d'un champ date).
 String dateJourMoisAnnee(String iso) =>

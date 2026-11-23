@@ -53,19 +53,9 @@ class ActionsVisite {
     },
   );
 
-  /// Réponse à « une commande à mettre en rayon ? » ; « non » efface les colis (`colis`).
-  void definirCommandeEnRayon({required bool oui}) => _maj(
-    (v) => v.copyWith(commandeEnRayon: oui, colis: oui ? v.colis : const []),
-  );
-
-  void ajouterColis(String code) => _maj(
-    (v) => v.colis.contains(code)
-        ? v
-        : v.copyWith(colis: [...v.colis, code]),
-  );
-
-  void retirerColis(String code) =>
-      _maj((v) => v.copyWith(colis: v.colis.where((c) => c != code).toList()));
+  /// Réponse à « une commande à mettre en rayon ? ».
+  void definirCommandeEnRayon({required bool oui}) =>
+      _maj((v) => v.copyWith(commandeEnRayon: oui));
 
   /// Choisit la raison d'absence de commande (identifiant CRM et libellé).
   void choisirRaisonAbsence(String id, String libelle) =>
@@ -88,10 +78,14 @@ class ActionsVisite {
       dn: v.dn,
       kits: v.kits,
       commandeEnRayon: v.commandeEnRayon,
-      colis: v.colis,
       reponses: v.reponses,
-      op: v.op,
+      indispensables: v.indispensables,
+      libellesIndispensables: v.libellesIndispensables,
       cmd: v.cmd,
+      typeVisite: v.typeVisite,
+      propositionPemId: v.propositionPemId,
+      articlesPem: v.articlesPem,
+      libellesArticlesPem: v.libellesArticlesPem,
     ),
   );
 
@@ -106,9 +100,49 @@ class ActionsVisite {
     return v.copyWith(reponses: r);
   });
 
-  /// Pointage d'une promotion : présente ou non en rayon.
-  void pointer(String promoId, {required bool presente}) =>
-      _maj((v) => v.copyWith(op: {...v.op, promoId: presente}));
+  /// Relève un produit indispensable : présent ou absent.
+  void releverIndispensable(String articleId, {required bool present}) => _maj(
+    (v) =>
+        v.copyWith(indispensables: {...v.indispensables, articleId: present}),
+  );
+
+  /// Relève d'un coup tous les produits donnés comme présents.
+  void toutPresent(Iterable<String> articleIds) => _maj(
+    (v) => v.copyWith(
+      indispensables: {
+        ...v.indispensables,
+        for (final id in articleIds) id: true,
+      },
+    ),
+  );
+
+  /// Relève un article PEM : présent ou absent. Un article absent n'est jamais « mis en avant » ; un article présent
+  /// garde son choix (non mis en avant au premier relevé).
+  void releverArticlePem(String articleId, {required bool present}) => _maj(
+    (v) => v.copyWith(
+      articlesPem: {
+        ...v.articlesPem,
+        articleId: (
+          present: present,
+          misEnAvant:
+              present && (v.articlesPem[articleId]?.misEnAvant ?? false),
+        ),
+      },
+    ),
+  );
+
+  /// Un article PEM présent est mis en avant ou non ; sans effet tant que sa présence n'est pas relevée.
+  void mettreEnAvantArticlePem(String articleId, {required bool misEnAvant}) =>
+      _maj((v) {
+        final releve = v.articlesPem[articleId];
+        if (releve == null || !releve.present) return v;
+        return v.copyWith(
+          articlesPem: {
+            ...v.articlesPem,
+            articleId: (present: true, misEnAvant: misEnAvant),
+          },
+        );
+      });
 
   /// Termine la visite : « À envoyer » et heure de réception (`v-valider-ok`).
   void terminer() => _maj(

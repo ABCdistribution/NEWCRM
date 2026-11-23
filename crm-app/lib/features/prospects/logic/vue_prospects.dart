@@ -10,8 +10,14 @@ import '../../../core/models/models.dart';
 /// (`S.vue` : `liste`, `tous`, `pipeline`).
 enum VueProspects { liste, tous, pipeline }
 
-/// Un prospect est « à moi » quand un événement de sa timeline porte « par {nom} » (`mes`).
-bool estMonProspect(Prospect p, String nomProfil) =>
+/// Un prospect est « à moi » quand un événement de sa timeline porte « par {nom} » (`mes`) ; avec le CRM
+/// (`responsableCrm`), quand il m'est confié (le CRM ne donne pas l'historique dans la liste).
+bool estMonProspect(
+  Prospect p,
+  String nomProfil, {
+  bool responsableCrm = false,
+}) =>
+    (responsableCrm && p.cs == nomProfil) ||
     p.timeline.any((e) => e.detail.contains('par $nomProfil'));
 
 /// Prospects de la vue (`baseVue`) : l'encadrement voit les siens dans « Mes prospects » et tous ceux de son périmètre
@@ -22,6 +28,7 @@ List<Prospect> prospectsDeLaVue({
   required String nomProfil,
   required VueProspects vue,
   required List<String> chefsSecteur,
+  bool responsableCrm = false,
 }) {
   final encadrement = role.peutPilot;
   final directeur = role == Role.dir;
@@ -30,7 +37,7 @@ List<Prospect> prospectsDeLaVue({
         (p) =>
             (!encadrement ||
                 vue != VueProspects.liste ||
-                estMonProspect(p, nomProfil)) &&
+                estMonProspect(p, nomProfil, responsableCrm: responsableCrm)) &&
             (!directeur ||
                 vue != VueProspects.tous ||
                 chefsSecteur.isEmpty ||

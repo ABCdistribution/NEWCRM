@@ -25,7 +25,7 @@ class OngletMagasinsProspect extends ConsumerWidget {
     final lignes = magasinsDeLEnseigne(
       prospect,
       prospects: etat.prospects,
-      clients: [...etat.tousMagasins, ...autresClients],
+      clients: [...etat.tousMagasins, ...autresClientsActuels()],
     );
     int compter(TypeMagasinEnseigne t) =>
         lignes.where((x) => x.type == t).length;

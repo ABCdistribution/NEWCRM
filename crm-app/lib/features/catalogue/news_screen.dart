@@ -22,6 +22,7 @@ class NewsScreen extends StatelessWidget {
         sous: '${news.length} informations du siège',
       ),
       enfants: [
+        if (news.isEmpty) const Vide('Aucune actualité.'),
         for (final x in news)
           AppCarte(
             onTap: () => AppRoutes.detailNews(context, x.id),

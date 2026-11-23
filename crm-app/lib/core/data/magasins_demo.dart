@@ -1,6 +1,7 @@
 /// Clients de démonstration : maquette `etatInitial().magasins` + `SCOPE_M`, `AUTRES_CLIENTS`, `MES_CLIENTS_DIR`.
 library;
 
+import '../logic/dates.dart';
 import '../models/models.dart';
 
 /// Les 10 clients de la région (avant filtrage par rôle), dans l'ordre de la maquette.
@@ -232,6 +233,11 @@ final List<Magasin> autresClients = [
   _autre('21', 'U Express – Rouen', 'C', '76000 Rouen'),
   _autre('22', 'U Express – Saint-Étienne', 'D', '42000 Saint-Étienne'),
 ];
+
+/// Clients hors région à montrer : ceux de la démonstration, jamais en session réelle (le CRM ne donne que le
+/// périmètre de l'utilisateur).
+List<Magasin> autresClientsActuels() =>
+    DemoTemps.reel ? const [] : autresClients;
 
 /// Clients rattachés directement au directeur (`MES_CLIENTS_DIR`, exemple).
 const List<String> mesClientsDir = ['m4', 'm10', 'm8', 'm2'];

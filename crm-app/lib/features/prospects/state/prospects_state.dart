@@ -5,6 +5,7 @@ library;
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/logic/dates.dart';
 import '../../../core/models/models.dart';
 import '../../../core/state/state.dart';
 import '../logic/vue_prospects.dart';
@@ -76,7 +77,8 @@ final prospectsDeLaVueProvider = Provider<List<Prospect>>((ref) {
   return prospectsDeLaVue(
     prospects: ref.watch(prospectsProvider),
     role: role,
-    nomProfil: role.profil.nom,
+    nomProfil: ref.watch(crmProvider.select((e) => e.nomProfil)),
+    responsableCrm: DemoTemps.reel,
     vue: ref.watch(vueProspectsProvider),
     chefsSecteur: ref.watch(chefsSecteurRetenusProvider),
   );

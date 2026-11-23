@@ -1,6 +1,7 @@
 /// Commandes de démonstration : maquette `COMMANDES`, `PAR_MAG`.
 library;
 
+import '../logic/dates.dart';
 import '../models/models.dart';
 
 const List<Commande> commandesDemo = [
@@ -183,5 +184,6 @@ const Map<String, String> parMagasin = {
   'm7': 'Camille D.',
 };
 
-/// Auteur d'une commande : celui de la commande, sinon le promoteur du magasin (`parDe`).
-String? auteurCommande(Commande c) => c.par ?? parMagasin[c.magasinId];
+/// Auteur d'une commande : celui de la commande (ou du CRM), sinon le promoteur du magasin de la démonstration (`parDe`).
+String? auteurCommande(Commande c) =>
+    c.par ?? c.auteurNom ?? (DemoTemps.reel ? null : parMagasin[c.magasinId]);

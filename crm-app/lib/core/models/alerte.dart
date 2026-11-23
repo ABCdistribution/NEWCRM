@@ -14,9 +14,13 @@ class Alerte {
     required this.rang,
     this.magasinId,
     this.prospectId,
+    this.notificationId,
   });
 
   final NiveauAlerte niveau;
+
+  /// Notification du CRM : son id, pour la marquer comme lue (nul pour une alerte calculée par l'appli).
+  final String? notificationId;
 
   /// Alerte client : id du magasin (ouvre sa fiche).
   final String? magasinId;
@@ -34,4 +38,6 @@ class Alerte {
   final int rang;
 
   bool get estProspect => prospectId != null;
+
+  bool get estNotification => notificationId != null;
 }

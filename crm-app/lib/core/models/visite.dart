@@ -16,17 +16,28 @@ enum EtatVisite {
   final String libelleBadge;
 }
 
+/// Nature d'une visite : visite commerciale, ou visite PEM (parcours distinct, lié à une proposition du CRM).
+enum TypeVisite {
+  commerciale,
+  pem;
+
+  static TypeVisite depuisCode(Object? code) =>
+      code == 'PEM' ? pem : commerciale;
+}
+
 /// Étapes de la visite, dans l'ordre (`ETAPES_DPH` de la maquette, remplacées par le parcours réel). `debut` est posée à
-/// la création ; les huit autres sont parcourues avec « Précédent » / « Suivant ».
+/// la création ; les autres sont parcourues avec « Précédent » / « Suivant » (« Produits indispensables » seulement
+/// quand la liste de l'enseigne du magasin est connue).
 enum EtapeDph {
   debut('debut', 'Début de visite'),
   arrivee('arrivee', "Photo d'arrivée sur site"),
   rayonArrivee('rayonArrivee', 'Photo du rayon'),
   colis('colis', 'Commande à mettre en rayon'),
   dn('dn', 'Vérification DN'),
+  indispensables('indispensables', 'Vérification des produits indispensables'),
+  articlesPem('articlesPem', 'Vérification des articles PEM'),
   commande('commande', 'Commande liée à la visite'),
   questionnaire('questionnaire', 'Questionnaire de fin de visite'),
-  op('op', 'Pointage OP'),
   rayonFin('rayonFin', 'Photo du rayon de fin de visite');
 
   const EtapeDph(this.cle, this.libelle);
@@ -34,14 +45,49 @@ enum EtapeDph {
   final String libelle;
 
   /// Étapes qui consistent à prendre des photos.
-  bool get estPhoto => this == arrivee || this == rayonArrivee || this == rayonFin;
+  bool get estPhoto =>
+      this == arrivee || this == rayonArrivee || this == rayonFin;
 
-  /// Étapes du parcours « Précédent / Suivant » (toutes sauf le début).
+  /// Étapes du parcours commercial « Précédent / Suivant » (toutes sauf le début et la vérification PEM).
   static List<EtapeDph> get parcours => [
     for (final e in values)
-      if (e != debut) e,
+      if (e != debut && e != articlesPem) e,
   ];
+
+  /// Étapes du parcours d'une visite PEM : pas de commande, de DN ni de produits indispensables.
+  static const List<EtapeDph> parcoursPem = [
+    arrivee,
+    rayonArrivee,
+    articlesPem,
+    questionnaire,
+    rayonFin,
+  ];
+
+  /// Étapes réellement proposées : sans « Produits indispensables » quand le magasin n'a pas de liste.
+  static List<EtapeDph> parcoursPour({required bool indispensables}) => [
+    for (final e in parcours)
+      if (indispensables || e != EtapeDph.indispensables) e,
+  ];
+
+  /// Parcours d'une visite PEM : sans « Vérification des articles PEM » quand la liste des articles est inconnue.
+  static List<EtapeDph> parcoursPemPour({required bool articles}) => [
+    for (final e in parcoursPem)
+      if (articles || e != EtapeDph.articlesPem) e,
+  ];
+
+  /// Libellé de l'étape dans une visite de ce type (les photos du rayon s'appellent « avant » et « après » en PEM).
+  String libellePour(TypeVisite type) {
+    if (type != TypeVisite.pem) return libelle;
+    return switch (this) {
+      rayonArrivee => 'Photo du rayon avant',
+      rayonFin => 'Photo du rayon après',
+      _ => libelle,
+    };
+  }
 }
+
+/// Relevé d'un article PEM : présent ou absent, et mis en avant ou non (seulement s'il est présent).
+typedef ReleveArticlePem = ({bool present, bool misEnAvant});
 
 /// Commande liée à une visite (`cmd` : `{ id, ht, liv }`).
 class CommandeLiee {
@@ -71,12 +117,16 @@ class Visite {
     this.dn = const {},
     this.kits = const [],
     this.commandeEnRayon,
-    this.colis = const [],
     this.raisonAbsenceId,
     this.raisonAbsence = '',
     this.reponses = const {},
-    this.op = const {},
+    this.indispensables = const {},
+    this.libellesIndispensables = const {},
     this.cmd,
+    this.typeVisite = TypeVisite.commerciale,
+    this.propositionPemId,
+    this.articlesPem = const {},
+    this.libellesArticlesPem = const {},
   });
 
   final String id;
@@ -116,9 +166,6 @@ class Visite {
   /// Y a-t-il une commande à mettre en rayon ? Nul tant que le promoteur n'a pas répondu.
   final bool? commandeEnRayon;
 
-  /// Codes des colis de la commande à mettre en rayon.
-  final List<String> colis;
-
   /// Raison d'absence de commande choisie (identifiant CRM et libellé), vides tant qu'aucune n'est choisie.
   final String? raisonAbsenceId;
   final String raisonAbsence;
@@ -126,9 +173,43 @@ class Visite {
   /// Réponses au questionnaire de fin de visite : identifiant de la question → valeur (« true », texte, nombre, note).
   final Map<String, String> reponses;
 
-  /// Pointage OP : identifiant de la promotion → présente en rayon ?
-  final Map<String, bool> op;
+  /// Produits indispensables relevés : identifiant de l'article → présent (vrai) ou absent (faux).
+  final Map<String, bool> indispensables;
+
+  /// Libellés des articles relevés, quand le CRM les donne avec la visite (identifiant de l'article → libellé).
+  final Map<String, String> libellesIndispensables;
+
   final CommandeLiee? cmd;
+
+  /// Visite commerciale ou visite PEM.
+  final TypeVisite typeVisite;
+
+  /// Proposition PEM du CRM à laquelle la visite répond (visite PEM seulement).
+  final String? propositionPemId;
+
+  /// Articles PEM relevés : identifiant de l'article → présent / mis en avant.
+  final Map<String, ReleveArticlePem> articlesPem;
+
+  /// Libellés des articles PEM relevés, quand le CRM les donne avec la visite (identifiant de l'article → libellé).
+  final Map<String, String> libellesArticlesPem;
+
+  bool get estPem => typeVisite == TypeVisite.pem;
+
+  /// Étapes du parcours de cette visite (sans le début), toutes proposées.
+  List<EtapeDph> get etapes =>
+      estPem ? EtapeDph.parcoursPem : EtapeDph.parcours;
+
+  /// Nombre de produits indispensables relevés absents.
+  int get indispensablesAbsents =>
+      indispensables.values.where((p) => !p).length;
+
+  /// Nombre d'articles PEM relevés absents.
+  int get articlesPemAbsents =>
+      articlesPem.values.where((a) => !a.present).length;
+
+  /// Nombre d'articles PEM relevés présents et mis en avant.
+  int get articlesPemMisEnAvant =>
+      articlesPem.values.where((a) => a.present && a.misEnAvant).length;
 
   bool etapeFaite(EtapeDph e) => chrono.containsKey(e);
 
@@ -141,12 +222,14 @@ class Visite {
     Map<String, int>? dn,
     List<String>? kits,
     bool? commandeEnRayon,
-    List<String>? colis,
     String? raisonAbsenceId,
     String? raisonAbsence,
     Map<String, String>? reponses,
-    Map<String, bool>? op,
+    Map<String, bool>? indispensables,
+    Map<String, String>? libellesIndispensables,
     CommandeLiee? cmd,
+    Map<String, ReleveArticlePem>? articlesPem,
+    Map<String, String>? libellesArticlesPem,
   }) {
     return Visite(
       id: id,
@@ -163,12 +246,17 @@ class Visite {
       dn: dn ?? this.dn,
       kits: kits ?? this.kits,
       commandeEnRayon: commandeEnRayon ?? this.commandeEnRayon,
-      colis: colis ?? this.colis,
       raisonAbsenceId: raisonAbsenceId ?? this.raisonAbsenceId,
       raisonAbsence: raisonAbsence ?? this.raisonAbsence,
       reponses: reponses ?? this.reponses,
-      op: op ?? this.op,
+      indispensables: indispensables ?? this.indispensables,
+      libellesIndispensables:
+          libellesIndispensables ?? this.libellesIndispensables,
       cmd: cmd ?? this.cmd,
+      typeVisite: typeVisite,
+      propositionPemId: propositionPemId,
+      articlesPem: articlesPem ?? this.articlesPem,
+      libellesArticlesPem: libellesArticlesPem ?? this.libellesArticlesPem,
     );
   }
 }

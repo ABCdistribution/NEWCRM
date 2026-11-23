@@ -148,6 +148,87 @@ void main() {
       expect(f.contacts, hasLength(1));
     });
 
+    test(
+      'briefing : objectif annuel, CA du mois, visite, livraisons, variation',
+      () {
+        final detail = {
+          ..._detail(),
+          'objectifs': [
+            {'annee': 2025, 'cibleCa': 1000},
+            {'annee': 2026, 'cibleCa': 24000},
+          ],
+        };
+        final histo = {
+          ..._historique(),
+          'commandes': [
+            {
+              'numero': 'CDE-1',
+              'annulee': false,
+              'statutLivraison': 'EXPEDIEE',
+              'dateLivraison': '2026-11-12T08:00:00.000Z',
+              'total': 10,
+            },
+            {
+              'numero': 'CDE-2',
+              'annulee': false,
+              'statutLivraison': 'LIVREE',
+              'total': 10,
+            },
+            {
+              'numero': 'CDE-3',
+              'annulee': true,
+              'statutLivraison': 'PAS_LIVREE',
+              'total': 10,
+            },
+          ],
+        };
+        final f = ficheClientDepuisJson('c1', detail, histo);
+        expect(f.objectifAnnuel, 24000);
+        expect(f.caMois, 200);
+        expect(
+          f.derniereVisite,
+          DateTime.parse('2026-11-05T10:00:00.000Z').toLocal(),
+        );
+        expect(f.livraisons.map((l) => l.numero), ['CDE-1']);
+        expect(f.livraisons.single.prevue, isNotNull);
+        // 10 mois de 100 sur 10 mois de 10 : +900 %
+        expect(f.variationCaPct, 900);
+        final d = f.donneesBriefing;
+        expect(d.periodicite, 'Mensuelle');
+        expect(d.livraisons, hasLength(1));
+      },
+    );
+
+    test('briefing : objectif absent, nul ou illisible', () {
+      expect(
+        ficheClientDepuisJson('c1', _detail(), _historique()).objectifAnnuel,
+        isNull,
+      );
+      for (final o in <Object>[
+        [
+          {'annee': 2026, 'cibleCa': 0},
+        ],
+        [
+          {'annee': 2026, 'cibleCa': 'abc'},
+        ],
+        'x',
+      ]) {
+        final f = ficheClientDepuisJson('c1', {
+          ..._detail(),
+          'objectifs': o,
+        }, null);
+        expect(f.objectifAnnuel, isNull);
+      }
+      // un montant en texte (Decimal sérialisé) est accepté
+      final f = ficheClientDepuisJson('c1', {
+        ..._detail(),
+        'objectifs': [
+          {'annee': 2026, 'cibleCa': '12000.00'},
+        ],
+      }, null);
+      expect(f.objectifAnnuel, 12000);
+    });
+
     test('montants courts', () {
       expect(euroCourt(29400), '29,4 k€');
       expect(euroCourt(840), '840 €');

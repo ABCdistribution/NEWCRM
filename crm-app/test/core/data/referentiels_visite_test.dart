@@ -16,6 +16,57 @@ void main() {
     });
   });
 
+  group('indispensablesDepuisJson', () {
+    test('lit articles, codes et marques dans l’ordre de l’API', () {
+      final l = indispensablesDepuisJson([
+        {
+          'id': 'p1',
+          'centraleId': 'c1',
+          'articleId': 'a1',
+          'ordre': 0,
+          'article': {
+            'id': 'a1',
+            'codeAs400': '900016',
+            'libelle': '  Shampooing doux ',
+            'gencode': '376',
+            'marque': {'id': 'm', 'nom': 'Franck Provost'},
+          },
+        },
+        {
+          'id': 'p2',
+          'article': {'id': 'a2', 'codeAs400': '900017', 'libelle': 'Rouge'},
+        },
+      ]);
+      expect(l.map((p) => p.articleId), ['a1', 'a2']);
+      expect(l.first.libelle, 'Shampooing doux');
+      expect(l.first.code, '900016');
+      expect(l.first.marque, 'Franck Provost');
+      expect(l.last.marque, '');
+    });
+
+    test('ignore les lignes sans article ou sans libellé', () {
+      final l = indispensablesDepuisJson([
+        {'id': 'p1', 'articleId': 'a1'},
+        {
+          'id': 'p2',
+          'article': {'id': 'a2', 'libelle': '  '},
+        },
+        {
+          'id': 'p3',
+          'article': {'libelle': 'Sans id'},
+        },
+        'pas un objet',
+        null,
+      ]);
+      expect(l, isEmpty);
+    });
+
+    test('une réponse qui n’est pas une liste donne une liste vide', () {
+      expect(indispensablesDepuisJson(null), isEmpty);
+      expect(indispensablesDepuisJson({'data': []}), isEmpty);
+    });
+  });
+
   group('questionsDepuisJson', () {
     test('lit les questions dans l’ordre de l’API', () {
       final q = questionsDepuisJson([
@@ -26,7 +77,12 @@ void main() {
           'obligatoire': true,
         },
         {'id': 'b', 'libelle': 'Remarque', 'type': 'TEXTE'},
-        {'id': 'c', 'libelle': 'Note', 'type': 'NOTE_1_5', 'obligatoire': false},
+        {
+          'id': 'c',
+          'libelle': 'Note',
+          'type': 'NOTE_1_5',
+          'obligatoire': false,
+        },
         {'id': 'd', 'libelle': 'Facings', 'type': 'NOMBRE'},
       ]);
       expect(q.map((x) => x.id), ['a', 'b', 'c', 'd']);
@@ -112,6 +168,21 @@ void main() {
       expect(p.single.article, 'Shampoing 250 ml');
     });
 
+    test('période de la promotion lue en jours, nulle si absente', () {
+      final p = promosOpDepuisJson([
+        {
+          'id': 'p1',
+          'dateDebut': '2026-11-02T12:00:00.000Z',
+          'dateFin': '2026-11-30T12:00:00.000Z',
+        },
+        {'id': 'p2', 'dateDebut': null, 'dateFin': 'pas une date'},
+      ]);
+      expect(p.first.debut, DateTime(2026, 11, 2));
+      expect(p.first.fin, DateTime(2026, 11, 30));
+      expect(p.last.debut, isNull);
+      expect(p.last.fin, isNull);
+    });
+
     test('sans libellé, le nom de l’article sert de libellé', () {
       final p = promosOpDepuisJson([
         {
@@ -126,7 +197,11 @@ void main() {
     test('sans libellé ni article : « Promotion »', () {
       final p = promosOpDepuisJson([
         {'id': 'p1'},
-        {'id': 'p2', 'libelle': '  ', 'article': {'libelle': ''}},
+        {
+          'id': 'p2',
+          'libelle': '  ',
+          'article': {'libelle': ''},
+        },
         {'id': 'p3', 'article': 'texte'},
       ]);
       expect(p.map((x) => x.libelle), ['Promotion', 'Promotion', 'Promotion']);

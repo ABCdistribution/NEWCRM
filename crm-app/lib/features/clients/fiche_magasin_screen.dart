@@ -8,6 +8,7 @@ import '../../core/nav/nav.dart';
 import '../../core/state/state.dart';
 import '../../core/theme/theme.dart';
 import '../../core/ui/ui.dart';
+import '../accueil/accueil_logique.dart';
 import 'state/commandes_client.dart';
 import 'widgets/bloc_objectifs_magasin.dart';
 import 'widgets/suivi_magasin.dart';
@@ -190,7 +191,15 @@ class _FicheMagasinScreenState extends ConsumerState<FicheMagasinScreen> {
         switch (actif) {
           OngletMagasin.apercu || OngletMagasin.suivi =>
             m.reel
-                ? OngletSuiviReel(fiche: fiche, commandes: commandes)
+                ? OngletSuiviReel(
+                    fiche: fiche,
+                    commandes: commandes,
+                    visitePrevue: prochaineVisitePrevue(
+                      ref.watch(crmProvider),
+                      magasinId: m.id,
+                      inclureAujourdhui: true,
+                    ),
+                  )
                 : OngletSuivi(derniereCommande: commandes.firstOrNull),
           OngletMagasin.commandes => OngletCommandes(
             commandes: commandes,

@@ -43,6 +43,32 @@ void main() {
       expect(v.chrono.containsKey(EtapeDph.debut), isTrue);
     });
 
+    test(
+      'les produits indispensables relevés sont lus avec leurs libellés',
+      () {
+        final j = _visite('v1')
+          ..['indispensables'] = [
+            {
+              'articleId': 'a1',
+              'present': true,
+              'article': {'libelle': 'Shampooing doux', 'codeAs400': '900016'},
+            },
+            {
+              'articleId': 'a2',
+              'present': false,
+              'article': {'libelle': 'Rouge mat', 'codeAs400': '900017'},
+            },
+            {'articleId': 'a3', 'present': 'oui'},
+            {'present': true},
+          ];
+        final v = visiteDepuisJson(j)!;
+        expect(v.indispensables, {'a1': true, 'a2': false});
+        expect(v.indispensablesAbsents, 1);
+        expect(v.libellesIndispensables['a2'], 'Rouge mat');
+        expect(visiteDepuisJson(_visite('v2'))!.indispensables, isEmpty);
+      },
+    );
+
     test('sans client (visite de prospection) : ignorée', () {
       expect(visiteDepuisJson(_visite('v2', clientId: null)), isNull);
     });

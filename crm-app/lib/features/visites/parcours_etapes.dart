@@ -25,21 +25,26 @@ class CorpsEtape extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final actions = ActionsVisite(
-      ref.read(crmProvider.notifier),
-      visite.id,
-    );
+    final actions = ActionsVisite(ref.read(crmProvider.notifier), visite.id);
     return switch (etape) {
-      EtapeDph.arrivee || EtapeDph.rayonArrivee || EtapeDph.rayonFin =>
-        PhotosEtape(visite: visite, etape: etape),
+      EtapeDph.arrivee ||
+      EtapeDph.rayonArrivee ||
+      EtapeDph.rayonFin => PhotosEtape(visite: visite, etape: etape),
       EtapeDph.colis => _EtapeColis(visite: visite, actions: actions),
       EtapeDph.dn => _EtapeDn(visite: visite, actions: actions),
+      EtapeDph.indispensables => _EtapeIndispensables(
+        visite: visite,
+        actions: actions,
+      ),
+      EtapeDph.articlesPem => _EtapeArticlesPem(
+        visite: visite,
+        actions: actions,
+      ),
       EtapeDph.commande => _EtapeCommande(visite: visite, actions: actions),
       EtapeDph.questionnaire => _EtapeQuestionnaire(
         visite: visite,
         actions: actions,
       ),
-      EtapeDph.op => _EtapeOp(visite: visite, actions: actions),
       EtapeDph.debut => const SizedBox.shrink(),
     };
   }
@@ -202,38 +207,17 @@ class _Miniature extends StatelessWidget {
   }
 }
 
-// ---- Commande à mettre en rayon (colis) ---------------------------------------
+// ---- Commande à mettre en rayon ------------------------------------------------
 
-class _EtapeColis extends StatefulWidget {
+class _EtapeColis extends StatelessWidget {
   const _EtapeColis({required this.visite, required this.actions});
 
   final Visite visite;
   final ActionsVisite actions;
 
   @override
-  State<_EtapeColis> createState() => _EtapeColisState();
-}
-
-class _EtapeColisState extends State<_EtapeColis> {
-  final TextEditingController _code = TextEditingController();
-
-  @override
-  void dispose() {
-    _code.dispose();
-    super.dispose();
-  }
-
-  void _ajouter() {
-    final code = codeColisValide(_code.text);
-    if (code == null) return;
-    widget.actions.ajouterColis(code);
-    _code.clear();
-  }
-
-  @override
   Widget build(BuildContext context) {
-    final v = widget.visite;
-    final oui = v.commandeEnRayon;
+    final oui = visite.commandeEnRayon;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -249,62 +233,8 @@ class _EtapeColisState extends State<_EtapeColis> {
               : oui
               ? 0
               : 1,
-          onChanged: (i) => widget.actions.definirCommandeEnRayon(oui: i == 0),
+          onChanged: (i) => actions.definirCommandeEnRayon(oui: i == 0),
         ),
-        if (oui == true) ...[
-          SectionTitre('Colis', couleur: context.univers.bleu, margeHaut: 4),
-          for (final c in v.colis)
-            Padding(
-              padding: const EdgeInsets.only(bottom: 8),
-              child: AppCarte(
-                child: AppLigne(
-                  alignement: CrossAxisAlignment.center,
-                  children: [
-                    Expanded(child: Text(c, style: AppText.titreCarte)),
-                    GestureDetector(
-                      behavior: HitTestBehavior.opaque,
-                      onTap: () => widget.actions.retirerColis(c),
-                      child: Padding(
-                        padding: const EdgeInsets.all(4),
-                        child: Text(
-                          '✕',
-                          style: AppText.t(
-                            16,
-                            w: FontWeight.w700,
-                            c: AppColors.muted,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          AppBouton(
-            '📷 Scanner un colis',
-            variante: VarianteBouton.plein,
-            onPressed: () => AppRoutes.scannerColis(context, v.id),
-          ),
-          const SizedBox(height: 12),
-          AppCarte(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                ChampTexte(
-                  label: 'Ou saisir le code du colis',
-                  controller: _code,
-                  hint: 'Saisir ou coller le code',
-                ),
-                AppBouton(
-                  '＋ Ajouter ce colis',
-                  petit: true,
-                  variante: VarianteBouton.plein,
-                  onPressed: _ajouter,
-                ),
-              ],
-            ),
-          ),
-        ],
       ],
     );
   }
@@ -418,6 +348,149 @@ class _TexteKit extends StatelessWidget {
   }
 }
 
+// ---- Produits indispensables ----------------------------------------------------
+
+/// Produits que l'enseigne exige en rayon : « Présent » ou « Absent » pour chacun.
+class _EtapeIndispensables extends ConsumerWidget {
+  const _EtapeIndispensables({required this.visite, required this.actions});
+
+  final Visite visite;
+  final ActionsVisite actions;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final produits =
+        ref.watch(produitsIndispensablesProvider(visite.magasinId)).value ??
+        const [];
+    final releves = indispensablesReleves(visite, produits);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Row(
+          children: [
+            Expanded(
+              child: Text(
+                '$releves/${produits.length} relevés',
+                style: AppText.t(13, c: AppColors.muted),
+              ),
+            ),
+            AppBouton(
+              'Tout présent',
+              variante: VarianteBouton.clair,
+              petit: true,
+              pleineLargeur: false,
+              onPressed: () =>
+                  actions.toutPresent([for (final p in produits) p.articleId]),
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        for (final p in produits)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 12),
+            child: AppCarte(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(p.libelle, style: AppText.titreCarte),
+                  Padding(
+                    padding: const EdgeInsets.only(top: 3, bottom: 10),
+                    child: Text(
+                      '${p.marque.isEmpty ? '' : '${p.marque} · '}Réf. ${p.code}',
+                      style: AppText.sousCarte,
+                    ),
+                  ),
+                  Segment(
+                    libelles: const ['Présent', 'Absent'],
+                    index: switch (visite.indispensables[p.articleId]) {
+                      true => 0,
+                      false => 1,
+                      null => -1,
+                    },
+                    margeBas: 0,
+                    onChanged: (i) => actions.releverIndispensable(
+                      p.articleId,
+                      present: i == 0,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+}
+
+// ---- Articles PEM ---------------------------------------------------------------------------------
+
+/// Articles PEM du CRM : « Présent » ou « Absent » pour chacun, puis « Mis en avant » pour ceux qui sont présents.
+/// Rien n'est présélectionné.
+class _EtapeArticlesPem extends ConsumerWidget {
+  const _EtapeArticlesPem({required this.visite, required this.actions});
+
+  final Visite visite;
+  final ActionsVisite actions;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final articles = ref.watch(articlesPemProvider).value ?? const [];
+    final releves = articlesPemReleves(visite, articles);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Text(
+          '$releves/${articles.length} relevés',
+          style: AppText.t(13, c: AppColors.muted),
+        ),
+        const SizedBox(height: 12),
+        for (final a in articles)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 12),
+            child: AppCarte(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(a.libelle, style: AppText.titreCarte),
+                  Padding(
+                    padding: const EdgeInsets.only(top: 3, bottom: 10),
+                    child: Text(
+                      [
+                        if (a.marque.isNotEmpty) a.marque,
+                        if (a.code.isNotEmpty) a.code,
+                      ].join(' · '),
+                      style: AppText.sousCarte,
+                    ),
+                  ),
+                  Segment(
+                    libelles: const ['Présent', 'Absent'],
+                    index: switch (visite.articlesPem[a.articleId]?.present) {
+                      true => 0,
+                      false => 1,
+                      null => -1,
+                    },
+                    margeBas: 0,
+                    onChanged: (i) =>
+                        actions.releverArticlePem(a.articleId, present: i == 0),
+                  ),
+                  if (visite.articlesPem[a.articleId]?.present == true)
+                    LigneSwitch(
+                      label: 'Mis en avant',
+                      valeur: visite.articlesPem[a.articleId]!.misEnAvant,
+                      onChanged: (v) => actions.mettreEnAvantArticlePem(
+                        a.articleId,
+                        misEnAvant: v,
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+}
+
 // ---- Commande liée / raison d'absence -------------------------------------------
 
 class _EtapeCommande extends ConsumerStatefulWidget {
@@ -476,7 +549,9 @@ class _EtapeCommandeState extends ConsumerState<_EtapeCommande> {
           ),
           const SizedBox(height: 12),
           AppBouton(
-            v.cmd == null ? '🛒 Prendre la commande' : '🛒 Modifier la commande',
+            v.cmd == null
+                ? '🛒 Prendre la commande'
+                : '🛒 Modifier la commande',
             variante: VarianteBouton.plein,
             onPressed: () => AppRoutes.priseCommande(
               context,
@@ -531,7 +606,9 @@ class _Puce extends StatelessWidget {
         decoration: BoxDecoration(
           color: selectionne ? bleu : Colors.white,
           borderRadius: BorderRadius.circular(999),
-          border: Border.all(color: selectionne ? bleu : AppColors.bordureChamp),
+          border: Border.all(
+            color: selectionne ? bleu : AppColors.bordureChamp,
+          ),
         ),
         child: Text(
           label,
@@ -635,60 +712,5 @@ class _ReponseQuestion extends StatelessWidget {
           onChanged: onChanged,
         );
     }
-  }
-}
-
-// ---- Pointage OP ------------------------------------------------------------------
-
-class _EtapeOp extends ConsumerWidget {
-  const _EtapeOp({required this.visite, required this.actions});
-
-  final Visite visite;
-  final ActionsVisite actions;
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final promos = ref.watch(promosOpProvider).value ?? const [];
-    if (promos.isEmpty) {
-      return const Vide('Aucune opération promotionnelle en cours.');
-    }
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        Text(
-          'Les opérations promotionnelles sont-elles en place en rayon ?',
-          style: AppText.t(13, c: AppColors.muted),
-        ),
-        const SizedBox(height: 10),
-        for (final p in promos)
-          Padding(
-            padding: const EdgeInsets.only(bottom: 12),
-            child: AppCarte(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(p.libelle, style: AppText.titreCarte),
-                  if (p.article.isNotEmpty && p.article != p.libelle)
-                    Padding(
-                      padding: const EdgeInsets.only(top: 3),
-                      child: Text(p.article, style: AppText.sousCarte),
-                    ),
-                  const SizedBox(height: 10),
-                  Segment(
-                    libelles: const ['En place', 'Absente'],
-                    index: switch (visite.op[p.id]) {
-                      true => 0,
-                      false => 1,
-                      null => -1,
-                    },
-                    margeBas: 0,
-                    onChanged: (i) => actions.pointer(p.id, presente: i == 0),
-                  ),
-                ],
-              ),
-            ),
-          ),
-      ],
-    );
   }
 }

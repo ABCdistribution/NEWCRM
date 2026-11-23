@@ -1,6 +1,7 @@
 /// Catalogue de démonstration : maquette `PRODUITS`, `PRODUITS_KIT`, `PRODUITS_PEM`, `CATS`.
 library;
 
+import '../logic/dates.dart';
 import '../models/models.dart';
 
 /// Marques proposées en filtre du catalogue et de la prise de commande (`CATS`).
@@ -245,14 +246,31 @@ List<Produit>? _catalogueServeur;
 void definirCatalogueServeur(List<Produit>? produits) =>
     _catalogueServeur = produits;
 
-/// Tout le référentiel : catalogue réel s'il est chargé, sinon catalogue, kits et produits PEM de la démo.
+/// Tout le référentiel : catalogue réel s'il est chargé, sinon catalogue, kits et produits PEM de la démo (rien en
+/// session réelle tant que le catalogue n'est pas téléchargé).
 List<Produit> tousProduits() =>
-    _catalogueServeur ?? [...produitsCatalogue, ...produitsKit, ...produitsPem];
+    _catalogueServeur ??
+    (DemoTemps.reel
+        ? const <Produit>[]
+        : [...produitsCatalogue, ...produitsKit, ...produitsPem]);
+
+/// Produits proposés à la prise de commande : le catalogue du CRM sans les produits PEM, sinon le
+/// catalogue de la démonstration (rien en session réelle tant que le catalogue n'est pas téléchargé).
+List<Produit> produitsCommandables() {
+  final reel = _catalogueServeur;
+  if (reel != null) {
+    return [
+      for (final p in reel)
+        if (!p.pem) p,
+    ];
+  }
+  return DemoTemps.reel ? const <Produit>[] : produitsCatalogue;
+}
 
 /// Marques proposées en filtre : celles de la démo, ou, avec le catalogue réel, les 12 marques les plus fournies.
 List<String> marquesCatalogueActuelles() {
   final reel = _catalogueServeur;
-  if (reel == null) return marquesCatalogue;
+  if (reel == null) return DemoTemps.reel ? const <String>[] : marquesCatalogue;
   final nb = <String, int>{};
   for (final p in reel) {
     final m = p.cat;

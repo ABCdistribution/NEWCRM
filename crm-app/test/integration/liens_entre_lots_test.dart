@@ -303,7 +303,7 @@ void main() {
         await tester.tap(find.text('Suivant ›'));
         await tester.pumpAndSettle();
       }
-      expect(find.text('Étape 5 / 8'), findsOneWidget);
+      expect(find.text('Étape 5 / 7'), findsOneWidget);
       await tester.tap(find.text('Oui'));
       await tester.pumpAndSettle();
       expect(find.text('Aucune commande prise pour le moment.'), findsOneWidget);

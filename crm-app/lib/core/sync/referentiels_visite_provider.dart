@@ -4,9 +4,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../api/erreur_api.dart';
 import '../auth/session.dart';
+import '../data/indispensables_demo.dart';
+import '../data/pem_demo.dart';
 import '../data/referentiels_visite.dart';
 import '../db/app_database.dart';
 import '../db/base_provider.dart';
+import '../state/state.dart';
 import 'catalogue_provider.dart';
 
 const _domaine = 'referentiel_visite';
@@ -61,7 +64,35 @@ final raisonsAbsenceProvider = StreamProvider<List<RaisonAbsence>>(
   ),
 );
 
-/// Promotions en cours à pointer en rayon (`GET /promos?actives=1`).
-final promosOpProvider = StreamProvider<List<PromoOp>>(
-  (ref) => _liste(ref, 'promos_op', '/promos?actives=1', promosOpDepuisJson),
+/// Produits indispensables de l'enseigne d'un magasin (`GET /produits-indispensables/client/:id`), copie locale puis
+/// version fraîche ; vide sans enseigne, sans liste, hors ligne sans copie. Magasin de démonstration : liste fictive.
+final produitsIndispensablesProvider =
+    StreamProvider.family<List<ProduitIndispensable>, String>((ref, magasinId) {
+      final m = ref.read(magasinParIdProvider(magasinId));
+      if (m != null && !m.reel) {
+        return Stream.value(indispensablesDemo[magasinId] ?? const []);
+      }
+      return _liste(
+        ref,
+        'indispensables_$magasinId',
+        '/produits-indispensables/client/${Uri.encodeComponent(magasinId)}',
+        indispensablesDepuisJson,
+      );
+    });
+
+/// Promotions en cours et à venir (`GET /promos?actives=1&avenir=1`), pour le briefing d'ouverture d'une visite.
+final promosBriefingProvider = StreamProvider<List<PromoOp>>(
+  (ref) => _liste(
+    ref,
+    'promos_briefing',
+    '/promos?actives=1&avenir=1',
+    promosOpDepuisJson,
+  ),
 );
+
+/// Articles PEM à vérifier lors d'une visite PEM (`GET /pem/articles`) : copie locale d'abord (hors connexion), puis
+/// version fraîche, sans bruit en cas d'échec. Démonstration : quelques articles du catalogue fictif.
+final articlesPemProvider = StreamProvider<List<ArticlePem>>((ref) {
+  if (ref.watch(sessionProvider) == null) return Stream.value(articlesPemDemo);
+  return _liste(ref, 'articles_pem', '/pem/articles', articlesPemDepuisJson);
+});

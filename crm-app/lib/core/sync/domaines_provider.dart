@@ -19,6 +19,7 @@ import '../db/app_database.dart';
 import '../api/api_client.dart';
 import 'catalogue_provider.dart';
 import 'pages_api.dart';
+import 'pem_provider.dart';
 import 'sync_domaine.dart';
 
 /// Jeu de données secondaire gardé en JSON dans la base locale (commandes, visites, prospects…).
@@ -591,13 +592,18 @@ class NotificationsNotifier extends SynchroDomaineNotifier {
   @override
   String get domaine => 'notifications';
 
+  /// Dernière boîte de réception connue (objet de l'API) : sert à retirer les notifications lues de la copie locale.
+  Map<String, dynamic>? _courant;
+
   @override
   void appliquer(List<Map<String, dynamic>>? lignes) {
     if (lignes == null) {
+      _courant = null;
       definirNotificationsServeur(null);
       return;
     }
-    final items = lignes.isEmpty ? null : lignes.first['items'];
+    _courant = lignes.isEmpty ? null : lignes.first;
+    final items = _courant?['items'];
     definirNotificationsServeur([
       if (items is List)
         for (final j in items.whereType<Map<String, dynamic>>())
@@ -611,6 +617,58 @@ class NotificationsNotifier extends SynchroDomaineNotifier {
     AppDatabase base,
     void Function(int, int) progression,
   ) => _telechargerObjet(api, base, domaine, '/notifications/me');
+
+  /// `PATCH /notifications/:id/lu` ; une notification déjà disparue du CRM (404) quitte aussi la liste.
+  Future<void> marquerLue(String id) async {
+    try {
+      await ref
+          .read(apiEcritureProvider)
+          .envoyer('PATCH', '/notifications/${Uri.encodeComponent(id)}/lu');
+    } on ErreurApi catch (e) {
+      if (e.statut != 404) rethrow;
+    }
+    await _retirer({id});
+  }
+
+  /// `POST /notifications/lu-tout`.
+  Future<void> toutMarquerLu() async {
+    await ref
+        .read(apiEcritureProvider)
+        .envoyer('POST', '/notifications/lu-tout');
+    await _retirer(null);
+  }
+
+  /// Marque comme lues (dans la copie locale et dans la cloche) les notifications `ids`, ou toutes si `ids` est nul.
+  Future<void> _retirer(Set<String>? ids) async {
+    final courant = _courant;
+    if (courant == null || !ref.mounted) return;
+    final items = courant['items'];
+    final maintenant = DateTime.now().toUtc().toIso8601String();
+    final mis = <String, dynamic>{
+      ...courant,
+      'items': [
+        if (items is List)
+          for (final j in items)
+            if (j is Map<String, dynamic> &&
+                j['luAt'] == null &&
+                (ids == null || ids.contains(j['id'])))
+              {...j, 'luAt': maintenant}
+            else
+              j,
+      ],
+    };
+    try {
+      await ref
+          .read(baseLocaleProvider)
+          .ecrireEnregistrement(domaine, 'courant', jsonEncode(mis));
+    } catch (_) {
+      // Sans base locale (tests, démonstration) la cloche est tout de même mise à jour.
+    }
+    if (!ref.mounted) return;
+    appliquer([mis]);
+    // La cloche se recalcule quand l'état de synchronisation change.
+    state = state.avec(majLe: DateTime.now());
+  }
 }
 
 final notificationsSynchroProvider =
@@ -642,6 +700,7 @@ void rafraichirTout(WidgetRef ref) {
   ref.read(commandesProvider.notifier).rafraichir();
   ref.read(commandesAttenteSynchroProvider.notifier).rafraichir();
   ref.read(visitesSynchroProvider.notifier).rafraichir();
+  ref.read(propositionsPemSynchroProvider.notifier).rafraichir();
   ref.read(prospectsSynchroProvider.notifier).rafraichir();
   ref.read(newsProvider.notifier).rafraichir();
   ref.read(equipeProvider.notifier).rafraichir();

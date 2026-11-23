@@ -2,6 +2,8 @@
 /// (`KIT_PRODUITS`), raisons d'absence de visite PEM (`RAISONS_PEM`), libellés de portée (`PORTEE_TXT`).
 library;
 
+import '../../../core/data/produits_demo.dart';
+import '../../../core/logic/dates.dart';
 import '../../../core/models/models.dart';
 
 /// Un kit constaté en rayon pour la distribution numérique (`KITS`).
@@ -79,8 +81,17 @@ const Map<String, List<ComposantKit>> compositionKitsDemo = {
   ],
 };
 
-/// Kit par code ; un code inconnu devient un kit sans marque dont le nom est le code (`kitDe`).
+/// Kit par code ; un code inconnu devient un kit sans marque dont le nom est le code (`kitDe`). Session réelle : le kit
+/// est un produit du catalogue du CRM (les kits de la démonstration n'existent pas).
 Kit kitDe(String code) {
+  if (DemoTemps.reel) {
+    for (final p in tousProduits()) {
+      if (p.code == code) {
+        return Kit(code: code, nom: p.nom, marque: p.marque, refs: 0);
+      }
+    }
+    return Kit(code: code, nom: code, marque: '', refs: 0);
+  }
   for (final k in kitsDemo) {
     if (k.code == code) return k;
   }

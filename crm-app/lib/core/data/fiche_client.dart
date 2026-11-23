@@ -50,6 +50,11 @@ class FicheClient {
     this.secteur,
     this.commerciaux = const [],
     this.periodicite,
+    this.objectifAnnuel,
+    this.caMois,
+    this.derniereVisite,
+    this.livraisons = const [],
+    this.variationCaPct,
   });
 
   final List<ContactClient> contacts;
@@ -70,6 +75,29 @@ class FicheClient {
   final String? secteur;
   final List<String> commerciaux;
   final String? periodicite;
+
+  /// Objectif de CA annuel du magasin pour l'année en cours (euros), nul si le CRM n'en a pas fixé.
+  final double? objectifAnnuel;
+
+  /// CA du mois en cours (euros), nul si l'historique manque.
+  final double? caMois;
+
+  /// Date de la dernière visite parmi les dix dernières, nulle sans visite.
+  final DateTime? derniereVisite;
+
+  /// Commandes pas encore livrées, avec leur date de livraison prévue.
+  final List<LivraisonAttendue> livraisons;
+
+  /// Variation en % du CA cumulé de l'année (jusqu'au mois précédent) sur l'an dernier, nulle sans base.
+  final int? variationCaPct;
+
+  /// Ce qui nourrit les alertes du briefing de visite.
+  DonneesMagasin get donneesBriefing => DonneesMagasin(
+    derniereVisite: derniereVisite,
+    periodicite: periodicite,
+    livraisons: livraisons,
+    variationCaPct: variationCaPct,
+  );
 
   Commande? get derniereCommande => commandes.firstOrNull;
 }
@@ -146,17 +174,24 @@ FicheClient ficheClientDepuisJson(
   final centrale = detail['centrale'];
   final secteur = detail['secteur'];
 
+  final auj = DemoTemps.aujourdhui;
   final visites = <VisiteClient>[];
   final commandes = <Commande>[];
   var visitesMois = 0;
+  DateTime? derniereVisite;
+  final livraisons = <LivraisonAttendue>[];
   double? ca12;
+  double? caMois;
+  int? variationCaPct;
   if (historique != null) {
-    final auj = DemoTemps.aujourdhui;
     for (final v in (historique['visites'] as List? ?? const [])) {
       if (v is! Map<String, dynamic>) continue;
       final quand = _date(v['createdAt']);
       if (quand == null) continue;
       if (quand.year == auj.year && quand.month == auj.month) visitesMois++;
+      if (derniereVisite == null || quand.isAfter(derniereVisite)) {
+        derniereVisite = quand;
+      }
       final par = v['promoteur'];
       final photos = v['_count'];
       visites.add(
@@ -176,6 +211,14 @@ FicheClient ficheClientDepuisJson(
         'client': {'id': clientId},
       });
       if (cmd != null) commandes.add(cmd);
+      final numero = _texte(c['numero']);
+      if (numero != null &&
+          c['annulee'] != true &&
+          c['statutLivraison'] != 'LIVREE') {
+        livraisons.add(
+          LivraisonAttendue(numero: numero, prevue: _date(c['dateLivraison'])),
+        );
+      }
     }
     final ca = historique['ca'];
     if (ca is Map && ca['courbeN'] is List && ca['courbeN1'] is List) {
@@ -183,6 +226,8 @@ FicheClient ficheClientDepuisJson(
       final n1 = ca['courbeN1'] as List;
       final m = auj.month;
       ca12 = _somme(n, 0, m) + _somme(n1, m, 12);
+      caMois = _somme(n, m - 1, m);
+      variationCaPct = variationCa(_somme(n, 0, m - 1), _somme(n1, 0, m - 1));
     }
   }
   return FicheClient(
@@ -202,5 +247,22 @@ FicheClient ficheClientDepuisJson(
           _texte(c['displayName'])!,
     ],
     periodicite: periodicite,
+    objectifAnnuel: _objectifAnnuel(detail['objectifs'], auj.year),
+    caMois: caMois,
+    derniereVisite: derniereVisite,
+    livraisons: livraisons,
+    variationCaPct: variationCaPct,
   );
+}
+
+/// Objectif de CA annuel de l'année `annee` parmi ceux du détail du client ; nul s'il n'y en a pas de positif.
+double? _objectifAnnuel(Object? objectifs, int annee) {
+  if (objectifs is! List) return null;
+  for (final o in objectifs) {
+    if (o is! Map || o['annee'] != annee) continue;
+    final cible = o['cibleCa'];
+    final v = cible is num ? cible.toDouble() : double.tryParse('$cible');
+    if (v != null && v > 0) return v;
+  }
+  return null;
 }

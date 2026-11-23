@@ -202,7 +202,7 @@ Future<void> validerCommande(BuildContext context, WidgetRef ref) async {
   store.ajouterCommande(
     Commande(
       src: 'Appli',
-      par: role.profil.nom,
+      par: c.read(crmProvider).nomProfil,
       id: num,
       magasinId: courante.magasinId ?? '',
       date: DemoTemps.jourCourt,

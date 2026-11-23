@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/api/erreur_api.dart';
 import '../../core/models/models.dart';
 import '../../core/nav/nav.dart';
 import '../../core/state/state.dart';
+import '../../core/sync/domaines_provider.dart';
 import '../../core/theme/theme.dart';
 import '../../core/ui/ui.dart';
 
@@ -46,7 +48,21 @@ class AlertesSheet extends ConsumerWidget {
           const Vide('Aucune alerte : tout est à jour.')
         else
           for (final a in alertes)
-            _CarteAlerte(alerte: a, onTap: () => _ouvrir(context, a)),
+            _CarteAlerte(
+              alerte: a,
+              onTap: () => a.estNotification
+                  ? _marquerLue(context, ref, a)
+                  : _ouvrir(context, a),
+            ),
+        if (alertes.any((a) => a.estNotification))
+          Padding(
+            padding: const EdgeInsets.only(bottom: 8),
+            child: AppBouton(
+              'Tout marquer comme lu',
+              variante: VarianteBouton.tonal,
+              onPressed: () => _toutMarquerLu(context, ref),
+            ),
+          ),
         // La marge basse de la dernière alerte et la marge haute du pied se confondent (8 px, pas 16).
         Pied(
           'La fréquence de visite attendue dépend de la classification du client '
@@ -55,6 +71,37 @@ class AlertesSheet extends ConsumerWidget {
         ),
       ],
     );
+  }
+
+  /// Une notification du CRM se marque comme lue d'un appui : elle quitte la cloche.
+  Future<void> _marquerLue(
+    BuildContext context,
+    WidgetRef ref,
+    Alerte a,
+  ) async {
+    final id = a.notificationId;
+    if (id == null) return;
+    await _tenter(
+      context,
+      () => ref.read(notificationsSynchroProvider.notifier).marquerLue(id),
+    );
+  }
+
+  Future<void> _toutMarquerLu(BuildContext context, WidgetRef ref) => _tenter(
+    context,
+    () => ref.read(notificationsSynchroProvider.notifier).toutMarquerLu(),
+  );
+
+  /// Exécute l'écriture ; l'échec (hors ligne, refus) est signalé sans fermer la feuille.
+  Future<void> _tenter(
+    BuildContext context,
+    Future<void> Function() action,
+  ) async {
+    try {
+      await action();
+    } on ErreurApi catch (e) {
+      if (context.mounted) AppToast.show(context, e.message);
+    }
   }
 
   /// Ferme la feuille puis ouvre la fiche (maquette : actions `alerte-ouvrir` et `fiche-prospect`).
@@ -142,7 +189,10 @@ class _CarteAlerte extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(width: 12),
-                Text('›', style: AppText.t(16, c: AppColors.muted)),
+                Text(
+                  alerte.estNotification ? '✓' : '›',
+                  style: AppText.t(16, c: AppColors.muted),
+                ),
               ],
             ),
           ),

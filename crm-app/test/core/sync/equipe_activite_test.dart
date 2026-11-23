@@ -2,6 +2,7 @@ import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:crm_app/core/api/api_client.dart';
+import 'package:crm_app/core/api/erreur_api.dart';
 import 'package:crm_app/core/auth/session.dart';
 import 'package:crm_app/core/auth/utilisateur.dart';
 import 'package:crm_app/core/data/activite_serveur.dart';
@@ -68,6 +69,22 @@ class _Api implements ApiLecture, ApiOctets {
   Future<List<int>?> octets(String chemin) async {
     appels.add(chemin);
     return photos[chemin];
+  }
+}
+
+class _Ecriture implements ApiEcriture {
+  final List<String> appels = [];
+  Object? erreur;
+
+  @override
+  Future<Object?> envoyer(
+    String methode,
+    String chemin, {
+    Object? corps,
+  }) async {
+    appels.add('$methode $chemin');
+    if (erreur != null) throw erreur!;
+    return null;
   }
 }
 
@@ -143,6 +160,16 @@ void main() {
       expect(a.detail, 'Nadia H. · Pensez à saisir votre visite');
       expect(a.classe, isEmpty);
       expect(a.niveau, NiveauAlerte.haut);
+      expect(a.magasinId, isNull);
+      // Le magasin visé par le CRM (clientId) rattache la notification à sa fiche, sans lecture du texte.
+      final liee = alerteDepuisNotification({
+        'id': 'n9',
+        'titre': 'Relance',
+        'luAt': null,
+        'clientId': 'c-42',
+      })!;
+      expect(liee.magasinId, 'c-42');
+      expect(liee.notificationId, 'n9');
       expect(
         alerteDepuisNotification({'titre': 'x', 'luAt': '2026-11-01'}),
         isNull,
@@ -155,8 +182,10 @@ void main() {
     late Directory dossier;
     late AppDatabase base;
     late _Api api;
+    late _Ecriture ecriture;
 
     setUp(() async {
+      ecriture = _Ecriture();
       dossier = Directory.systemTemp.createTempSync('crm_eq_test_');
       base = await ouvrirBaseChiffree(
         fichier: File('${dossier.path}/crm.db'),
@@ -175,6 +204,7 @@ void main() {
         overrides: [
           baseLocaleProvider.overrideWithValue(base),
           apiClientProvider.overrideWithValue(api),
+          apiEcritureProvider.overrideWithValue(ecriture),
           sessionProvider.overrideWith(
             () => SessionNotifier(
               Utilisateur(
@@ -250,6 +280,74 @@ void main() {
       await attendre(c, notificationsSynchroProvider);
       expect(notificationsServeur().map((a) => a.titre), ['Relance']);
     });
+
+    Map<String, dynamic> boite() => {
+      'nonLues': 2,
+      'items': [
+        {'id': 'n1', 'titre': 'Relance', 'message': 'À faire', 'luAt': null},
+        {'id': 'n2', 'titre': 'Rappel', 'message': '', 'luAt': null},
+      ],
+    };
+
+    test(
+      'marquer une notification comme lue : appel API, retirée de la cloche et de la copie locale',
+      () async {
+        api.reponses['/notifications/me'] = boite();
+        final c = conteneur('COMMERCIAL');
+        await attendre(c, notificationsSynchroProvider);
+        expect(notificationsServeur().map((a) => a.notificationId), [
+          'n1',
+          'n2',
+        ]);
+
+        await c.read(notificationsSynchroProvider.notifier).marquerLue('n1');
+        expect(ecriture.appels, ['PATCH /notifications/n1/lu']);
+        expect(notificationsServeur().map((a) => a.titre), ['Rappel']);
+
+        // Relue hors connexion : la notification lue ne revient pas.
+        definirNotificationsServeur(null);
+        api.erreur = Exception('hors ligne');
+        final c2 = conteneur('COMMERCIAL');
+        await attendre(c2, notificationsSynchroProvider);
+        expect(notificationsServeur().map((a) => a.titre), ['Rappel']);
+      },
+    );
+
+    test('tout marquer comme lu', () async {
+      api.reponses['/notifications/me'] = boite();
+      final c = conteneur('COMMERCIAL');
+      await attendre(c, notificationsSynchroProvider);
+      await c.read(notificationsSynchroProvider.notifier).toutMarquerLu();
+      expect(ecriture.appels, ['POST /notifications/lu-tout']);
+      expect(notificationsServeur(), isEmpty);
+    });
+
+    test('échec réseau : la notification reste dans la cloche', () async {
+      api.reponses['/notifications/me'] = boite();
+      final c = conteneur('COMMERCIAL');
+      await attendre(c, notificationsSynchroProvider);
+      ecriture.erreur = const ErreurApi(TypeErreurApi.reseau);
+      await expectLater(
+        c.read(notificationsSynchroProvider.notifier).marquerLue('n1'),
+        throwsA(isA<ErreurApi>()),
+      );
+      expect(notificationsServeur(), hasLength(2));
+    });
+
+    test(
+      'notification déjà supprimée du CRM (404) : retirée quand même',
+      () async {
+        api.reponses['/notifications/me'] = boite();
+        final c = conteneur('COMMERCIAL');
+        await attendre(c, notificationsSynchroProvider);
+        ecriture.erreur = const ErreurApi(
+          TypeErreurApi.inattendue,
+          statut: 404,
+        );
+        await c.read(notificationsSynchroProvider.notifier).marquerLue('n2');
+        expect(notificationsServeur().map((a) => a.titre), ['Relance']);
+      },
+    );
 
     test(
       'photos : moi et mon équipe, gardées en base, absente mémorisée',

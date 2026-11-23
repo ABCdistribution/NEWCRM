@@ -103,7 +103,7 @@ void main() {
         var v = visite(tester, id);
         expect(v.etat, EtatVisite.terminee);
         // 9 étapes déjà horodatées : la réception prend le 9e pas de l'horloge de la démo
-        expect(v.recu, '04/11/2026 15h03');
+        expect(v.recu, '04/11/2026 14h59');
         expect(find.byType(VisiteScreen), findsNothing);
         expect(find.text('Bonjour Julien'), findsOneWidget);
         expect(conteneurApp(tester).read(ongletProvider), OngletApp.accueil);

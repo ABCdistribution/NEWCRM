@@ -18,6 +18,7 @@ class LigneVisite {
     required this.age,
     required this.etat,
     required this.propre,
+    this.pem = false,
   });
 
   final String id;
@@ -33,6 +34,9 @@ class LigneVisite {
 
   /// Vrai pour une visite du profil (ouverture normale), faux pour celle d'un autre (compte rendu en lecture seule).
   final bool propre;
+
+  /// Visite PEM (pastille « PEM » dans la liste).
+  final bool pem;
 }
 
 /// Visites affichées par l'onglet « Visites » selon les filtres (`visitesListe`) : celles du profil, puis celles des
@@ -49,6 +53,7 @@ List<LigneVisite> visitesFiltrees(CrmEtat e, FiltresVisites f) {
         age: 0,
         etat: v.etat,
         propre: true,
+        pem: v.estPem,
       ),
   ];
   final autres = [
@@ -61,6 +66,7 @@ List<LigneVisite> visitesFiltrees(CrmEtat e, FiltresVisites f) {
         age: v.age,
         etat: v.etat,
         propre: v.par == me,
+        pem: v.estPem,
       ),
   ];
   final q = f.q.toLowerCase();
@@ -79,12 +85,16 @@ List<LigneVisite> visitesFiltrees(CrmEtat e, FiltresVisites f) {
 
 /// Ce que le parcours exige pour passer l'étape `e` avec « Suivant » (nul si rien ne manque) : une photo d'arrivée et
 /// une photo du rayon, la réponse à « une commande à mettre en rayon ? », une commande liée ou une raison d'absence
-/// (quand le CRM en propose), les questions obligatoires du questionnaire. Les autres étapes n'ont pas d'exigence.
+/// (quand le CRM en propose), chaque produit indispensable relevé (quand le magasin en a une liste), les questions
+/// obligatoires du questionnaire. Visite PEM : chaque article PEM relevé présent ou absent (quand la liste est connue).
+/// Les autres étapes n'ont pas d'exigence.
 String? erreurEtape(
   Visite v,
   EtapeDph e, {
   List<QuestionFin> questions = const [],
   bool raisonsDisponibles = false,
+  List<ProduitIndispensable> indispensables = const [],
+  List<ArticlePem> articlesPem = const [],
 }) {
   switch (e) {
     case EtapeDph.arrivee:
@@ -94,6 +104,14 @@ String? erreurEtape(
     case EtapeDph.colis:
       if (v.commandeEnRayon == null) {
         return "Indiquez s'il y a une commande à mettre en rayon.";
+      }
+    case EtapeDph.indispensables:
+      if (indispensablesReleves(v, indispensables) < indispensables.length) {
+        return "Indiquez pour chaque produit indispensable s'il est présent ou absent.";
+      }
+    case EtapeDph.articlesPem:
+      if (articlesPemReleves(v, articlesPem) < articlesPem.length) {
+        return "Indiquez pour chaque article PEM s'il est présent ou absent.";
       }
     case EtapeDph.commande:
       if (v.cmd == null && v.raisonAbsence.isEmpty && raisonsDisponibles) {
@@ -110,18 +128,77 @@ String? erreurEtape(
   return null;
 }
 
+/// Nombre de produits de la liste déjà relevés (présent ou absent) dans la visite.
+int indispensablesReleves(Visite v, List<ProduitIndispensable> liste) =>
+    liste.where((p) => v.indispensables.containsKey(p.articleId)).length;
+
+/// Nombre d'articles PEM de la liste déjà relevés (présent ou absent) dans la visite.
+int articlesPemReleves(Visite v, List<ArticlePem> liste) =>
+    liste.where((a) => v.articlesPem.containsKey(a.articleId)).length;
+
+/// Libellé d'un article PEM relevé : celui que la visite connaît, sinon celui de la liste, sinon « Article inconnu ».
+String libelleArticlePem(
+  Visite v,
+  String articleId, [
+  List<ArticlePem> liste = const [],
+]) =>
+    v.libellesArticlesPem[articleId] ??
+    liste
+        .where((a) => a.articleId == articleId)
+        .map((a) => a.libelle)
+        .firstOrNull ??
+    'Article inconnu';
+
+/// Libellés des articles PEM relevés absents.
+List<String> articlesPemAbsents(
+  Visite v, [
+  List<ArticlePem> liste = const [],
+]) => [
+  for (final e in v.articlesPem.entries)
+    if (!e.value.present) libelleArticlePem(v, e.key, liste),
+];
+
+/// Libellés des articles PEM relevés présents et mis en avant.
+List<String> articlesPemMisEnAvant(
+  Visite v, [
+  List<ArticlePem> liste = const [],
+]) => [
+  for (final e in v.articlesPem.entries)
+    if (e.value.present && e.value.misEnAvant)
+      libelleArticlePem(v, e.key, liste),
+];
+
+/// Libellés des produits indispensables relevés absents : ceux que la visite connaît, sinon ceux de la liste du magasin.
+List<String> indispensablesAbsents(
+  Visite v, [
+  List<ProduitIndispensable> liste = const [],
+]) => [
+  for (final e in v.indispensables.entries)
+    if (!e.value)
+      v.libellesIndispensables[e.key] ??
+          liste
+              .where((p) => p.articleId == e.key)
+              .map((p) => p.libelle)
+              .firstOrNull ??
+          'Produit inconnu',
+];
+
 /// Ce qu'il reste à faire avant de pouvoir terminer la visite : les messages de toutes les étapes du parcours.
 List<String> manquants(
   Visite v, {
   List<QuestionFin> questions = const [],
   bool raisonsDisponibles = false,
+  List<ProduitIndispensable> indispensables = const [],
+  List<ArticlePem> articlesPem = const [],
 }) => [
-  for (final e in EtapeDph.parcours)
+  for (final e in v.etapes)
     ?erreurEtape(
       v,
       e,
       questions: questions,
       raisonsDisponibles: raisonsDisponibles,
+      indispensables: indispensables,
+      articlesPem: articlesPem,
     ),
 ];
 
@@ -143,7 +220,9 @@ bool tourneeRestante(CrmEtat e) {
   for (final t in e.tournee) {
     final faite = e.visites.any(
       (v) =>
-          v.magasinId == t.magasinId && v.date.startsWith(DemoTemps.jourCourt),
+          !v.estPem &&
+          v.magasinId == t.magasinId &&
+          v.date.startsWith(DemoTemps.jourCourt),
     );
     if (!faite) return true;
   }
@@ -174,10 +253,3 @@ String milliersEspaces(int n) => groupeMilliers(n, separateur: ' ');
 
 /// Pluriel de la maquette : « kit », « kits » (s'ajoute dès 2).
 String sPluriel(int n) => n > 1 ? 's' : '';
-
-/// Code de colis lu ou saisi : sans espaces autour, nul s'il est vide ou trop long pour être une étiquette.
-String? codeColisValide(String? brut) {
-  final c = brut?.trim();
-  if (c == null || c.isEmpty || c.length > 64) return null;
-  return c;
-}

@@ -23,7 +23,7 @@ class CarteLivraison extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final c = commande;
     final magasin = ref.watch(magasinParIdProvider(c.magasinId));
-    final moi = ref.watch(profilActifProvider).nom;
+    final moi = ref.watch(crmProvider.select((e) => e.nomProfil));
     final u = context.univers;
     final auteur = auteurCommande(c);
     final etape = c.statut == StatutLivraison.livree

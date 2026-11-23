@@ -19,3 +19,12 @@ class BadgeVisite extends StatelessWidget {
     return BadgeEtat(etat.libelleBadge, couleur: couleur);
   }
 }
+
+/// Pastille « PEM » : distingue une visite PEM d'une visite commerciale (en-tête, liste, compte rendu).
+class BadgePem extends StatelessWidget {
+  const BadgePem({super.key});
+
+  @override
+  Widget build(BuildContext context) =>
+      const Pastille('PEM', variante: VariantePastille.violet);
+}

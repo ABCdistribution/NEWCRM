@@ -5,6 +5,7 @@ import '../../../core/logic/logic.dart';
 import '../../../core/models/models.dart';
 import '../../../core/theme/theme.dart';
 import '../../../core/ui/ui.dart';
+import '../../accueil/accueil_logique.dart';
 
 /// Onglets de la fiche client (maquette : `ficheMag` l.1821). Le promoteur a « Aperçu », « Contacts », « Commandes »,
 /// « Notes » ; l'encadrement « Suivi », « Commandes », « Contacts », « Infos ».
@@ -291,15 +292,27 @@ class OngletSuiviReel extends StatelessWidget {
     super.key,
     required this.fiche,
     required this.commandes,
+    this.visitePrevue,
   });
 
   final FicheClient? fiche;
   final List<Commande> commandes;
 
+  /// Prochaine visite du planning du CRM chez ce client, s'il y en a une.
+  final VisitePrevue? visitePrevue;
+
   @override
   Widget build(BuildContext context) {
     final f = fiche;
+    final prevue = visitePrevue;
     final items = <TimelineItem>[
+      if (prevue != null)
+        TimelineItem(
+          icone: '📅',
+          titre: 'Visite prévue',
+          date: prevue.date,
+          detail: prevue.heure.isEmpty ? null : prevue.heure,
+        ),
       if (f != null)
         for (final v in f.visites.take(5))
           TimelineItem(

@@ -154,7 +154,7 @@ List<ElementSecteur> donneesSecteur(
   CrmEtat? etat,
   String moiNom = '',
 }) {
-  if (equipeServeur() != null) {
+  if (equipeServeur() != null || DemoTemps.reel) {
     return etat == null ? const [] : donneesSecteurReelles(genre, etat, moiNom);
   }
   final liste = <ElementSecteur>[];

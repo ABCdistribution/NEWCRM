@@ -69,7 +69,14 @@ class _PromoteurScreenState extends State<PromoteurScreen> {
         ],
       );
     }
-    final p = promoteurParNom(widget.nom)!;
+    final demo = promoteurParNom(widget.nom);
+    if (demo == null || DemoTemps.reel) {
+      return const PageUnivers(
+        entete: TopbarEcran(titre: 'Promoteur'),
+        enfants: [Vide('Promoteur introuvable.')],
+      );
+    }
+    final p = demo;
     final a = activitePromoteur(
       nom: p.nom,
       visitesPrevues: p.v,

@@ -56,12 +56,16 @@ Alerte? alerteDepuisNotification(Map<String, dynamic> j) {
   final de = emetteur is Map && emetteur['displayName'] is String
       ? '${emetteur['displayName']} · '
       : '';
+  final id = j['id'];
+  final clientId = j['clientId'];
   return Alerte(
+    magasinId: clientId is String && clientId.isNotEmpty ? clientId : null,
     niveau: NiveauAlerte.haut,
     icone: '💬',
     titre: titre.trim(),
     classe: '',
     detail: '$de${message is String ? message.trim() : ''}',
     rang: 5,
+    notificationId: id is String && id.isNotEmpty ? id : null,
   );
 }

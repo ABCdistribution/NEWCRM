@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../auth/session.dart';
 import '../logic/logic.dart';
 import '../sync/catalogue_provider.dart';
 import '../sync/domaines_provider.dart';
@@ -23,7 +24,10 @@ class CrmNotifier extends Notifier<CrmEtat> {
     ref.watch(equipeProvider.select((e) => (e.nb, e.majLe)));
     ref.watch(performanceProvider.select((e) => (e.nb, e.majLe)));
     ref.watch(planningSynchroProvider.select((e) => (e.nb, e.majLe)));
-    return CrmEtat.initial(ref.watch(roleActifProvider));
+    return CrmEtat.initial(
+      ref.watch(roleActifProvider),
+      nomUtilisateur: ref.watch(sessionProvider.select((u) => u?.nomAffiche)),
+    );
   }
 
   /// Mutation générique : `mutate((etat) => etat.copyWith(prospects: [...]))`.
@@ -102,10 +106,29 @@ class CrmNotifier extends Notifier<CrmEtat> {
   /// (maquette : `startVisite`). N'ouvre aucun écran : voir `AppRoutes.demarrerVisite`.
   String demarrerVisite(String magasinId) {
     for (final v in state.visites) {
-      if (v.magasinId == magasinId && v.etat == EtatVisite.brouillon) {
+      if (v.magasinId == magasinId &&
+          v.etat == EtatVisite.brouillon &&
+          !v.estPem) {
         return v.id;
       }
     }
+    return _creerBrouillon(magasinId);
+  }
+
+  /// Démarre la visite PEM qui répond à une proposition du CRM : renvoie l'id du brouillon déjà lié à cette
+  /// proposition, ou crée un brouillon de type PEM. N'ouvre aucun écran : voir `AppRoutes.demarrerVisitePem`.
+  String demarrerVisitePem(String magasinId, String propositionPemId) {
+    for (final v in state.visites) {
+      if (v.estPem &&
+          v.propositionPemId == propositionPemId &&
+          v.etat == EtatVisite.brouillon) {
+        return v.id;
+      }
+    }
+    return _creerBrouillon(magasinId, propositionPemId: propositionPemId);
+  }
+
+  String _creerBrouillon(String magasinId, {String? propositionPemId}) {
     final num = state.prochainNumVisite;
     final visite = Visite(
       id: 'v$num',
@@ -121,6 +144,10 @@ class CrmNotifier extends Notifier<CrmEtat> {
         EtapeDph.rayonArrivee: 0,
         EtapeDph.rayonFin: 0,
       },
+      typeVisite: propositionPemId == null
+          ? TypeVisite.commerciale
+          : TypeVisite.pem,
+      propositionPemId: propositionPemId,
     );
     mutate(
       (e) => e.copyWith(

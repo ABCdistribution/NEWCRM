@@ -54,7 +54,11 @@ void completerVisite(WidgetTester tester, String id) {
       .majVisite(
         id,
         (v) => v.copyWith(
-          chrono: {for (final e in EtapeDph.values) e: '04/11/2026 14h30'},
+          chrono: {
+            for (final e in EtapeDph.values)
+              if (e != EtapeDph.indispensables && e != EtapeDph.articlesPem)
+                e: '04/11/2026 14h30',
+          },
           photos: const {
             EtapeDph.arrivee: 1,
             EtapeDph.rayonArrivee: 1,

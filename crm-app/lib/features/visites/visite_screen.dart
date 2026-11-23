@@ -1,6 +1,9 @@
+import 'dart:math';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/data/referentiels_visite.dart';
 import '../../core/models/models.dart';
 import '../../core/nav/nav.dart';
 import '../../core/state/state.dart';
@@ -12,8 +15,10 @@ import 'parcours_etapes.dart';
 import 'kilometrage_dialog.dart';
 import 'logic/visites_logique.dart';
 import 'state/actions_visite.dart';
+import 'state/briefing_magasin.dart';
 import 'state/kilometrage.dart';
 import 'widgets/badge_visite.dart';
+import 'widgets/briefing_visite.dart';
 
 /// Écran d'une visite (écran empilé `visite`) : parcours « Précédent / Suivant » si c'est un brouillon, compte rendu
 /// sinon. Maquette : visiteEtapes l.1261-1280 (brouillon) et compteRendu l.1313-1333.
@@ -79,36 +84,66 @@ class _ParcoursVisite extends ConsumerStatefulWidget {
 }
 
 class _ParcoursVisiteState extends ConsumerState<_ParcoursVisite> {
-  static final List<EtapeDph> _etapes = EtapeDph.parcours;
+  /// Produits indispensables du magasin ; l'étape n'est proposée que si la liste n'est pas vide (visite commerciale).
+  List<ProduitIndispensable> get _indispensables => widget.visite.estPem
+      ? const []
+      : ref
+                .read(produitsIndispensablesProvider(widget.visite.magasinId))
+                .value ??
+            const [];
 
-  /// Étape affichée : la première non encore validée à l'ouverture.
-  late int _index = () {
-    final i = _etapes.indexWhere((e) => !widget.visite.etapeFaite(e));
-    return i < 0 ? _etapes.length - 1 : i;
+  /// Articles PEM à vérifier (visite PEM) ; l'étape n'est proposée que si la liste est connue et non vide.
+  List<ArticlePem> get _articlesPem =>
+      ref.read(articlesPemProvider).value ?? const [];
+
+  List<EtapeDph> get _etapes => widget.visite.estPem
+      ? EtapeDph.parcoursPemPour(articles: _articlesPem.isNotEmpty)
+      : EtapeDph.parcoursPour(indispensables: _indispensables.isNotEmpty);
+
+  /// Étape affichée : la première non encore validée à l'ouverture. Elle est retenue par sa nature, non par son rang,
+  /// pour que l'arrivée tardive de la liste des indispensables ne change pas d'étape.
+  late EtapeDph _etape = () {
+    final etapes = _etapes;
+    return etapes.firstWhere(
+      (e) => !widget.visite.etapeFaite(e),
+      orElse: () => etapes.last,
+    );
   }();
+
+  /// Briefing du magasin : déplié sur la première étape, replié dès qu'on avance.
+  late bool _briefingOuvert = _etape == EtapeDph.arrivee;
+
+  int get _index => max(0, _etapes.indexOf(_etape));
 
   ActionsVisite get _actions =>
       ActionsVisite(ref.read(crmProvider.notifier), widget.visite.id);
 
   void _suivant() {
-    final e = _etapes[_index];
-    final visite = ref.read(visiteParIdProvider(widget.visite.id)) ?? widget.visite;
+    final etapes = _etapes;
+    final e = etapes[_index];
+    final visite =
+        ref.read(visiteParIdProvider(widget.visite.id)) ?? widget.visite;
     final erreur = erreurEtape(
       visite,
       e,
       questions: ref.read(questionnaireProvider).value ?? const [],
       raisonsDisponibles:
           (ref.read(raisonsAbsenceProvider).value ?? const []).isNotEmpty,
+      indispensables: _indispensables,
+      articlesPem: _articlesPem,
     );
     if (erreur != null) {
       AppToast.show(context, erreur);
       return;
     }
     _actions.enregistrerEtape(e);
-    if (_index == _etapes.length - 1) {
+    if (_index == etapes.length - 1) {
       AppRoutes.validerVisite(context, widget.visite.id);
     } else {
-      setState(() => _index++);
+      setState(() {
+        _etape = etapes[_index + 1];
+        _briefingOuvert = false;
+      });
     }
   }
 
@@ -117,23 +152,40 @@ class _ParcoursVisiteState extends ConsumerState<_ParcoursVisite> {
     // Le parcours reste à jour quand le CRM livre le questionnaire, les raisons ou les promotions.
     ref.watch(questionnaireProvider);
     ref.watch(raisonsAbsenceProvider);
-    ref.watch(promosOpProvider);
-    final visite = ref.watch(visiteParIdProvider(widget.visite.id)) ?? widget.visite;
-    final etape = _etapes[_index];
-    final derniere = _index == _etapes.length - 1;
+    if (widget.visite.estPem) {
+      ref.watch(articlesPemProvider);
+    } else {
+      ref.watch(produitsIndispensablesProvider(widget.visite.magasinId));
+    }
+    final etapes = _etapes;
+    final visite =
+        ref.watch(visiteParIdProvider(widget.visite.id)) ?? widget.visite;
+    final etape = etapes[_index];
+    final derniere = _index == etapes.length - 1;
     final nom = ref.watch(magasinParIdProvider(visite.magasinId))?.nom ?? '';
+    final avecBriefing = !ref
+        .watch(briefingMagasinProvider(visite.magasinId))
+        .vide;
     return PageUnivers(
       entete: _EnteteVisite(
         visite: visite,
         nomClient: nom,
         etape: _index + 1,
-        total: _etapes.length,
+        total: etapes.length,
+        onBriefing: avecBriefing
+            ? () => ouvrirBriefing(context, visite.magasinId)
+            : null,
       ),
       enfants: [
+        BlocBriefing(
+          magasinId: visite.magasinId,
+          ouvert: _briefingOuvert,
+          onBasculer: () => setState(() => _briefingOuvert = !_briefingOuvert),
+        ),
         Padding(
           padding: const EdgeInsets.only(bottom: 14),
           child: Text(
-            etape.libelle,
+            etape.libellePour(visite.typeVisite),
             style: AppText.t(18, w: FontWeight.w800, h: 1.25),
           ),
         ),
@@ -148,7 +200,7 @@ class _ParcoursVisiteState extends ConsumerState<_ParcoursVisite> {
                 '‹ Précédent',
                 variante: VarianteBouton.clair,
                 pleineLargeur: false,
-                onPressed: () => setState(() => _index--),
+                onPressed: () => setState(() => _etape = etapes[_index - 1]),
               ),
               const SizedBox(width: 10),
             ],
@@ -174,10 +226,14 @@ class _EnteteVisite extends StatelessWidget {
     required this.nomClient,
     required this.etape,
     required this.total,
+    this.onBriefing,
   });
 
   final Visite visite;
   final String nomClient;
+
+  /// Ouvre la feuille du briefing ; nul quand le magasin n'a rien à montrer.
+  final VoidCallback? onBriefing;
 
   /// Rang de l'étape affichée (à partir de 1).
   final int etape;
@@ -219,6 +275,23 @@ class _EnteteVisite extends StatelessWidget {
                   ],
                 ),
               ),
+              if (onBriefing != null) ...[
+                GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onTap: onBriefing,
+                  child: const Padding(
+                    padding: EdgeInsets.symmetric(vertical: 6),
+                    child: Pastille(
+                      'Briefing',
+                      variante: VariantePastille.bleu,
+                    ),
+                  ),
+                ),
+              ],
+              if (visite.estPem) ...[
+                const BadgePem(),
+                const SizedBox(width: 2),
+              ],
               BadgeVisite(visite.etat),
             ],
           ),
@@ -227,7 +300,10 @@ class _EnteteVisite extends StatelessWidget {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text('Visite', style: AppText.t(12, w: FontWeight.w700)),
+                Text(
+                  visite.estPem ? 'Visite PEM' : 'Visite',
+                  style: AppText.t(12, w: FontWeight.w700),
+                ),
                 Text(
                   'Étape $etape / $total',
                   style: AppText.t(12, c: AppColors.muted),

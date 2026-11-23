@@ -88,7 +88,7 @@ final filtresClientsProvider =
 List<Magasin> baseClients(CrmEtat etat, PorteeClients portee) {
   if (etat.role == Role.dir) {
     return portee == PorteeClients.mes
-        ? [...etat.tousMagasins, ...autresClients]
+        ? [...etat.tousMagasins, ...autresClientsActuels()]
         : etat.tousMagasins;
   }
   return portee == PorteeClients.mes ? etat.magasins : etat.tousMagasins;
