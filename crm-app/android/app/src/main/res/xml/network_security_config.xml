@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<network-security-config>
+    <!-- L'API du CRM est servie en HTTP (port 80) sur le domaine de staging : le clair n'est autorisé que pour lui. -->
+    <domain-config cleartextTrafficPermitted="true">
+        <domain includeSubdomains="false">staging.abcosmetique.com</domain>
+    </domain-config>
+</network-security-config>

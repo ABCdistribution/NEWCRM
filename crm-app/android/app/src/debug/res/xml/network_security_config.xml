@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<network-security-config>
+    <!-- Build debug : le HTTP en clair reste permis partout (API de développement sur le réseau local). -->
+    <base-config cleartextTrafficPermitted="true" />
+</network-security-config>
