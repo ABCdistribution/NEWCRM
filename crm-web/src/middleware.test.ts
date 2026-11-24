@@ -24,11 +24,18 @@ describe('middleware : sans cookie de session', () => {
     expect(cible.searchParams.get('from')).toBe('/rapports?semaine=2026-01-05');
   });
 
-  it('la redirection est RELATIVE : jamais l\'hôte d\'écoute (localhost:3001) derrière le reverse proxy', () => {
-    const location = middleware(requete('/rapports')).headers.get('location')!;
+  it('derrière le reverse proxy : la redirection reprend l\'hôte et le protocole publics, pas localhost:3001', () => {
+    const res = middleware(requete('/rapports', {
+      entetes: { host: 'staging.abcosmetique.com', 'x-forwarded-host': 'staging.abcosmetique.com', 'x-forwarded-proto': 'https' },
+    }));
 
-    expect(location.startsWith('/login?')).toBe(true);
-    expect(location).not.toContain('localhost');
+    expect(res.headers.get('location')).toBe('https://staging.abcosmetique.com/login?from=%2Frapports');
+  });
+
+  it('ignore un en-tête d\'hôte invalide (retombe sur l\'hôte de la requête)', () => {
+    const res = middleware(requete('/rapports', { entetes: { 'x-forwarded-host': 'evil.example/chemin' } }));
+
+    expect(res.headers.get('location')).not.toContain('evil.example');
   });
 
   it('la cible ne retient pas le paramètre interne _rsc des navigations côté client', () => {

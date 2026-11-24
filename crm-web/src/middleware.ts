@@ -16,6 +16,18 @@ function cheminDemande(pathname: string, search: string): string {
   return requete ? `${pathname}?${requete}` : pathname;
 }
 
+/** Hôte public vu par le navigateur (reverse proxy), sinon null. Valeur validée : un nom d'hôte et un port, rien d'autre. */
+function hoteDemande(req: NextRequest): string | null {
+  const brut = (req.headers.get('x-forwarded-host') ?? req.headers.get('host') ?? '').split(',')[0].trim();
+  return /^[a-z0-9.-]+(:\d{1,5})?$/i.test(brut) ? brut : null;
+}
+
+/** Protocole public : `x-forwarded-proto` posé par le proxy, http par défaut. */
+function protocoleDemande(req: NextRequest): string {
+  const brut = (req.headers.get('x-forwarded-proto') ?? '').split(',')[0].trim().toLowerCase();
+  return brut === 'https' ? 'https:' : 'http:';
+}
+
 /**
  * Pré-filtre GROSSIER : présence du cookie de session, rien d'autre.
  * Il ne valide pas le jeton et ne décide pas du rôle : c'est le layout serveur (lireSession) et
@@ -36,11 +48,22 @@ export function middleware(req: NextRequest) {
 
   // Non connecté → tout sauf les pages publiques / assets renvoie vers /login (en gardant la cible).
   if (!token && !isPublic && !isAsset) {
-    // Redirection RELATIVE : NextResponse.redirect exige une URL absolue, construite à partir de l'hôte
-    // d'écoute de `next start` (-H 127.0.0.1) et non de l'hôte public derrière le reverse proxy, ce qui
-    // renvoyait le navigateur vers http://localhost:3001/login.
-    const cible = new URLSearchParams({ from: chemin });
-    return new NextResponse(null, { status: 307, headers: { Location: `/login?${cible.toString()}` } });
+    // NextResponse.redirect exige une URL ABSOLUE (une adresse relative lève « Invalid URL »). Or req.nextUrl
+    // reprend l'hôte d'écoute de `next start` (-H 127.0.0.1) : derrière le reverse proxy, le navigateur était
+    // renvoyé vers http://localhost:3001/login. On reconstruit donc l'origine à partir de l'hôte public
+    // transmis par le proxy.
+    const url = req.nextUrl.clone();
+    const hote = hoteDemande(req);
+    if (hote) {
+      const [nom, port = ''] = hote.split(':');
+      url.protocol = protocoleDemande(req);
+      url.hostname = nom;
+      url.port = port;
+    }
+    url.pathname = '/login';
+    url.search = '';
+    url.searchParams.set('from', chemin);
+    return NextResponse.redirect(url);
   }
 
   // NB : on NE renvoie JAMAIS un utilisateur « avec cookie » de /login vers /.
