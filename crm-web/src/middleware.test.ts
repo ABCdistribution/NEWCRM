@@ -19,15 +19,22 @@ describe('middleware : sans cookie de session', () => {
     const res = middleware(requete('/rapports?semaine=2026-01-05'));
 
     expect(res.status).toBe(307);
-    const cible = new URL(res.headers.get('location')!);
+    const cible = new URL(res.headers.get('location')!, 'http://exemple.test');
     expect(cible.pathname).toBe('/login');
     expect(cible.searchParams.get('from')).toBe('/rapports?semaine=2026-01-05');
+  });
+
+  it('la redirection est RELATIVE : jamais l\'hôte d\'écoute (localhost:3001) derrière le reverse proxy', () => {
+    const location = middleware(requete('/rapports')).headers.get('location')!;
+
+    expect(location.startsWith('/login?')).toBe(true);
+    expect(location).not.toContain('localhost');
   });
 
   it('la cible ne retient pas le paramètre interne _rsc des navigations côté client', () => {
     const res = middleware(requete('/rapports?semaine=2026-01-05&_rsc=abc12'));
 
-    expect(new URL(res.headers.get('location')!).searchParams.get('from')).toBe('/rapports?semaine=2026-01-05');
+    expect(new URL(res.headers.get('location')!, 'http://exemple.test').searchParams.get('from')).toBe('/rapports?semaine=2026-01-05');
   });
 
   it('laisse passer /login et les fichiers statiques', () => {

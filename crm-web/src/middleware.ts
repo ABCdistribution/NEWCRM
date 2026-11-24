@@ -36,11 +36,11 @@ export function middleware(req: NextRequest) {
 
   // Non connecté → tout sauf les pages publiques / assets renvoie vers /login (en gardant la cible).
   if (!token && !isPublic && !isAsset) {
-    const url = req.nextUrl.clone();
-    url.pathname = '/login';
-    url.search = '';
-    url.searchParams.set('from', chemin);
-    return NextResponse.redirect(url);
+    // Redirection RELATIVE : NextResponse.redirect exige une URL absolue, construite à partir de l'hôte
+    // d'écoute de `next start` (-H 127.0.0.1) et non de l'hôte public derrière le reverse proxy, ce qui
+    // renvoyait le navigateur vers http://localhost:3001/login.
+    const cible = new URLSearchParams({ from: chemin });
+    return new NextResponse(null, { status: 307, headers: { Location: `/login?${cible.toString()}` } });
   }
 
   // NB : on NE renvoie JAMAIS un utilisateur « avec cookie » de /login vers /.
