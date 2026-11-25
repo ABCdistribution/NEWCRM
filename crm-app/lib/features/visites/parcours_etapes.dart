@@ -2,7 +2,6 @@ import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:image_picker/image_picker.dart';
 
 import '../../core/data/referentiels_visite.dart';
 import '../../core/models/models.dart';
@@ -52,7 +51,8 @@ class CorpsEtape extends ConsumerWidget {
 
 // ---- Photos ------------------------------------------------------------------
 
-/// Photos d'une étape : miniatures déjà prises, « Prendre une photo » (appareil photo du téléphone), suppression.
+/// Photo d'une étape (une seule) : miniature, « Prendre une photo » puis « Reprendre la photo » (remplace l'ancienne,
+/// appareil photo du téléphone), suppression.
 class PhotosEtape extends ConsumerStatefulWidget {
   const PhotosEtape({super.key, required this.visite, required this.etape});
 
@@ -64,7 +64,6 @@ class PhotosEtape extends ConsumerStatefulWidget {
 }
 
 class _PhotosEtapeState extends ConsumerState<PhotosEtape> {
-  final ImagePicker _picker = ImagePicker();
   bool _occupe = false;
 
   ActionsVisite get _actions =>
@@ -76,20 +75,19 @@ class _PhotosEtapeState extends ConsumerState<PhotosEtape> {
     _recupererPerdue();
   }
 
-  /// Android peut fermer l'application pendant que l'appareil photo est ouvert : on récupère alors la photo prise.
+  /// Android peut fermer l'application pendant que l'appareil photo est ouvert : on récupère alors la photo prise
+  /// (elle remplace celle de l'étape, comme une reprise).
   Future<void> _recupererPerdue() async {
     try {
-      final r = await _picker.retrieveLostData();
-      final fichier = r.file;
-      if (r.isEmpty || fichier == null) return;
-      await _enregistrer(await fichier.readAsBytes());
+      final octets = await ref.read(captureurPhotoProvider).retrouverPerdue();
+      if (octets != null) await _enregistrer(octets);
     } catch (_) {}
   }
 
   Future<void> _enregistrer(List<int> octets) async {
     final ok = await ref
         .read(photosVisiteProvider(widget.visite.id).notifier)
-        .ajouter(widget.etape.cle, octets);
+        .remplacer(widget.etape.cle, octets);
     if (!mounted) return;
     if (!ok) {
       AppToast.show(context, 'Photo non enregistrée : base locale absente.');
@@ -102,13 +100,9 @@ class _PhotosEtapeState extends ConsumerState<PhotosEtape> {
     if (_occupe) return;
     setState(() => _occupe = true);
     try {
-      final fichier = await _picker.pickImage(
-        source: ImageSource.camera,
-        maxWidth: 1600,
-        maxHeight: 1600,
-        imageQuality: 80,
-      );
-      if (fichier != null) await _enregistrer(await fichier.readAsBytes());
+      // Prise annulée ou en échec : l'ancienne photo est conservée (rien n'est touché avant d'avoir la nouvelle).
+      final octets = await ref.read(captureurPhotoProvider).prendre();
+      if (octets != null) await _enregistrer(octets);
     } catch (_) {
       if (mounted) {
         AppToast.show(context, "L'appareil photo n'est pas disponible.");
@@ -118,29 +112,34 @@ class _PhotosEtapeState extends ConsumerState<PhotosEtape> {
     }
   }
 
-  Future<void> _supprimer(int id) async {
+  Future<void> _supprimer() async {
     await ref
         .read(photosVisiteProvider(widget.visite.id).notifier)
-        .supprimer(id);
+        .supprimer(widget.etape.cle);
     if (mounted) _actions.retirerPhoto(widget.etape);
   }
 
   @override
   Widget build(BuildContext context) {
-    final photos = [
-      for (final p in ref.watch(photosVisiteProvider(widget.visite.id)))
-        if (p.etape == widget.etape.cle) p,
-    ];
+    // Une étape ne porte qu'une photo : la plus récente.
+    final photo = ref
+        .watch(photosVisiteProvider(widget.visite.id))
+        .where((p) => p.etape == widget.etape.cle)
+        .lastOrNull;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         AppBouton(
-          _occupe ? 'Ouverture…' : '📷 Prendre une photo',
+          _occupe
+              ? 'Ouverture…'
+              : photo == null
+              ? '📷 Prendre une photo'
+              : '📷 Reprendre la photo',
           variante: VarianteBouton.plein,
           onPressed: _prendre,
         ),
         const SizedBox(height: 12),
-        if (photos.isEmpty)
+        if (photo == null)
           const Vide('Aucune photo pour cette étape.')
         else
           GridView.count(
@@ -150,11 +149,7 @@ class _PhotosEtapeState extends ConsumerState<PhotosEtape> {
             shrinkWrap: true,
             physics: const NeverScrollableScrollPhysics(),
             children: [
-              for (final p in photos)
-                _Miniature(
-                  octets: p.octets,
-                  onSupprimer: () => _supprimer(p.id),
-                ),
+              _Miniature(octets: photo.octets, onSupprimer: _supprimer),
             ],
           ),
       ],

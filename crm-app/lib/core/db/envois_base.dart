@@ -59,7 +59,13 @@ extension EnvoisBase on AppDatabase {
       ),
     );
     if (photosDe != null) {
+      // Une photo par étape : la plus récente part ; les autres (brouillon ancien) restent sur le téléphone, rangées
+      // avec elle, et sont effacées à la purge de l'entrée.
+      final recentes = <String, PhotoVisiteLocale>{};
       for (final p in await photosDeVisite(photosDe)) {
+        recentes[p.etape] = p;
+      }
+      for (final p in recentes.values.toList()..sort((a, b) => a.id - b.id)) {
         await into(envoisFichiers).insert(
           EnvoisFichiersCompanion.insert(
             envoiId: id,
@@ -231,6 +237,9 @@ extension EnvoisBase on AppDatabase {
             .get();
     for (final e in anciens) {
       await (delete(envoisFichiers)..where((t) => t.envoiId.equals(e.id))).go();
+      await (delete(
+        photosVisite,
+      )..where((t) => t.visiteId.equals(refPhotosEnvoi(e.cle)))).go();
       await (delete(envoisEnAttente)..where((t) => t.id.equals(e.id))).go();
     }
   });

@@ -225,8 +225,37 @@ class AppDatabase extends _$AppDatabase {
     ),
   );
 
+  /// Une étape ne porte qu'une photo : enregistre la nouvelle puis efface les précédentes de l'étape, en une
+  /// transaction (si l'écriture échoue, l'ancienne photo reste).
+  Future<void> remplacerPhotoVisite(
+    String visiteId,
+    String etape,
+    List<int> octets,
+  ) => transaction(() async {
+    final id = await into(photosVisite).insert(
+      PhotosVisiteCompanion.insert(
+        visiteId: visiteId,
+        etape: etape,
+        octets: Uint8List.fromList(octets),
+      ),
+    );
+    await (delete(photosVisite)..where(
+          (t) =>
+              t.visiteId.equals(visiteId) &
+              t.etape.equals(etape) &
+              t.id.isSmallerThanValue(id),
+        ))
+        .go();
+  });
+
   Future<void> supprimerPhotoVisite(int id) =>
       (delete(photosVisite)..where((t) => t.id.equals(id))).go();
+
+  /// Efface toutes les photos d'une étape de la visite (remet l'étape à zéro photo).
+  Future<void> supprimerPhotosEtapeVisite(String visiteId, String etape) =>
+      (delete(photosVisite)
+            ..where((t) => t.visiteId.equals(visiteId) & t.etape.equals(etape)))
+          .go();
 
   /// Clé de métadonnée de la date du dernier téléchargement d'un domaine.
   static String cleMajDomaine(String domaine) => 'maj_$domaine';

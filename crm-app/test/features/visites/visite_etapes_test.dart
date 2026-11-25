@@ -233,17 +233,16 @@ void main() {
       expect(v.photos[EtapeDph.arrivee], 1);
       expect(v.chrono[EtapeDph.arrivee], '04/11/2026 14h27');
 
-      // une deuxième photo s'ajoute sans changer l'horodatage
+      // reprendre la photo la remplace : le compteur reste à 1, sans changer l'horodatage
       actions.ajouterPhoto(EtapeDph.arrivee);
       await tester.pumpAndSettle();
       v = visite(tester, id);
-      expect(v.photos[EtapeDph.arrivee], 2);
+      expect(v.photos[EtapeDph.arrivee], 1);
       expect(v.chrono[EtapeDph.arrivee], '04/11/2026 14h27');
 
-      // supprimer une photo en retire une, jamais sous zéro
+      // supprimer la photo remet l'étape à zéro (jamais sous zéro)
       actions.retirerPhoto(EtapeDph.arrivee);
-      expect(visite(tester, id).photos[EtapeDph.arrivee], 1);
-      actions.retirerPhoto(EtapeDph.arrivee);
+      expect(visite(tester, id).photos[EtapeDph.arrivee], 0);
       actions.retirerPhoto(EtapeDph.arrivee);
       expect(visite(tester, id).photos[EtapeDph.arrivee], 0);
       actions.ajouterPhoto(EtapeDph.arrivee);

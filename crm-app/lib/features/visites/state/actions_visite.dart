@@ -15,19 +15,15 @@ class ActionsVisite {
   Map<EtapeDph, String> _horodater(Visite v, EtapeDph e) =>
       v.etapeFaite(e) ? v.chrono : {...v.chrono, e: prochainHorodatage(v)};
 
-  /// Une photo de plus à une étape photo ; la première horodate l'étape (`v-etape`).
+  /// L'étape photo porte une photo (une seule : une reprise remplace l'ancienne, le compteur reste à 1) ; la première
+  /// horodate l'étape (`v-etape`).
   void ajouterPhoto(EtapeDph e) => _maj(
-    (v) => v.copyWith(
-      photos: {...v.photos, e: (v.photos[e] ?? 0) + 1},
-      chrono: _horodater(v, e),
-    ),
+    (v) => v.copyWith(photos: {...v.photos, e: 1}, chrono: _horodater(v, e)),
   );
 
-  /// Une photo de moins à une étape photo (la photo supprimée de l'appareil).
-  void retirerPhoto(EtapeDph e) => _maj((v) {
-    final n = (v.photos[e] ?? 0) - 1;
-    return v.copyWith(photos: {...v.photos, e: n < 0 ? 0 : n});
-  });
+  /// Plus de photo à l'étape (la photo supprimée de l'appareil) : l'étape redevient bloquante.
+  void retirerPhoto(EtapeDph e) =>
+      _maj((v) => v.copyWith(photos: {...v.photos, e: 0}));
 
   /// Horodate l'étape si elle ne l'est pas encore (`v-etape-ok`).
   void enregistrerEtape(EtapeDph e) =>

@@ -67,10 +67,12 @@ void main() {
     String utilisateur = 'u',
   }) async {
     for (var i = 0; i < nbPhotos; i++) {
-      await base.ajouterPhotoVisite(locale, i == 0 ? 'arrivee' : 'rayonFin', [
-        ..._jpeg,
-        i,
-      ]);
+      // Une photo par étape (jusqu'à trois).
+      await base.ajouterPhotoVisite(
+        locale,
+        const ['arrivee', 'rayonFin', 'rayonArrivee'][i],
+        [..._jpeg, i],
+      );
     }
     return file.enfilerVisite(
       utilisateurId: utilisateur,
@@ -248,6 +250,43 @@ void main() {
           await base.fichiersDeEnvoi((await base.envoisDe('u')).last.id),
           hasLength(1),
         );
+      },
+    );
+
+    test(
+      'plusieurs photos pour une étape (ancien brouillon) : seule la plus récente part',
+      () async {
+        await base.ajouterPhotoVisite('v218093', 'arrivee', [..._jpeg, 1]);
+        await base.ajouterPhotoVisite('v218093', 'rayonArrivee', [..._jpeg, 2]);
+        await base.ajouterPhotoVisite('v218093', 'arrivee', [..._jpeg, 3]);
+        final e = await file.enfilerVisite(
+          utilisateurId: 'u',
+          idApk: 'Vabc',
+          corps: _visite('Vabc'),
+          visiteLocaleId: 'v218093',
+        );
+        final fichiers = await base.fichiersDeEnvoi(e.id);
+        expect(fichiers.map((f) => f.etape), ['rayonArrivee', 'arrivee']);
+        // Rien n'est perdu avant l'envoi : les trois photos restent sur le téléphone.
+        expect(await base.photosDeVisite(refPhotosEnvoi('Vabc')), hasLength(3));
+
+        await file.vider('u');
+        expect(serveur.photos, hasLength(2));
+        expect(serveur.photos.values.map((p) => p['etape']).toSet(), {
+          'arrivee',
+          'rayonArrivee',
+        });
+        expect(serveur.photos.values.every((p) => p['taille'] == 8), isTrue);
+        final restantes = await base.photosDeVisite(refPhotosEnvoi('Vabc'));
+        expect(restantes.single.octets, [
+          ..._jpeg,
+          1,
+        ]); // l'ancienne photo, jamais envoyée
+        expect((await base.envoisDe('u')).single.etat, EtatEnvoi.envoye);
+
+        // La purge de l'entrée envoyée efface aussi l'ancienne photo.
+        await base.purgerEnvoisEnvoyes(DateTime(2026, 12));
+        expect(await base.photosDeVisite(refPhotosEnvoi('Vabc')), isEmpty);
       },
     );
 
