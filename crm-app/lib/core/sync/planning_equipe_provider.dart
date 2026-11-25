@@ -85,10 +85,10 @@ Stream<T?> _avecCopie<T>(
 /// Un promoteur (`promoteur` vrai) : ses visites planifiées (`GET /plannings`) ; un chef de secteur ou un directeur
 /// régional : sa tournée (`GET /tournees/user/:id`, lecture seule). Nul quand rien n'est lisible.
 final planningUtilisateurProvider =
-    StreamProvider.family<List<EtapePlanning>?, ({String userId, bool promoteur})>((
-      ref,
-      cle,
-    ) {
+    StreamProvider.family<
+      List<EtapePlanning>?,
+      ({String userId, bool promoteur})
+    >((ref, cle) {
       if (!_uuid.hasMatch(cle.userId)) return Stream.value(null);
       final lundi = DemoTemps.lundi;
       final f = fenetrePlanning(lundi);
@@ -167,7 +167,10 @@ final rapportPersonnelProvider = StreamProvider.family<RapportEquipe?, String>((
     domaine: _domaineRapportPerso,
     id: lundiIso,
     charger: (api) async => {
-      'semaine': await api.get('/tournees/semaine', query: {'semaine': lundiIso}),
+      'semaine': await api.get(
+        '/tournees/semaine',
+        query: {'semaine': lundiIso},
+      ),
       'prevue': await api.get(
         '/tournees/semaine/prevue',
         query: {'semaine': lundiIso},

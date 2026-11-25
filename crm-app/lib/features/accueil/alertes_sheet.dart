@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/api/erreur_api.dart';
+import '../../core/logic/classes.dart';
 import '../../core/models/models.dart';
 import '../../core/nav/nav.dart';
 import '../../core/state/state.dart';
@@ -49,7 +50,10 @@ class AlertesSheet extends ConsumerWidget {
         else
           for (final a in alertes)
             _CarteAlerte(
-              alerte: a,
+              // Une notification du CRM n'a pas de classe : on prend celle du client visé.
+              alerte: a.classe.isEmpty && a.magasinId != null
+                  ? a.avecClasse(ref.watch(classeMagasinProvider(a.magasinId!)))
+                  : a,
               onTap: () => a.estNotification
                   ? _marquerLue(context, ref, a)
                   : _ouvrir(context, a),
@@ -127,8 +131,11 @@ class _CarteAlerte extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final haut = alerte.niveau == NiveauAlerte.haut;
-    final classe =
-        '${alerte.estProspect ? 'Prospect · ' : ''}Classe ${alerte.classe}';
+    final lettre = classeValide(alerte.classe);
+    final classe = [
+      if (alerte.estProspect) 'Prospect',
+      if (lettre.isNotEmpty) 'Classe $lettre',
+    ].join(' · ');
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),
       child: GestureDetector(
@@ -174,7 +181,7 @@ class _CarteAlerte extends StatelessWidget {
                             alerte.titre,
                             style: AppText.t(14, w: FontWeight.w700),
                           ),
-                          if (alerte.classe.isNotEmpty)
+                          if (classe.isNotEmpty)
                             Pastille(classe, variante: VariantePastille.client),
                         ],
                       ),

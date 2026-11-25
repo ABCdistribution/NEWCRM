@@ -1,7 +1,15 @@
-import 'package:flutter/material.dart';
+import 'dart:async';
 
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import '../../core/envoi/corps_activite.dart';
+import '../../core/envoi/corps_visite.dart';
+import '../../core/envoi/envoi_provider.dart';
 import '../../core/theme/theme.dart';
 import '../../core/ui/ui.dart';
+import 'state/droits_magasin.dart';
 
 /// Ouvre le dialogue « Nouvelle note ». Maquette : modale `note` l.1836-1838 et action `note-ok` l.2032.
 /// Appelée par `AppRoutes.noteClient(context, magasinId)`.
@@ -15,17 +23,19 @@ Future<void> ouvrirNoteClient(BuildContext context, String magasinId) =>
 ///
 /// Comme dans la maquette, une note vide n'est pas enregistrée (le dialogue reste ouvert, la zone est vidée) et la
 /// note d'un client n'ajoute rien à sa fiche : seul le toast confirme (l'ajout à la timeline ne concerne que les prospects).
-class NoteClientDialog extends StatefulWidget {
+/// Connecté, la note part au CRM par la file d'envoi (`POST /clients/:id/notes`, idempotent par `idApk`, rejouée hors
+/// connexion) et la fiche est relue une fois partie.
+class NoteClientDialog extends ConsumerStatefulWidget {
   const NoteClientDialog({super.key, required this.magasinId});
 
   /// Client concerné.
   final String magasinId;
 
   @override
-  State<NoteClientDialog> createState() => _NoteClientDialogState();
+  ConsumerState<NoteClientDialog> createState() => _NoteClientDialogState();
 }
 
-class _NoteClientDialogState extends State<NoteClientDialog> {
+class _NoteClientDialogState extends ConsumerState<NoteClientDialog> {
   final TextEditingController _texte = TextEditingController();
 
   @override
@@ -34,10 +44,22 @@ class _NoteClientDialogState extends State<NoteClientDialog> {
     super.dispose();
   }
 
-  void _enregistrer() {
+  bool _enCours = false;
+
+  Future<void> _enregistrer() async {
+    if (_enCours) return;
     if (_texte.text.trim().isEmpty) {
       _texte.clear();
       return;
+    }
+    if (ref.read(peutEcrireMagasinProvider) && estUuid(widget.magasinId)) {
+      _enCours = true;
+      await ref
+          .read(envoiProvider.notifier)
+          .enfilerActivite(
+            requeteNote(CibleActivite.client, widget.magasinId, _texte.text),
+          );
+      if (!mounted) return;
     }
     AppToast.show(
       context,
@@ -64,6 +86,7 @@ class _NoteClientDialogState extends State<NoteClientDialog> {
             autofocus: true,
             keyboardType: TextInputType.multiline,
             maxLines: null,
+            inputFormatters: [LengthLimitingTextInputFormatter(maxRemarque)],
             textAlignVertical: TextAlignVertical.top,
             style: AppText.champ,
             decoration: InputDecoration(
@@ -96,7 +119,7 @@ class _NoteClientDialogState extends State<NoteClientDialog> {
               'Enregistrer',
               petit: true,
               variante: VarianteBouton.plein,
-              onPressed: _enregistrer,
+              onPressed: () => unawaited(_enregistrer()),
             ),
           ],
         ),

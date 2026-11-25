@@ -118,7 +118,11 @@ List<ElementSecteur> donneesSecteurReelles(
   CrmEtat etat,
   String moiNom,
 ) {
-  String nomClient(String id) => etat.magasinParId(id)?.nom ?? '';
+  String nomClient(String id) {
+    final m = etat.magasinParId(id);
+    return m == null ? '' : nomEtClasse(m.nom, m.classe);
+  }
+
   if (genre == GenreSecteur.visites) {
     return [
       for (final v in [...etat.visites, ...etat.visitesAutresVisibles])

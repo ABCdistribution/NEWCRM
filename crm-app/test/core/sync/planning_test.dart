@@ -255,6 +255,25 @@ void main() {
       ]);
     });
 
+    test('classe du client : niveauClass de l’API, normalisé, sinon vide', () {
+      Map<String, dynamic> ligne(String id, Object? classe) => {
+        'id': id,
+        'datePassage': '2026-11-04T00:00:00.000Z',
+        'client': {..._carrefour, 'niveauClass': classe},
+        '_src': 'planning',
+      };
+      final p = planningDepuisJson([
+        ligne('a', 'd'),
+        ligne('b', '—'),
+        ligne('c', null),
+      ], _lundi);
+      expect(p.etapes.map((e) => (e.id, e.classe)), [
+        ('a', 'D'),
+        ('b', ''),
+        ('c', ''),
+      ]);
+    });
+
     test('lignes illisibles : ignorées', () {
       final p = planningDepuisJson([
         {'id': 'x', 'datePassage': 'n’importe quoi'},

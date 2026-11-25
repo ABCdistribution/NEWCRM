@@ -5,10 +5,42 @@ library;
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/auth/session.dart';
 import '../../../core/logic/dates.dart';
 import '../../../core/models/models.dart';
 import '../../../core/state/state.dart';
+import '../logic/actions_prospect.dart';
 import '../logic/vue_prospects.dart';
+
+/// Connecté, seuls le chef de secteur, le directeur régional et l'administrateur créent un prospect (l'API refuse la
+/// direction) ; en démonstration, tous les profils de l'encadrement le peuvent.
+final peutCreerProspectProvider = Provider<bool>(
+  (ref) =>
+      !DemoTemps.reel ||
+      const {
+        'CHEF_SECTEUR',
+        'DIRECTEUR_REGIONAL',
+        'ADMIN',
+      }.contains(ref.watch(sessionProvider.select((u) => u?.roleApi))),
+);
+
+/// Connecté, seuls les rôles dont l'API accepte la route notent un prospect, journalisent ses appels et e-mails (pas le
+/// promoteur) ; en démonstration, tous le peuvent.
+final peutNoterProspectProvider = Provider<bool>(
+  (ref) =>
+      !DemoTemps.reel ||
+      peutNoterProspect(ref.watch(sessionProvider.select((u) => u?.roleApi))),
+);
+
+/// Connecté, seuls les rôles dont l'API accepte la route changent l'étape d'un prospect et le passent en client (pas la
+/// direction, ni le promoteur) ; en démonstration, tous le peuvent.
+final peutFaireAvancerProspectProvider = Provider<bool>(
+  (ref) =>
+      !DemoTemps.reel ||
+      peutFaireAvancerProspect(
+        ref.watch(sessionProvider.select((u) => u?.roleApi)),
+      ),
+);
 
 /// Vue affichée : « Mes prospects » au départ.
 class VueProspectsNotifier extends Notifier<VueProspects> {

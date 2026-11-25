@@ -67,14 +67,30 @@ void main() {
       );
 
       testWidgets(
-        'un appui sur « ▦ » annonce que le scan n’est pas encore disponible',
+        'un appui sur « ▦ » ouvre le scan ; le produit lu ouvre sa fiche',
         (tester) async {
+          tester.platformDispatcher.accessibilityFeaturesTestValue =
+              const FakeAccessibilityFeatures(disableAnimations: true);
+          addTearDown(
+            tester.platformDispatcher.clearAccessibilityFeaturesTestValue,
+          );
           await ouvrirOngletPlus(tester, role, OngletApp.catalogue);
           await tester.tap(find.text('▦'));
-          await tester.pump();
-          expect(find.text(messageScan), findsOneWidget);
-          await laisserPasserToast(tester);
-          expect(find.text(messageScan), findsNothing);
+          await tester.pumpAndSettle();
+          expect(find.text('Scanner un produit'), findsOneWidget);
+          expect(
+            find.text(
+              'Pointez la caméra vers le code-barres (EAN) du produit.',
+            ),
+            findsOneWidget,
+          );
+          expect(find.text('Simuler un produit en rupture'), findsNothing);
+          await tester.tap(find.text('Simuler un scan'));
+          await tester.pumpAndSettle();
+          expect(find.text('Scanner un produit'), findsNothing);
+          // La fiche du produit lu s'ouvre : elle affiche son EAN.
+          expect(find.text('EAN'), findsOneWidget);
+          expect(tester.takeException(), isNull);
         },
       );
 

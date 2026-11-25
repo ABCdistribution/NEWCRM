@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../auth/session.dart';
+import '../envoi/corps_visite.dart' show estUuid;
 import '../logic/logic.dart';
 import '../sync/catalogue_provider.dart';
 import '../sync/domaines_provider.dart';
@@ -104,15 +105,31 @@ class CrmNotifier extends Notifier<CrmEtat> {
 
   /// Démarre une visite chez un client : renvoie l'id du brouillon existant, ou crée un brouillon
   /// (maquette : `startVisite`). N'ouvre aucun écran : voir `AppRoutes.demarrerVisite`.
-  String demarrerVisite(String magasinId) {
+  ///
+  /// `planningId` : identifiant de la visite planifiée (ligne de planning du CRM) d'où part la visite, quand elle part
+  /// de « Ma tournée du jour » ; ignoré s'il n'a pas la forme d'un UUID du CRM (démonstration). Sans lui, la visite est
+  /// rattachée à l'étape prévue du jour chez ce magasin quand elle existe et n'est pas faite (la première s'il y en a
+  /// plusieurs : voir `planningIdDuJour`), d'où qu'elle soit lancée. Un brouillon déjà ouvert garde son lien, ou
+  /// l'acquiert s'il n'en avait pas.
+  String demarrerVisite(String magasinId, {String? planningId}) {
+    final lien = estUuid(planningId)
+        ? planningId
+        : planningIdDuJour(
+            tournee: state.tournee,
+            lignes: [...state.planningFenetre, ...state.etapes],
+            magasinId: magasinId,
+          );
     for (final v in state.visites) {
       if (v.magasinId == magasinId &&
           v.etat == EtatVisite.brouillon &&
           !v.estPem) {
+        if (lien != null && v.planningId == null) {
+          majVisite(v.id, (x) => x.copyWith(planningId: lien));
+        }
         return v.id;
       }
     }
-    return _creerBrouillon(magasinId);
+    return _creerBrouillon(magasinId, planningId: lien);
   }
 
   /// Démarre la visite PEM qui répond à une proposition du CRM : renvoie l'id du brouillon déjà lié à cette
@@ -128,7 +145,11 @@ class CrmNotifier extends Notifier<CrmEtat> {
     return _creerBrouillon(magasinId, propositionPemId: propositionPemId);
   }
 
-  String _creerBrouillon(String magasinId, {String? propositionPemId}) {
+  String _creerBrouillon(
+    String magasinId, {
+    String? propositionPemId,
+    String? planningId,
+  }) {
     final num = state.prochainNumVisite;
     final visite = Visite(
       id: 'v$num',
@@ -148,6 +169,7 @@ class CrmNotifier extends Notifier<CrmEtat> {
           ? TypeVisite.commerciale
           : TypeVisite.pem,
       propositionPemId: propositionPemId,
+      planningId: planningId,
     );
     mutate(
       (e) => e.copyWith(

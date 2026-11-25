@@ -175,6 +175,26 @@ class CrmEtat {
   /// Client par id, dans le portefeuille, puis dans le secteur, puis dans les clients hors région (`getM`).
   Magasin? magasinParId(String id) => _index.parId[id];
 
+  /// Classe d'un client (« A » à « G ») d'après les clients synchronisés ; vide si inconnue.
+  String classeMagasin(String id) => classeValide(_index.parId[id]?.classe);
+
+  /// Classe du client ou du prospect visé par une ligne de planning : celle du client synchronisé, à défaut celle
+  /// que le CRM a donnée avec la ligne ; vide si inconnue.
+  String classeEtape(EtapePlanning e) {
+    final ref = e.ref;
+    if (ref == null) return '';
+    switch (e.cible) {
+      case CiblePlanning.client:
+        final c = classeMagasin(ref);
+        return c.isNotEmpty ? c : classeValide(e.classe);
+      case CiblePlanning.prospect:
+        return classeValide(prospectParId(ref)?.classe);
+      case CiblePlanning.adm:
+      case CiblePlanning.libre:
+        return '';
+    }
+  }
+
   _Index get _index => _indexes[this] ??= _Index(this);
 
   /// Le client fait-il partie des clients visibles du profil ?

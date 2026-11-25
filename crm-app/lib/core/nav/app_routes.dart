@@ -158,10 +158,17 @@ class AppRoutes {
 
   /// Démarre (ou reprend) une visite chez un client : crée le brouillon dans le store puis ouvre l'écran
   /// (maquette : `startVisite`).
-  static Future<void> demarrerVisite(BuildContext context, String magasinId) {
-    final id = _conteneur(
-      context,
-    ).read(crmProvider.notifier).demarrerVisite(magasinId);
+  ///
+  /// `planningId` : la visite planifiée du CRM d'où l'on part (carte de « Ma tournée du jour »), pour la solder à
+  /// l'envoi.
+  static Future<void> demarrerVisite(
+    BuildContext context,
+    String magasinId, {
+    String? planningId,
+  }) {
+    final id = _conteneur(context)
+        .read(crmProvider.notifier)
+        .demarrerVisite(magasinId, planningId: planningId);
     return visite(context, id);
   }
 
@@ -239,6 +246,10 @@ class AppRoutes {
   /// Feuille de scan simulé d'un code-barres (`cmd-scan`).
   static Future<void> scannerProduit(BuildContext context) =>
       ouvrirScanProduit(context);
+
+  /// Feuille de scan d'un code-barres depuis le catalogue : ouvre la fiche du produit lu.
+  static Future<void> scannerCatalogue(BuildContext context) =>
+      ouvrirScanCatalogue(context);
 
   /// Feuille de filtres de la prise de commande (`cmd-filtres`).
   static Future<void> filtresPriseCommande(BuildContext context) =>

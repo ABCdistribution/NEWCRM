@@ -9,12 +9,27 @@ class ContactClient {
     this.poste,
     this.telephone,
     this.mail,
+    this.id,
+    this.prenom,
+    this.nomFamille,
+    this.posteSaisi,
+    this.fixe,
+    this.portable,
   });
 
+  /// Nom complet (prénom et nom).
   final String nom;
   final String? poste;
   final String? telephone;
   final String? mail;
+
+  /// Identifiant du contact au CRM (pour le modifier ou le supprimer) et ses champs tels que saisis.
+  final String? id;
+  final String? prenom;
+  final String? nomFamille;
+  final String? posteSaisi;
+  final String? fixe;
+  final String? portable;
 }
 
 /// Note laissée sur un client.
@@ -145,6 +160,12 @@ FicheClient ficheClientDepuisJson(
         poste: _texte(c['poste']) ?? _texte(c['typePoste']),
         telephone: _texte(c['portable']) ?? _texte(c['fixe']),
         mail: _texte(c['mail']),
+        id: _texte(c['id']),
+        prenom: _texte(c['prenom']),
+        nomFamille: _texte(c['nom']),
+        posteSaisi: _texte(c['poste']),
+        fixe: _texte(c['fixe']),
+        portable: _texte(c['portable']),
       ),
     );
   }

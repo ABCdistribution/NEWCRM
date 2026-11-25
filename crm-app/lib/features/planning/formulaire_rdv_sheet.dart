@@ -1,14 +1,21 @@
+import 'dart:async';
 import 'dart:math';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/api/erreur_api.dart';
+import '../../core/data/equipe_serveur.dart';
 import '../../core/logic/logic.dart';
 import '../../core/models/models.dart';
 import '../../core/nav/nav.dart';
 import '../../core/state/state.dart';
+import '../../core/sync/catalogue_provider.dart';
+import '../../core/sync/domaines_provider.dart';
+import '../../core/sync/planning_equipe_provider.dart';
 import '../../core/theme/theme.dart';
 import '../../core/ui/ui.dart';
+import 'logic/envoi_planning.dart';
 import 'logic/logique_planning.dart';
 import 'state/planning_state.dart';
 import 'widgets/case_navigateur.dart';
@@ -52,7 +59,10 @@ Future<void> ouvrirFormulaireRdv(
 ///   étape (lieu et adresse obligatoires), observations. Depuis une fiche (`depuisFiche`) la cible est déjà choisie.
 /// - Sur le planning d'un promoteur (`planCible` = son nom) : uniquement une visite chez un client, avec une consigne.
 ///
-/// L'enregistrement ajoute ou modifie la ligne dans le store (`ajouterEtape`, `majEtape`, `supprimerEtape`).
+/// L'enregistrement ajoute ou modifie la ligne dans le store (`ajouterEtape`, `majEtape`, `supprimerEtape`). Connecté
+/// au CRM, une nouvelle ligne est envoyée (`POST /tournees` sur son planning, `POST /plannings` pour un promoteur) puis
+/// le planning est relu ; la feuille reste ouverte avec le message de l'API en cas d'échec, et le même `idApk` sert aux
+/// nouveaux essais.
 class FormulaireRdvSheet extends ConsumerStatefulWidget {
   const FormulaireRdvSheet({
     super.key,
@@ -127,7 +137,38 @@ class _FormulaireRdvSheetState extends ConsumerState<FormulaireRdvSheet> {
   bool _fait = false;
   String? _erreur;
 
+  /// Envoi au CRM en cours : le bouton est désactivé.
+  bool _envoi = false;
+
+  /// Identifiant d'idempotence de la soumission, tiré au premier envoi et gardé pour les nouveaux essais.
+  String? _idApk;
+
+  /// Promoteur choisi (identifiant CRM) pour planifier une visite chez un client depuis sa fiche ; nul = son planning.
+  String? _promoteurId;
+
   bool get _pourPromoteur => widget.planCible != null;
+
+  /// Connecté au CRM, nouvelle ligne : l'enregistrement part vers l'API.
+  bool get _versCrm => DemoTemps.reel && _edition == null;
+
+  /// La ligne vise un promoteur : planning ouvert pour lui, ou promoteur choisi sur la fiche d'un client.
+  bool get _viseUnPromoteur => _pourPromoteur || _promoteurId != null;
+
+  /// Décalage de la semaine concernée : celle du promoteur ouvert, sinon (connecté) la semaine affichée du planning.
+  int get _decalage =>
+      widget.semaine ??
+      (DemoTemps.reel && !_pourPromoteur
+          ? ref.read(semainePlanningProvider)
+          : 0);
+
+  /// Promoteurs de l'équipe que l'on peut viser depuis la fiche d'un client (connecté seulement).
+  List<Promoteur> get _promoteursChoix =>
+      DemoTemps.reel && widget.depuisFiche && _cible == CiblePlanning.client
+      ? [
+          for (final p in promoteursDeMonEquipe())
+            if (p.userId != null) p,
+        ]
+      : const [];
 
   /// Type de visite affiché dans la liste, déduit des indicateurs de la ligne.
   String get _type => _remp
@@ -234,7 +275,7 @@ class _FormulaireRdvSheetState extends ConsumerState<FormulaireRdvSheet> {
     var appel = _appel;
     var remp = _remp;
     var soiree = _soiree;
-    if (_pourPromoteur) {
+    if (_viseUnPromoteur) {
       // Planning d'un promoteur : uniquement des visites chez un client.
       cible = CiblePlanning.client;
       visite = true;
@@ -249,7 +290,9 @@ class _FormulaireRdvSheetState extends ConsumerState<FormulaireRdvSheet> {
       remp = _type == 'remp';
       soiree = widget.depuisFiche ? false : _soiree;
     }
-    final acc = !_pourPromoteur && cible != CiblePlanning.adm
+    final acc = _promoteurId != null
+        ? false
+        : !_pourPromoteur && cible != CiblePlanning.adm
         ? _type == 'acc'
         : _acc;
     if (cible == CiblePlanning.libre && _libelle.text.trim().isEmpty) {
@@ -266,6 +309,24 @@ class _FormulaireRdvSheetState extends ConsumerState<FormulaireRdvSheet> {
     } else {
       lieu = '';
       adresse = '';
+    }
+    if (_versCrm) {
+      // Longueurs acceptées par l'API.
+      if (_libelle.text.trim().length > maxLibelle) {
+        return _montrerErreur(
+          'Client ou lieu : $maxLibelle caractères au plus.',
+        );
+      }
+      if (_adresse.text.trim().length > maxAdresse ||
+          adresse.trim().length > maxAdresse) {
+        return _montrerErreur('Adresse : $maxAdresse caractères au plus.');
+      }
+      if (lieu.trim().length > maxLieuSoiree) {
+        return _montrerErreur('Lieu : $maxLieuSoiree caractères au plus.');
+      }
+      if (_note.text.trim().length > maxNote) {
+        return _montrerErreur('Observations : $maxNote caractères au plus.');
+      }
     }
     final String? titre = switch (cible) {
       CiblePlanning.adm => 'Administratif',
@@ -298,6 +359,10 @@ class _FormulaireRdvSheetState extends ConsumerState<FormulaireRdvSheet> {
       fait: _fait,
       sem: plan != null ? (widget.semaine ?? 0) : null,
     );
+    if (_versCrm) {
+      unawaited(_envoyer(ligne));
+      return;
+    }
     final store = ref.read(crmProvider.notifier);
     if (edition != null) {
       store.majEtape(edition.id, (_) => ligne, pour: plan);
@@ -314,6 +379,82 @@ class _FormulaireRdvSheetState extends ConsumerState<FormulaireRdvSheet> {
       AppRoutes.allerOnglet(context, OngletApp.planning);
     } else {
       Navigator.of(context).pop();
+    }
+  }
+
+  /// Connecté : envoie la nouvelle ligne au CRM puis relit le planning. En cas d'échec la feuille reste ouverte avec
+  /// le message de l'API ; le même `idApk` sert au nouvel essai (le CRM rejoue sans doublon).
+  Future<void> _envoyer(EtapePlanning ligne) async {
+    if (_envoi) return;
+    final promoteurId = _pourPromoteur
+        ? promoteurActuelParNom(widget.planCible!)?.userId
+        : _promoteurId;
+    final versPromoteur = _viseUnPromoteur;
+    if (versPromoteur && (promoteurId == null || ligne.ref == null)) {
+      return _montrerErreur('Promoteur ou client introuvable.');
+    }
+    final idApk = _idApk ??= genererIdApkUuid();
+    final datePassage = datePassageApi(
+      lundi: DemoTemps.lundi,
+      semaine: _decalage,
+      jour: ligne.jour,
+      heure: ligne.heure,
+      avecHeure: !versPromoteur,
+    );
+    final corps = versPromoteur
+        ? corpsPlanning(
+            idApk: idApk,
+            promoteurId: promoteurId!,
+            clientId: ligne.ref!,
+            datePassage: datePassage,
+            note: ligne.note,
+          )
+        : corpsTournee(
+            ligne,
+            idApk: idApk,
+            datePassage: datePassage,
+            adresse: _adresse.text,
+          );
+    final api = ref.read(apiEcritureProvider);
+    final planning = ref.read(planningSynchroProvider.notifier);
+    final conteneur = ProviderScope.containerOf(context);
+    setState(() {
+      _envoi = true;
+      _erreur = null;
+    });
+    try {
+      await api.envoyer(
+        'POST',
+        versPromoteur ? '/plannings' : '/tournees',
+        corps: corps,
+      );
+    } on ErreurApi catch (e) {
+      if (!mounted) return;
+      setState(() => _envoi = false);
+      return _montrerErreur(
+        messageErreurPlanning(e, pourPromoteur: versPromoteur),
+      );
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _envoi = false);
+      return _montrerErreur(const ErreurApi(TypeErreurApi.inattendue).message);
+    }
+    if (versPromoteur) {
+      conteneur.invalidate(
+        planningUtilisateurProvider((userId: promoteurId!, promoteur: true)),
+      );
+    }
+    unawaited(planning.rafraichir());
+    if (!mounted) return;
+    ref.read(jourPlanningProvider.notifier).choisir(ligne.jour);
+    AppToast.show(
+      context,
+      versPromoteur ? 'Visite planifiée.' : 'Ligne ajoutée au planning.',
+    );
+    if (versPromoteur) {
+      Navigator.of(context).pop();
+    } else {
+      AppRoutes.allerOnglet(context, OngletApp.planning);
     }
   }
 
@@ -342,9 +483,8 @@ class _FormulaireRdvSheetState extends ConsumerState<FormulaireRdvSheet> {
     } else {
       final nom = widget.depuisFiche
           ? (_cible == CiblePlanning.client
-                    ? etat.magasinParId(_ref ?? '')?.nom
-                    : etat.prospectParId(_ref ?? '')?.nom) ??
-                ''
+                ? _nomMagasin(etat, _ref ?? '')
+                : etat.prospectParId(_ref ?? '')?.nom ?? '')
           : '';
       titre = widget.depuisFiche
           ? 'Planifier · $nom'
@@ -374,7 +514,7 @@ class _FormulaireRdvSheetState extends ConsumerState<FormulaireRdvSheet> {
                   : 'Ajouter la ligne',
               petit: true,
               variante: VarianteBouton.plein,
-              onPressed: _enregistrer,
+              onPressed: _envoi ? null : _enregistrer,
             ),
           ],
         ),
@@ -392,6 +532,12 @@ class _FormulaireRdvSheetState extends ConsumerState<FormulaireRdvSheet> {
     );
   }
 
+  /// Nom d'un client suivi de sa classe (« Carrefour – Ivry · Classe B ») ; vide si le client est inconnu.
+  String _nomMagasin(CrmEtat etat, String id) {
+    final m = etat.magasinParId(id);
+    return m == null ? '' : nomEtClasse(m.nom, etat.classeMagasin(id));
+  }
+
   /// Champs du formulaire de son propre planning (`formulaire`).
   List<Widget> _champs(CrmEtat etat) {
     final cible = _cible;
@@ -399,7 +545,10 @@ class _FormulaireRdvSheetState extends ConsumerState<FormulaireRdvSheet> {
     final clientOuProspect =
         cible == CiblePlanning.client || cible == CiblePlanning.prospect;
     final choix = cible == CiblePlanning.client
-        ? {for (final m in etat.magasins) m.id: m.nom}
+        ? {
+            for (final m in etat.magasins)
+              m.id: nomEtClasse(m.nom, etat.classeMagasin(m.id)),
+          }
         : {for (final p in etat.prospects) p.id: p.nom};
     return [
       if (!depuisFiche)
@@ -407,6 +556,16 @@ class _FormulaireRdvSheetState extends ConsumerState<FormulaireRdvSheet> {
           libelles: [for (final c in _ordreCibles) c.libelle],
           index: _ordreCibles.indexOf(cible),
           onChanged: (i) => _changerCible(_ordreCibles[i]),
+        ),
+      if (_promoteursChoix.isNotEmpty)
+        ChampListe<String>(
+          label: 'Pour',
+          valeur: _promoteurId ?? '',
+          options: {
+            '': 'Mon planning',
+            for (final p in _promoteursChoix) p.userId!: p.nom,
+          },
+          onChanged: (v) => setState(() => _promoteurId = v.isEmpty ? null : v),
         ),
       if (!depuisFiche && clientOuProspect)
         ChampListe<String>(
@@ -426,9 +585,9 @@ class _FormulaireRdvSheetState extends ConsumerState<FormulaireRdvSheet> {
         ChampTexte(label: 'Adresse (facultatif)', controller: _adresse),
       _jourEtHeure([
         for (var i = 0; i < 5; i++)
-          '${joursCourts[i]} ${semaineInfo(0).dates[i]} ${semaineInfo(0).mois[i]}',
-      ]),
-      if (cible != CiblePlanning.adm) ...[
+          '${joursCourts[i]} ${semaineInfo(_decalage).dates[i]} ${semaineInfo(_decalage).mois[i]}',
+      ], avecHeure: _promoteurId == null),
+      if (cible != CiblePlanning.adm && _promoteurId == null) ...[
         ChampListe<String>(
           label: 'Type de visite',
           valeur: _type,
@@ -455,7 +614,13 @@ class _FormulaireRdvSheetState extends ConsumerState<FormulaireRdvSheet> {
           controller: _adr,
         ),
       ],
-      ChampTexte(label: 'Observations', controller: _note, lignes: 3),
+      ChampTexte(
+        label: _promoteurId == null
+            ? 'Observations'
+            : 'Consigne pour le promoteur (facultatif)',
+        controller: _note,
+        lignes: 3,
+      ),
       if (_edition != null)
         Padding(
           padding: const EdgeInsets.only(bottom: 12),
@@ -480,13 +645,16 @@ class _FormulaireRdvSheetState extends ConsumerState<FormulaireRdvSheet> {
       ChampListe<String>(
         label: 'Client',
         valeur: _ref ?? '',
-        options: {for (final c in clients) c.id: c.nom},
+        options: {
+          for (final c in clients)
+            c.id: nomEtClasse(c.nom, etat.classeMagasin(c.id)),
+        },
         onChanged: (v) => setState(() => _ref = v),
       ),
       _jourEtHeure([
         for (var i = 0; i < 5; i++)
           '${joursCourts[i]} ${semaine.dates[i]} ${semaine.mois[i]}',
-      ]),
+      ], avecHeure: !DemoTemps.reel),
       ChampTexte(
         label: 'Consigne pour le promoteur (facultatif)',
         controller: _note,
@@ -496,17 +664,19 @@ class _FormulaireRdvSheetState extends ConsumerState<FormulaireRdvSheet> {
   }
 
   /// Rangée « Jour » et « Heure » ; `libellesJours` : un texte par jour de la semaine.
-  Widget _jourEtHeure(List<String> libellesJours) {
+  Widget _jourEtHeure(List<String> libellesJours, {bool avecHeure = true}) {
+    final jour = ChampListe<int>(
+      label: 'Jour',
+      valeur: _jour,
+      options: {
+        for (var i = 0; i < libellesJours.length; i++) i: libellesJours[i],
+      },
+      onChanged: (v) => setState(() => _jour = v),
+    );
+    if (!avecHeure) return jour;
     return Rangee(
       children: [
-        ChampListe<int>(
-          label: 'Jour',
-          valeur: _jour,
-          options: {
-            for (var i = 0; i < libellesJours.length; i++) i: libellesJours[i],
-          },
-          onChanged: (v) => setState(() => _jour = v),
-        ),
+        jour,
         ChampHeure(
           valeur: _heure,
           onChanged: (v) => setState(() => _heure = v),

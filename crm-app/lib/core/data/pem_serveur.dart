@@ -1,3 +1,4 @@
+import '../logic/classes.dart';
 import '../models/models.dart';
 
 /// Propositions de visite PEM téléchargées du CRM (nul en démonstration : les propositions fictives servent alors).
@@ -42,5 +43,6 @@ PropositionPem? propositionPemDepuisJson(Map<String, dynamic> j) {
     motifDernierReport: _texte(j['motifDernierReport']),
     planningId: _texte(j['planningId']),
     visiteId: _texte(j['visiteId']),
+    clientClasse: classeValide(_texte(client['niveauClass'])),
   );
 }

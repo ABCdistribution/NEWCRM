@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 
+import '../logic/classes.dart';
 import '../theme/theme.dart';
+import 'cartes.dart';
 
 /// Ligne d'horaire du planning (`.heure-l` + `.etape-c`) : heure à gauche, carte colorée à droite.
 ///
@@ -17,7 +19,11 @@ class CarteEtapePlanning extends StatelessWidget {
     this.detail,
     this.onTap,
     this.onModifier,
+    this.classe,
   });
+
+  /// Classe du client ou du prospect visé ; aucune pastille si elle est inconnue.
+  final String? classe;
 
   /// « 09:30 », ou « — » sans heure.
   final String heure;
@@ -79,6 +85,10 @@ class CarteEtapePlanning extends StatelessWidget {
                             ),
                           ),
                         ),
+                        if (classeValide(classe).isNotEmpty) ...[
+                          const SizedBox(width: 8),
+                          PastilleClasse(classe),
+                        ],
                         const SizedBox(width: 8),
                         Container(
                           padding: const EdgeInsets.symmetric(

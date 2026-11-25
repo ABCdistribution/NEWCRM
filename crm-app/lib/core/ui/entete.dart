@@ -12,6 +12,7 @@ import '../sync/photos_provider.dart';
 import '../theme/theme.dart';
 import 'app_icons.dart';
 import 'boutons.dart';
+import 'cartes.dart';
 
 /// Entête de page (`.entete`) : titre, sous-titre, contenu libre. Défile avec la page, sans fond propre
 /// (le dégradé de l'univers passe derrière).
@@ -103,10 +104,14 @@ class TopbarEcran extends StatelessWidget {
     this.droite,
     this.onRetour,
     this.tailleTitre = 18,
+    this.classe,
   });
 
   final String titre;
   final String? sous;
+
+  /// Classe du client nommé en sous-titre ; aucune pastille si elle est inconnue.
+  final String? classe;
   final Widget? droite;
   final VoidCallback? onRetour;
   final double tailleTitre;
@@ -125,7 +130,15 @@ class TopbarEcran extends StatelessWidget {
               children: [
                 Text(titre, style: AppText.t(tailleTitre, w: FontWeight.w800)),
                 if (sous != null)
-                  Text(sous!, style: AppText.t(12, c: AppColors.muted)),
+                  Wrap(
+                    spacing: 6,
+                    runSpacing: 2,
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    children: [
+                      Text(sous!, style: AppText.t(12, c: AppColors.muted)),
+                      PastilleClasse(classe),
+                    ],
+                  ),
               ],
             ),
           ),

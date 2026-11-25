@@ -42,7 +42,10 @@ void main() {
           expect(feuille.depuisFiche, isTrue);
           expect(feuille.cible, CiblePlanning.client);
           expect(feuille.refCible, m.id);
-          expect(find.text('Planifier · ${m.nom}'), findsOneWidget);
+          expect(
+            find.text('Planifier · ${nomEtClasse(m.nom, m.classe)}'),
+            findsOneWidget,
+          );
 
           await tester.tap(find.text('Ajouter la ligne'));
           await tester.pumpAndSettle();
@@ -306,7 +309,10 @@ void main() {
       expect(find.text('Étape 5 / 7'), findsOneWidget);
       await tester.tap(find.text('Oui'));
       await tester.pumpAndSettle();
-      expect(find.text('Aucune commande prise pour le moment.'), findsOneWidget);
+      expect(
+        find.text('Aucune commande prise pour le moment.'),
+        findsOneWidget,
+      );
 
       await tester.tap(find.text('🛒 Prendre la commande'));
       await tester.pumpAndSettle();

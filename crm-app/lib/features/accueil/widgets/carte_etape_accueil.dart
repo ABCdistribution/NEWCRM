@@ -80,7 +80,12 @@ class CarteEtapeAccueil extends ConsumerWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(etape.titre, style: AppText.titreCarte),
+              NomMagasin(
+                etape.titre,
+                classe: ref.watch(
+                  crmProvider.select((s) => s.classeEtape(etape)),
+                ),
+              ),
               const SizedBox(height: 3),
               Text(detailEtape(etape), style: AppText.sousCarte),
             ],

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/data/referentiels_visite.dart';
+import '../../core/logic/classes.dart';
 import '../../core/models/models.dart';
 import '../../core/nav/nav.dart';
 import '../../core/state/state.dart';
@@ -88,6 +89,8 @@ class CompteRenduScreen extends ConsumerWidget {
             ),
           ),
         ),
+        if (m != null && classeValide(m.classe).isNotEmpty)
+          LigneCle('Classe', classeValide(m.classe)),
         LigneCle('Adresse', '$cpVille (FR)'),
         SectionTitre('La visite', couleur: bleu),
         LigneCle('Réception visite', v.recu ?? '—'),

@@ -101,7 +101,7 @@ void main() {
     sessionProvider.overrideWith(() => SessionNotifier(_utilisateur)),
   ];
 
-  testWidgets('Mon planning : semaine courante du CRM, lecture seule', (
+  testWidgets('Mon planning : semaine courante du CRM, ajout possible', (
     tester,
   ) async {
     await pumpEcran(
@@ -116,9 +116,34 @@ void main() {
     expect(find.text('Carrefour – Ivry'), findsOneWidget);
     expect(find.text('Fait ✓'), findsOneWidget);
     expect(find.text('Administratif'), findsNothing);
-    // Rien ne repart vers le CRM : ni bouton « + », ni prévision à enregistrer.
-    expect(find.bySemanticsLabel('Ajouter un RDV'), findsNothing);
+    // L'encadrement ajoute une ligne (envoyée au CRM) ; la prévision ne s'enregistre pas depuis l'application.
+    expect(find.bySemanticsLabel('Ajouter un RDV'), findsOneWidget);
     expect(find.text('Enregistrer la prévision'), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('Mon planning : le promoteur ne peut rien ajouter', (
+    tester,
+  ) async {
+    await pumpEcran(
+      tester,
+      const PlanningScreen(),
+      role: Role.promoteur,
+      overrides: [
+        sessionProvider.overrideWith(
+          () => SessionNotifier(
+            Utilisateur(
+              id: 'moi',
+              identifiant: 'x',
+              nomAffiche: 'Jean DUPONT',
+              email: null,
+              roleApi: 'COMMERCIAL',
+            ),
+          ),
+        ),
+      ],
+    );
+    expect(find.bySemanticsLabel('Ajouter un RDV'), findsNothing);
     expect(tester.takeException(), isNull);
   });
 

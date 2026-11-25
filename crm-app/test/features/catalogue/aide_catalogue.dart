@@ -9,10 +9,6 @@ import 'package:flutter_test/flutter_test.dart';
 
 import '../../support/app_test_support.dart';
 
-/// Texte du message du bouton scan (`bientot-scan`, maquette l.1494).
-const String messageScan =
-    "Scan du code-barres : bientôt disponible. Saisissez l'EAN dans la recherche.";
-
 /// Lance l'application avec `role`, puis ouvre le menu « + » et l'entrée `onglet` (Catalogue ou News), comme un
 /// utilisateur.
 Future<void> ouvrirOngletPlus(

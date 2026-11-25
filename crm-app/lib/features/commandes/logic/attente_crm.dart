@@ -43,6 +43,7 @@ class CommandeAttenteCrm {
     this.emailValidation,
     this.emailEnvoyeLe,
     this.clientEmail,
+    this.clientClasse = '',
   });
 
   /// Identifiant du CRM (UUID) : celui des appels `PATCH`, `valider`, `envoyer-mail` et `DELETE`.
@@ -73,6 +74,9 @@ class CommandeAttenteCrm {
   /// Quand la commande a été envoyée par mail au client ; nul si elle ne l'a pas été.
   final DateTime? emailEnvoyeLe;
   final String? clientEmail;
+
+  /// Classe du client d'après le CRM (« A » à « G »), vide si inconnue.
+  final String clientClasse;
 
   int get nbLignes => lignes.length;
   bool get envoyee => emailEnvoyeLe != null;
@@ -143,6 +147,7 @@ CommandeAttenteCrm? commandeAttenteDepuisJson(Map<String, dynamic> j) {
     emailValidation: _texte(j['emailValidation']),
     emailEnvoyeLe: _date(j['emailEnvoyeLe']),
     clientEmail: _texte(client['email']),
+    clientClasse: classeValide(_texte(client['niveauClass'])),
   );
 }
 

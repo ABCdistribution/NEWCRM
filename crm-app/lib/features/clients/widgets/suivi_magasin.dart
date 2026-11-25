@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/data/fiche_client.dart';
+import '../../../core/data/journal_contacts.dart';
 import '../../../core/logic/logic.dart';
 import '../../../core/models/models.dart';
 import '../../../core/theme/theme.dart';
@@ -245,15 +246,38 @@ class _LigneCommande extends StatelessWidget {
 }
 
 /// Onglet « Contacts » : les contacts du client au CRM ; sans contact (ou en démonstration), « Aucun contact ».
+///
+/// `onAjouter` et `onModifier` (nuls en démonstration et pour un rôle sans droit d'écriture) ajoutent le bouton
+/// « ＋ Contact » et rendent chaque contact du CRM touchable.
 class OngletContacts extends StatelessWidget {
-  const OngletContacts({super.key, this.contacts = const []});
+  const OngletContacts({
+    super.key,
+    this.contacts = const [],
+    this.onAjouter,
+    this.onModifier,
+  });
 
   final List<ContactClient> contacts;
+  final VoidCallback? onAjouter;
+  final ValueChanged<ContactClient>? onModifier;
 
   @override
   Widget build(BuildContext context) {
+    final ajouter = onAjouter == null
+        ? null
+        : Padding(
+            padding: const EdgeInsets.only(bottom: 10),
+            child: AppBouton(
+              '＋ Contact',
+              petit: true,
+              variante: VarianteBouton.tonal,
+              onPressed: onAjouter,
+            ),
+          );
     if (contacts.isEmpty) {
-      return const CarteOnglet(children: [Vide('Aucun contact renseigné.')]);
+      return CarteOnglet(
+        children: [const Vide('Aucun contact renseigné.'), ?ajouter],
+      );
     }
     return CarteOnglet(
       children: [
@@ -261,6 +285,9 @@ class OngletContacts extends StatelessWidget {
           EvenementOnglet(
             icone: '👤',
             dernier: i == contacts.length - 1,
+            onTap: onModifier == null || contacts[i].id == null
+                ? null
+                : () => onModifier!(contacts[i]),
             enfant: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -281,22 +308,27 @@ class OngletContacts extends StatelessWidget {
               ],
             ),
           ),
+        ?ajouter,
       ],
     );
   }
 }
 
 /// Onglet « Suivi » / « Aperçu » d'un client du CRM : ses dernières visites, commandes et notes, sans rien inventer.
+/// `journal` (nul = section masquée : rôle sans droit de lecture, ou pas encore chargé) ajoute les derniers appels et
+/// e-mails.
 class OngletSuiviReel extends StatelessWidget {
   const OngletSuiviReel({
     super.key,
     required this.fiche,
     required this.commandes,
     this.visitePrevue,
+    this.journal,
   });
 
   final FicheClient? fiche;
   final List<Commande> commandes;
+  final List<EntreeJournalContact>? journal;
 
   /// Prochaine visite du planning du CRM chez ce client, s'il y en a une.
   final VisitePrevue? visitePrevue;
@@ -340,10 +372,57 @@ class OngletSuiviReel extends StatelessWidget {
             detail: n.texte,
           ),
     ];
-    if (items.isEmpty) {
-      return const CarteOnglet(children: [Vide('Aucun historique.')]);
-    }
-    return Timeline(items);
+    final suivi = items.isEmpty
+        ? const CarteOnglet(children: [Vide('Aucun historique.')])
+        : Timeline(items);
+    final contacts = journal;
+    if (contacts == null) return suivi;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [suivi, JournalContactsMagasin(contacts)],
+    );
+  }
+}
+
+/// Derniers appels et e-mails d'un client du CRM, plus récent en tête : « Appel » (résultat, auteur) ou « E-mail »
+/// (sujet, auteur) et la date. Sans entrée : une mention discrète.
+class JournalContactsMagasin extends StatelessWidget {
+  const JournalContactsMagasin(this.entrees, {super.key});
+
+  final List<EntreeJournalContact> entrees;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const TitreLigne('Appels et e-mails', taille: 15, margeHaut: 16),
+        if (entrees.isEmpty)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 8),
+            child: Text(
+              'Aucun appel ni e-mail.',
+              style: AppText.t(13, c: AppColors.muted),
+            ),
+          )
+        else
+          Timeline([
+            for (final e in entrees)
+              TimelineItem(
+                icone: e.type == TypeContact.appel ? '📞' : '✉',
+                titre: e.type == TypeContact.appel ? 'Appel' : 'E-mail',
+                date: '${e.date.day} ${moisCourts[e.date.month - 1]}',
+                detail: [
+                  if (e.type == TypeContact.appel)
+                    ?e.resultat?.libelle
+                  else
+                    ?e.sujet,
+                  ?e.auteur,
+                ].join(' · '),
+              ),
+          ]),
+      ],
+    );
   }
 }
 
@@ -413,9 +492,18 @@ class OngletNotes extends StatelessWidget {
 
 /// Onglet « Infos » (encadrement) : adresse et classe du client.
 class OngletInfos extends StatelessWidget {
-  const OngletInfos({super.key, required this.magasin, this.fiche});
+  const OngletInfos({
+    super.key,
+    required this.magasin,
+    this.fiche,
+    this.onPeriodicite,
+  });
 
   final Magasin magasin;
+
+  /// Choix de la périodicité de visite (nul en démonstration et pour un rôle sans droit d'écriture) : la ligne
+  /// « Périodicité » s'affiche toujours, touchable.
+  final VoidCallback? onPeriodicite;
 
   /// Coordonnées et rattachements du client au CRM (clients réels).
   final FicheClient? fiche;
@@ -435,14 +523,19 @@ class OngletInfos extends StatelessWidget {
                 padding: const EdgeInsets.only(top: 2),
                 child: Text(magasin.adresse, style: detail),
               ),
-              Padding(
-                padding: const EdgeInsets.only(top: 10),
-                child: Text('Classe', style: AppText.t(14, w: FontWeight.w700)),
-              ),
-              Padding(
-                padding: const EdgeInsets.only(top: 2),
-                child: Text(magasin.classe, style: detail),
-              ),
+              if (classeValide(magasin.classe).isNotEmpty) ...[
+                Padding(
+                  padding: const EdgeInsets.only(top: 10),
+                  child: Text(
+                    'Classe',
+                    style: AppText.t(14, w: FontWeight.w700),
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.only(top: 2),
+                  child: Text(classeValide(magasin.classe), style: detail),
+                ),
+              ],
               for (final (titre, valeur) in [
                 ('Téléphone', fiche?.telephone),
                 ('Mail', fiche?.mail),
@@ -454,7 +547,11 @@ class OngletInfos extends StatelessWidget {
                       ? null
                       : fiche!.commerciaux.join(', '),
                 ),
-                ('Périodicité', fiche?.periodicite),
+                (
+                  'Périodicité',
+                  fiche?.periodicite ??
+                      (onPeriodicite == null ? null : 'Aucune'),
+                ),
               ])
                 if (valeur != null) ...[
                   Padding(
@@ -466,7 +563,19 @@ class OngletInfos extends StatelessWidget {
                   ),
                   Padding(
                     padding: const EdgeInsets.only(top: 2),
-                    child: Text(valeur, style: detail),
+                    child: titre == 'Périodicité' && onPeriodicite != null
+                        ? GestureDetector(
+                            behavior: HitTestBehavior.opaque,
+                            onTap: onPeriodicite,
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Text(valeur, style: detail),
+                                Text('›', style: detail),
+                              ],
+                            ),
+                          )
+                        : Text(valeur, style: detail),
                   ),
                 ],
             ],

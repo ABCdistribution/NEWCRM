@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../core/logic/classes.dart';
 import '../../../core/models/models.dart';
 import '../../../core/theme/theme.dart';
 import '../../../core/ui/ui.dart';
@@ -31,10 +32,17 @@ class CarteClient extends StatelessWidget {
               ],
             ),
           ),
-          Pastille(
-            '${m.actif ? '' : 'Inactif · '}Classe ${m.classe}',
-            variante: m.actif ? VariantePastille.client : VariantePastille.gris,
-          ),
+          if (!m.actif || classeValide(m.classe).isNotEmpty)
+            Pastille(
+              [
+                if (!m.actif) 'Inactif',
+                if (classeValide(m.classe).isNotEmpty)
+                  'Classe ${classeValide(m.classe)}',
+              ].join(' · '),
+              variante: m.actif
+                  ? VariantePastille.client
+                  : VariantePastille.gris,
+            ),
         ],
       ),
     );

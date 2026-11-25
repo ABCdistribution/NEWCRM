@@ -28,9 +28,11 @@ class PlanningScreen extends ConsumerWidget {
     final plan = ref.watch(planningProvider);
     final jour = ref.watch(jourPlanningProvider);
     final promoteur = role == Role.promoteur;
-    // Connecté, le planning vient du CRM et se lit sans se modifier : rien ne repart vers le CRM depuis l'application.
+    // Connecté, le planning vient du CRM : l'encadrement y ajoute des lignes (envoyées au CRM) mais ne modifie pas
+    // les lignes existantes ni la prévision depuis l'application.
     final reel = DemoTemps.reel;
     final lectureSeule = promoteur || reel;
+    final peutAjouter = !promoteur && !plan.verrouillee;
     final u = context.univers;
 
     // Connecté : le planning du CRM sur quelques semaines, semaine par semaine. Démonstration : le promoteur lit le
@@ -187,7 +189,7 @@ class PlanningScreen extends ConsumerWidget {
     return PageUnivers(
       entete: entete,
       paddingBasFab: true,
-      fab: !lectureSeule && !plan.verrouillee
+      fab: peutAjouter
           ? AppFab(
               rond: true,
               semantique: 'Ajouter un RDV',
@@ -205,7 +207,7 @@ class PlanningScreen extends ConsumerWidget {
           ),
         if (lignes.isEmpty)
           Vide(
-            lectureSeule || plan.verrouillee
+            !peutAjouter
                 ? 'Aucune ligne ce jour.'
                 : 'Aucune étape ce jour. Touchez le « + » pour ajouter une ligne.',
           )
@@ -286,6 +288,7 @@ class _CarteLigne extends ConsumerWidget {
       fond: Color(style.fond),
       texte: Color(style.texte),
       detail: detailLigne(e, lectureSeule: promoteur),
+      classe: ref.watch(crmProvider.select((s) => s.classeEtape(e))),
       // Sans modification possible, seule une ligne qui vise un client ou un prospect s'ouvre (sa fiche).
       onTap: promoteur || (lectureSeule && !avecFiche)
           ? null

@@ -1,15 +1,22 @@
 import '../../core/data/fiche_client.dart';
+import '../../core/envoi/corps_activite.dart';
+import '../../core/envoi/journal_contact.dart';
 import '../../core/sync/fiche_client_provider.dart';
+import '../../core/sync/journal_contacts_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/logic/classes.dart';
 import '../../core/models/models.dart';
 import '../../core/nav/nav.dart';
 import '../../core/state/state.dart';
 import '../../core/theme/theme.dart';
 import '../../core/ui/ui.dart';
 import '../accueil/accueil_logique.dart';
+import 'contact_magasin_sheet.dart';
+import 'periodicite_magasin_sheet.dart';
 import 'state/commandes_client.dart';
+import 'state/droits_magasin.dart';
 import 'widgets/bloc_objectifs_magasin.dart';
 import 'widgets/suivi_magasin.dart';
 
@@ -56,8 +63,16 @@ class _FicheMagasinScreenState extends ConsumerState<FicheMagasinScreen> {
     final actif = _onglet ?? onglets.first;
     final u = context.univers;
 
-    // Actions externes : inactives (onTap nul) tant que le CRM ne fournit pas la donnée.
-    final lanceur = ref.read(lanceurExterneProvider);
+    // Écritures au CRM (contacts, périodicité, journal des appels et e-mails) : clients du CRM et rôles autorisés.
+    final ecrit = m.reel && ref.watch(peutEcrireMagasinProvider);
+
+    // Journal des appels et e-mails : mêmes rôles que l'écriture (ceux dont l'API autorise `journal-contacts`).
+    final journal = ecrit
+        ? ref.watch(journalContactsProvider(m.id)).value
+        : null;
+
+    // Actions externes : inactives (onTap nul) tant que le CRM ne fournit pas la donnée. Connecté, un appel ou un e-mail
+    // lancé est journalisé dans le CRM.
     final uriTel =
         uriAppel(fiche?.telephone) ??
         fiche?.contacts.map((c) => uriAppel(c.telephone)).nonNulls.firstOrNull;
@@ -65,8 +80,16 @@ class _FicheMagasinScreenState extends ConsumerState<FicheMagasinScreen> {
         uriMail(fiche?.mail) ??
         fiche?.contacts.map((c) => uriMail(c.mail)).nonNulls.firstOrNull;
     final uriCarte = uriItineraire(m.adresse);
-    VoidCallback? lancer(Uri? uri) =>
-        uri == null ? null : () => lancerExterne(context, lanceur, uri);
+    VoidCallback? lancer(Uri? uri) => uri == null
+        ? null
+        : () => lancerEtJournaliser(
+            context,
+            ref,
+            uri,
+            cible: CibleActivite.client,
+            id: m.id,
+            journaliser: ecrit,
+          );
     final appeler = lancer(uriTel);
     final mail = lancer(uriCourriel);
     final itineraire = lancer(uriCarte);
@@ -97,7 +120,11 @@ class _FicheMagasinScreenState extends ConsumerState<FicheMagasinScreen> {
             Padding(
               padding: const EdgeInsets.only(top: 2),
               child: Text(
-                'Classe ${m.classe} · ${m.adresse}',
+                [
+                  if (classeValide(m.classe).isNotEmpty)
+                    'Classe ${classeValide(m.classe)}',
+                  m.adresse,
+                ].join(' · '),
                 style: AppText.t(12.5, c: u.encre2),
               ),
             ),
@@ -198,6 +225,7 @@ class _FicheMagasinScreenState extends ConsumerState<FicheMagasinScreen> {
                 ? OngletSuiviReel(
                     fiche: fiche,
                     commandes: commandes,
+                    journal: journal,
                     visitePrevue: prochaineVisitePrevue(
                       ref.watch(crmProvider),
                       magasinId: m.id,
@@ -211,12 +239,29 @@ class _FicheMagasinScreenState extends ConsumerState<FicheMagasinScreen> {
           ),
           OngletMagasin.contacts => OngletContacts(
             contacts: fiche?.contacts ?? const [],
+            onAjouter: ecrit
+                ? () => ouvrirContactMagasin(context, magasinId: m.id)
+                : null,
+            onModifier: ecrit
+                ? (c) =>
+                      ouvrirContactMagasin(context, magasinId: m.id, contact: c)
+                : null,
           ),
           OngletMagasin.notes =>
             m.reel
                 ? OngletNotesReel(notes: fiche?.notes ?? const [])
                 : const OngletNotes(),
-          OngletMagasin.infos => OngletInfos(magasin: m, fiche: fiche),
+          OngletMagasin.infos => OngletInfos(
+            magasin: m,
+            fiche: fiche,
+            onPeriodicite: ecrit
+                ? () => ouvrirPeriodiciteMagasin(
+                    context,
+                    magasinId: m.id,
+                    courante: fiche?.periodicite,
+                  )
+                : null,
+          ),
         },
       ],
       bas: BarreBasse(

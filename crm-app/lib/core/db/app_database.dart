@@ -100,6 +100,60 @@ class PhotosVisite extends Table {
   DateTimeColumn get priseLe => dateTime().withDefault(currentDateAndTime)();
 }
 
+/// File d'envoi vers le CRM : une ligne par visite terminée ou commande validée, gardée jusqu'à ce que l'API l'ait
+/// acceptée (voir `core/envoi`). Persistante : une visite validée hors connexion part au prochain démarrage.
+@DataClassName('EnvoiLocal')
+class EnvoisEnAttente extends Table {
+  /// Ordre d'arrivée : la file se vide du plus ancien au plus récent.
+  IntColumn get id => integer().autoIncrement()();
+
+  /// Utilisateur qui a validé l'élément : la file d'un autre compte n'est pas envoyée avec le jeton de celui-ci.
+  TextColumn get utilisateurId => text()();
+
+  /// `visite` ou `commande`.
+  TextColumn get type => text()();
+
+  /// Clé d'idempotence stable : `idApk` de la visite, `idCommandeApk` de la commande.
+  TextColumn get cle => text().unique()();
+
+  /// Corps JSON de l'appel de création (voir `corps_visite.dart` et `corps_commande.dart`).
+  TextColumn get payload => text()();
+
+  /// Identifiant de la visite dans l'app, pour la repasser en « Envoyée » une fois partie.
+  TextColumn get refLocale => text().nullable()();
+
+  /// Identifiant donné par le CRM une fois la visite ou la commande créée : les photos et la validation s'y rattachent.
+  TextColumn get serveurId => text().nullable()();
+
+  /// `a_envoyer`, `en_cours`, `envoye` ou `erreur`.
+  TextColumn get etat => text().withDefault(const Constant('a_envoyer'))();
+  IntColumn get essais => integer().withDefault(const Constant(0))();
+  TextColumn get derniereErreur => text().nullable()();
+  DateTimeColumn get creeLe => dateTime().withDefault(currentDateAndTime)();
+  DateTimeColumn get misAJourLe => dateTime().withDefault(currentDateAndTime)();
+  DateTimeColumn get envoyeLe => dateTime().nullable()();
+}
+
+/// Photos d'une visite en file d'envoi : les octets restent dans [PhotosVisite], ici l'état de chaque envoi.
+@DataClassName('EnvoiFichierLocal')
+class EnvoisFichiers extends Table {
+  IntColumn get id => integer().autoIncrement()();
+  IntColumn get envoiId => integer()();
+
+  /// Ligne de [PhotosVisite] (nulle une fois la photo acceptée et ses octets effacés).
+  IntColumn get photoId => integer().nullable()();
+
+  /// Étape du parcours (`arrivee`, `rayonArrivee`, `rayonFin`).
+  TextColumn get etape => text()();
+
+  /// Clé d'idempotence de la photo côté CRM : un renvoi ne crée pas de doublon.
+  TextColumn get idApk => text()();
+
+  /// `a_envoyer`, `envoye` ou `refuse`.
+  TextColumn get etat => text().withDefault(const Constant('a_envoyer'))();
+  TextColumn get derniereErreur => text().nullable()();
+}
+
 /// Base locale de l'application (SQLite chiffré, voir `ouverture_base.dart`).
 @DriftDatabase(
   tables: [
@@ -109,6 +163,8 @@ class PhotosVisite extends Table {
     EnregistrementsLocaux,
     PhotosLocales,
     PhotosVisite,
+    EnvoisEnAttente,
+    EnvoisFichiers,
   ],
 )
 class AppDatabase extends _$AppDatabase {
@@ -124,7 +180,7 @@ class AppDatabase extends _$AppDatabase {
   static const cleClientsMajLe = 'clients_maj_le';
 
   @override
-  int get schemaVersion => 6;
+  int get schemaVersion => 7;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -143,6 +199,10 @@ class AppDatabase extends _$AppDatabase {
       if (de < 4) await m.createTable(enregistrementsLocaux);
       if (de < 5) await m.createTable(photosLocales);
       if (de < 6) await m.createTable(photosVisite);
+      if (de < 7) {
+        await m.createTable(envoisEnAttente);
+        await m.createTable(envoisFichiers);
+      }
     },
   );
 

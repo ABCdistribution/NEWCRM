@@ -1,6 +1,13 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/envoi/corps_activite.dart';
+import '../../core/envoi/corps_visite.dart';
+import '../../core/envoi/envoi_provider.dart';
+import '../../core/logic/logic.dart';
 import '../../core/models/models.dart';
 import '../../core/state/state.dart';
 import '../../core/theme/theme.dart';
@@ -15,8 +22,9 @@ Future<void> ouvrirNoteProspect(BuildContext context, String prospectId) =>
     );
 
 /// Dialogue « Nouvelle note » : zone de texte, Annuler / Enregistrer. Une note vide n'est pas enregistrée et le
-/// dialogue reste ouvert ; sinon elle s'ajoute en tête de la timeline du prospect, le dialogue se ferme et
-/// « Note enregistrée. Envoi dès que le réseau le permet. » s'affiche.
+/// dialogue reste ouvert ; sinon le dialogue se ferme et « Note enregistrée. Envoi dès que le réseau le permet. »
+/// s'affiche. Connecté, la note part au CRM par la file d'envoi (`POST /prospects/:id/notes`, idempotent par `idApk`) et
+/// la fiche est relue une fois partie ; en démonstration, elle s'ajoute en tête de la timeline locale du prospect.
 class NoteProspectDialog extends ConsumerStatefulWidget {
   const NoteProspectDialog({super.key, required this.prospectId});
 
@@ -29,6 +37,7 @@ class NoteProspectDialog extends ConsumerStatefulWidget {
 
 class _NoteProspectDialogState extends ConsumerState<NoteProspectDialog> {
   final TextEditingController _texte = TextEditingController();
+  bool _enCours = false;
 
   @override
   void dispose() {
@@ -36,21 +45,33 @@ class _NoteProspectDialogState extends ConsumerState<NoteProspectDialog> {
     super.dispose();
   }
 
-  void _enregistrer() {
+  Future<void> _enregistrer() async {
     final note = _texte.text.trim();
-    if (note.isEmpty) return;
-    ref
-        .read(crmProvider.notifier)
-        .ajouterEvenementProspect(
-          widget.prospectId,
-          EvenementProspect(
-            icone: IconeEvenement.doc,
-            couleur: 0xFF6B7280,
-            titre: 'Note',
-            date: 'auj.',
-            detail: note,
-          ),
-        );
+    if (note.isEmpty || _enCours) return;
+    _enCours = true;
+    var enfilee = false;
+    if (DemoTemps.reel && estUuid(widget.prospectId)) {
+      enfilee = await ref
+          .read(envoiProvider.notifier)
+          .enfilerActivite(
+            requeteNote(CibleActivite.prospect, widget.prospectId, note),
+          );
+    }
+    if (!mounted) return;
+    if (!enfilee) {
+      ref
+          .read(crmProvider.notifier)
+          .ajouterEvenementProspect(
+            widget.prospectId,
+            EvenementProspect(
+              icone: IconeEvenement.doc,
+              couleur: 0xFF6B7280,
+              titre: 'Note',
+              date: 'auj.',
+              detail: note,
+            ),
+          );
+    }
     AppToast.show(
       context,
       'Note enregistrée. Envoi dès que le réseau le permet.',
@@ -80,6 +101,7 @@ class _NoteProspectDialogState extends ConsumerState<NoteProspectDialog> {
               minLines: null,
               textAlignVertical: TextAlignVertical.top,
               keyboardType: TextInputType.multiline,
+              inputFormatters: [LengthLimitingTextInputFormatter(maxRemarque)],
               style: AppText.champ,
               decoration: InputDecoration(
                 hintText: 'Votre remarque',
@@ -111,7 +133,7 @@ class _NoteProspectDialogState extends ConsumerState<NoteProspectDialog> {
               'Enregistrer',
               petit: true,
               variante: VarianteBouton.plein,
-              onPressed: _enregistrer,
+              onPressed: () => unawaited(_enregistrer()),
             ),
           ],
         ),

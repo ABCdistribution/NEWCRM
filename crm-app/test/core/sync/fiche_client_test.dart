@@ -5,12 +5,15 @@ import 'package:crm_app/core/api/erreur_api.dart';
 import 'package:crm_app/core/auth/session.dart';
 import 'package:crm_app/core/auth/utilisateur.dart';
 import 'package:crm_app/core/data/fiche_client.dart';
+import 'package:crm_app/core/data/journal_contacts.dart';
+import 'package:crm_app/core/envoi/corps_activite.dart';
 import 'package:crm_app/core/db/base_provider.dart';
 import 'package:crm_app/core/db/ouverture_base.dart';
 import 'package:crm_app/core/logic/logic.dart';
 import 'package:crm_app/core/models/models.dart';
 import 'package:crm_app/core/sync/catalogue_provider.dart';
 import 'package:crm_app/core/sync/fiche_client_provider.dart';
+import 'package:crm_app/core/sync/journal_contacts_provider.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -282,6 +285,43 @@ void main() {
       await Future<void>.delayed(const Duration(milliseconds: 300));
       return vues;
     }
+
+    test(
+      'journal des appels et e-mails : téléchargé puis relu hors connexion',
+      () async {
+        api.reponses['/clients/c1/journal-contacts'] = {
+          'data': [
+            {
+              'type': 'APPEL',
+              'id': 'a1',
+              'date': '2026-11-24T10:00:00.000Z',
+              'resultat': 'MESSAGERIE',
+              'auteur': 'Nadia H.',
+            },
+          ],
+        };
+        final c = await conteneur();
+        Future<List<List<EntreeJournalContact>>> lire() async {
+          final vues = <List<EntreeJournalContact>>[];
+          c.listen(
+            journalContactsProvider('c1'),
+            (_, n) => n.whenData(vues.add),
+            fireImmediately: true,
+          );
+          await Future<void>.delayed(const Duration(milliseconds: 300));
+          return vues;
+        }
+
+        final vues = await lire();
+        expect(vues.single.single.resultat, ResultatAppel.messagerie);
+
+        c.invalidate(journalContactsProvider('c1'));
+        api.erreur = const ErreurApi(TypeErreurApi.reseau);
+        final hors = await lire();
+        expect(hors, isNotEmpty);
+        expect(hors.first.single.auteur, 'Nadia H.');
+      },
+    );
 
     test('téléchargée puis relue hors connexion', () async {
       api.reponses['/clients/c1'] = _detail();

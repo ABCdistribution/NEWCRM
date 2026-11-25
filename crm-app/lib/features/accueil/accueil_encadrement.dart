@@ -7,6 +7,7 @@ import '../../core/models/models.dart';
 import '../../core/nav/nav.dart';
 import '../../core/state/state.dart';
 import '../../core/ui/ui.dart';
+import 'widgets/bloc_envoi.dart';
 import 'widgets/bloc_prospects_a_suivre.dart';
 import 'widgets/carte_etape_accueil.dart';
 
@@ -58,6 +59,7 @@ class AccueilEncadrement extends ConsumerWidget {
         ),
       ),
       enfants: [
+        const BlocEnvoi(),
         if (cs) const BlocProspectsASuivre(),
         TitreLigne(
           'Ma tournée du jour',

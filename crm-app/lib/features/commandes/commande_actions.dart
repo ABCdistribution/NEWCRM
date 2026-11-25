@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/api/erreur_api.dart';
 import '../../core/auth/session.dart';
 import '../../core/data/data.dart';
+import '../../core/envoi/envoi_provider.dart';
 import '../../core/logic/logic.dart';
 import '../../core/models/models.dart';
 import '../../core/nav/nav.dart';
@@ -148,7 +149,8 @@ Future<void> mettreEnAttente(BuildContext context, WidgetRef ref) async {
 /// « ✓ Valider » (`cmd-valider`) : contrôles, puis la commande est ajoutée au suivi de livraison.
 ///
 /// Une commande reprise du CRM y est d'abord enregistrée si elle a été modifiée, puis validée : elle quitte la liste
-/// des commandes en attente.
+/// des commandes en attente. Connecté, une nouvelle commande est rangée dans la file d'envoi : elle part dès que le
+/// réseau le permet, validée côté CRM, sans doublon si l'envoi est rejoué (`idCommandeApk`).
 Future<void> validerCommande(BuildContext context, WidgetRef ref) async {
   final cmd = ref.read(commandeEnCoursProvider);
   // Commande déjà traitée (second appui pendant la sortie de l'écran) : rien à faire.
@@ -182,9 +184,12 @@ Future<void> validerCommande(BuildContext context, WidgetRef ref) async {
   final c = ProviderScope.containerOf(context);
   final role = c.read(roleActifProvider);
   final auCrm = cmd.crm != null && c.read(attenteCrmActiveProvider);
+  // Identifiant mobile de la commande envoyée au CRM, auquel la visite liée se rattache.
+  String? idApkEnvoi;
   if (auCrm) {
     final erreur = await _ecrire(() async {
       final crm = await _enregistrerAuCrm(c);
+      idApkEnvoi = crm.idApk;
       await c.read(commandesAttenteSynchroProvider.notifier).valider(crm.id);
     });
     if (!context.mounted) return;
@@ -195,6 +200,24 @@ Future<void> validerCommande(BuildContext context, WidgetRef ref) async {
   }
   // La commande a pu être terminée pendant l'attente du serveur.
   final courante = c.read(commandeEnCoursProvider) ?? cmd;
+  if (!auCrm && c.read(sessionProvider) != null) {
+    // L'identifiant est fixé avant la mise en file : un nouvel appui ne crée pas de doublon.
+    final idApk = courante.idApk ?? genererIdApk();
+    c.read(commandeEnCoursProvider.notifier).fixerIdApk(idApk);
+    idApkEnvoi = idApk;
+    await c
+        .read(envoiProvider.notifier)
+        .enfilerCommande(
+          corpsCreation(
+            courante,
+            idApk: idApk,
+            maintenant: DemoTemps.maintenant(),
+            prixDe: _prixArticle,
+            statut: 'VALIDEE',
+          ),
+        );
+    if (!context.mounted) return;
+  }
 
   final store = c.read(crmProvider.notifier);
   final num = store.prochainIdCommande;
@@ -238,6 +261,7 @@ Future<void> validerCommande(BuildContext context, WidgetRef ref) async {
           id: num.replaceFirst('CDE-', ''),
           ht: total,
           liv: DemoTemps.livraisonPrevueNumerique,
+          idApk: idApkEnvoi,
         ),
       ),
     );

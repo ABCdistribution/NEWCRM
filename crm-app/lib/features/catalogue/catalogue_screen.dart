@@ -11,7 +11,7 @@ import 'widgets/carte_produit.dart';
 
 /// Onglet « Référentiel produits » (tous les rôles, menu « + »). Maquette : `salesProduits` l.1241-1248.
 ///
-/// Recherche (nom, marque, EAN, code article), bouton scan (message « bientôt disponible »), filtres marque / stock /
+/// Recherche (nom, marque, EAN, code article), bouton scan (feuille de scan : l'EAN lu ouvre la fiche produit), filtres marque / stock /
 /// promotion / mis en avant / kits / PEM dans une feuille, fiche produit en feuille.
 class CatalogueScreen extends ConsumerStatefulWidget {
   const CatalogueScreen({super.key});
@@ -50,10 +50,7 @@ class _CatalogueScreenState extends ConsumerState<CatalogueScreen> {
         trailing: RondB(
           '▦',
           semantique: 'Scanner',
-          onTap: () => AppToast.show(
-            context,
-            "Scan du code-barres : bientôt disponible. Saisissez l'EAN dans la recherche.",
-          ),
+          onTap: () => AppRoutes.scannerCatalogue(context),
         ),
         extra: BarreRecherche(
           hint: 'Nom, marque, EAN ou code article',

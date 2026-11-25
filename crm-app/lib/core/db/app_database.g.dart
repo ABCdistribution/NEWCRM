@@ -2717,6 +2717,1224 @@ class PhotosVisiteCompanion extends UpdateCompanion<PhotoVisiteLocale> {
   }
 }
 
+class $EnvoisEnAttenteTable extends EnvoisEnAttente
+    with TableInfo<$EnvoisEnAttenteTable, EnvoiLocal> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $EnvoisEnAttenteTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<int> id = GeneratedColumn<int>(
+    'id',
+    aliasedName,
+    false,
+    hasAutoIncrement: true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'PRIMARY KEY AUTOINCREMENT',
+    ),
+  );
+  static const VerificationMeta _utilisateurIdMeta = const VerificationMeta(
+    'utilisateurId',
+  );
+  @override
+  late final GeneratedColumn<String> utilisateurId = GeneratedColumn<String>(
+    'utilisateur_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _typeMeta = const VerificationMeta('type');
+  @override
+  late final GeneratedColumn<String> type = GeneratedColumn<String>(
+    'type',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _cleMeta = const VerificationMeta('cle');
+  @override
+  late final GeneratedColumn<String> cle = GeneratedColumn<String>(
+    'cle',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+    defaultConstraints: GeneratedColumn.constraintIsAlways('UNIQUE'),
+  );
+  static const VerificationMeta _payloadMeta = const VerificationMeta(
+    'payload',
+  );
+  @override
+  late final GeneratedColumn<String> payload = GeneratedColumn<String>(
+    'payload',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _refLocaleMeta = const VerificationMeta(
+    'refLocale',
+  );
+  @override
+  late final GeneratedColumn<String> refLocale = GeneratedColumn<String>(
+    'ref_locale',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _serveurIdMeta = const VerificationMeta(
+    'serveurId',
+  );
+  @override
+  late final GeneratedColumn<String> serveurId = GeneratedColumn<String>(
+    'serveur_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _etatMeta = const VerificationMeta('etat');
+  @override
+  late final GeneratedColumn<String> etat = GeneratedColumn<String>(
+    'etat',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('a_envoyer'),
+  );
+  static const VerificationMeta _essaisMeta = const VerificationMeta('essais');
+  @override
+  late final GeneratedColumn<int> essais = GeneratedColumn<int>(
+    'essais',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  static const VerificationMeta _derniereErreurMeta = const VerificationMeta(
+    'derniereErreur',
+  );
+  @override
+  late final GeneratedColumn<String> derniereErreur = GeneratedColumn<String>(
+    'derniere_erreur',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _creeLeMeta = const VerificationMeta('creeLe');
+  @override
+  late final GeneratedColumn<DateTime> creeLe = GeneratedColumn<DateTime>(
+    'cree_le',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+    defaultValue: currentDateAndTime,
+  );
+  static const VerificationMeta _misAJourLeMeta = const VerificationMeta(
+    'misAJourLe',
+  );
+  @override
+  late final GeneratedColumn<DateTime> misAJourLe = GeneratedColumn<DateTime>(
+    'mis_a_jour_le',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+    defaultValue: currentDateAndTime,
+  );
+  static const VerificationMeta _envoyeLeMeta = const VerificationMeta(
+    'envoyeLe',
+  );
+  @override
+  late final GeneratedColumn<DateTime> envoyeLe = GeneratedColumn<DateTime>(
+    'envoye_le',
+    aliasedName,
+    true,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    utilisateurId,
+    type,
+    cle,
+    payload,
+    refLocale,
+    serveurId,
+    etat,
+    essais,
+    derniereErreur,
+    creeLe,
+    misAJourLe,
+    envoyeLe,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'envois_en_attente';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<EnvoiLocal> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    }
+    if (data.containsKey('utilisateur_id')) {
+      context.handle(
+        _utilisateurIdMeta,
+        utilisateurId.isAcceptableOrUnknown(
+          data['utilisateur_id']!,
+          _utilisateurIdMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_utilisateurIdMeta);
+    }
+    if (data.containsKey('type')) {
+      context.handle(
+        _typeMeta,
+        type.isAcceptableOrUnknown(data['type']!, _typeMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_typeMeta);
+    }
+    if (data.containsKey('cle')) {
+      context.handle(
+        _cleMeta,
+        cle.isAcceptableOrUnknown(data['cle']!, _cleMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_cleMeta);
+    }
+    if (data.containsKey('payload')) {
+      context.handle(
+        _payloadMeta,
+        payload.isAcceptableOrUnknown(data['payload']!, _payloadMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_payloadMeta);
+    }
+    if (data.containsKey('ref_locale')) {
+      context.handle(
+        _refLocaleMeta,
+        refLocale.isAcceptableOrUnknown(data['ref_locale']!, _refLocaleMeta),
+      );
+    }
+    if (data.containsKey('serveur_id')) {
+      context.handle(
+        _serveurIdMeta,
+        serveurId.isAcceptableOrUnknown(data['serveur_id']!, _serveurIdMeta),
+      );
+    }
+    if (data.containsKey('etat')) {
+      context.handle(
+        _etatMeta,
+        etat.isAcceptableOrUnknown(data['etat']!, _etatMeta),
+      );
+    }
+    if (data.containsKey('essais')) {
+      context.handle(
+        _essaisMeta,
+        essais.isAcceptableOrUnknown(data['essais']!, _essaisMeta),
+      );
+    }
+    if (data.containsKey('derniere_erreur')) {
+      context.handle(
+        _derniereErreurMeta,
+        derniereErreur.isAcceptableOrUnknown(
+          data['derniere_erreur']!,
+          _derniereErreurMeta,
+        ),
+      );
+    }
+    if (data.containsKey('cree_le')) {
+      context.handle(
+        _creeLeMeta,
+        creeLe.isAcceptableOrUnknown(data['cree_le']!, _creeLeMeta),
+      );
+    }
+    if (data.containsKey('mis_a_jour_le')) {
+      context.handle(
+        _misAJourLeMeta,
+        misAJourLe.isAcceptableOrUnknown(
+          data['mis_a_jour_le']!,
+          _misAJourLeMeta,
+        ),
+      );
+    }
+    if (data.containsKey('envoye_le')) {
+      context.handle(
+        _envoyeLeMeta,
+        envoyeLe.isAcceptableOrUnknown(data['envoye_le']!, _envoyeLeMeta),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  EnvoiLocal map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return EnvoiLocal(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}id'],
+      )!,
+      utilisateurId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}utilisateur_id'],
+      )!,
+      type: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}type'],
+      )!,
+      cle: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}cle'],
+      )!,
+      payload: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}payload'],
+      )!,
+      refLocale: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}ref_locale'],
+      ),
+      serveurId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}serveur_id'],
+      ),
+      etat: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}etat'],
+      )!,
+      essais: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}essais'],
+      )!,
+      derniereErreur: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}derniere_erreur'],
+      ),
+      creeLe: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}cree_le'],
+      )!,
+      misAJourLe: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}mis_a_jour_le'],
+      )!,
+      envoyeLe: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}envoye_le'],
+      ),
+    );
+  }
+
+  @override
+  $EnvoisEnAttenteTable createAlias(String alias) {
+    return $EnvoisEnAttenteTable(attachedDatabase, alias);
+  }
+}
+
+class EnvoiLocal extends DataClass implements Insertable<EnvoiLocal> {
+  /// Ordre d'arrivée : la file se vide du plus ancien au plus récent.
+  final int id;
+
+  /// Utilisateur qui a validé l'élément : la file d'un autre compte n'est pas envoyée avec le jeton de celui-ci.
+  final String utilisateurId;
+
+  /// `visite` ou `commande`.
+  final String type;
+
+  /// Clé d'idempotence stable : `idApk` de la visite, `idCommandeApk` de la commande.
+  final String cle;
+
+  /// Corps JSON de l'appel de création (voir `corps_visite.dart` et `corps_commande.dart`).
+  final String payload;
+
+  /// Identifiant de la visite dans l'app, pour la repasser en « Envoyée » une fois partie.
+  final String? refLocale;
+
+  /// Identifiant donné par le CRM une fois la visite ou la commande créée : les photos et la validation s'y rattachent.
+  final String? serveurId;
+
+  /// `a_envoyer`, `en_cours`, `envoye` ou `erreur`.
+  final String etat;
+  final int essais;
+  final String? derniereErreur;
+  final DateTime creeLe;
+  final DateTime misAJourLe;
+  final DateTime? envoyeLe;
+  const EnvoiLocal({
+    required this.id,
+    required this.utilisateurId,
+    required this.type,
+    required this.cle,
+    required this.payload,
+    this.refLocale,
+    this.serveurId,
+    required this.etat,
+    required this.essais,
+    this.derniereErreur,
+    required this.creeLe,
+    required this.misAJourLe,
+    this.envoyeLe,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<int>(id);
+    map['utilisateur_id'] = Variable<String>(utilisateurId);
+    map['type'] = Variable<String>(type);
+    map['cle'] = Variable<String>(cle);
+    map['payload'] = Variable<String>(payload);
+    if (!nullToAbsent || refLocale != null) {
+      map['ref_locale'] = Variable<String>(refLocale);
+    }
+    if (!nullToAbsent || serveurId != null) {
+      map['serveur_id'] = Variable<String>(serveurId);
+    }
+    map['etat'] = Variable<String>(etat);
+    map['essais'] = Variable<int>(essais);
+    if (!nullToAbsent || derniereErreur != null) {
+      map['derniere_erreur'] = Variable<String>(derniereErreur);
+    }
+    map['cree_le'] = Variable<DateTime>(creeLe);
+    map['mis_a_jour_le'] = Variable<DateTime>(misAJourLe);
+    if (!nullToAbsent || envoyeLe != null) {
+      map['envoye_le'] = Variable<DateTime>(envoyeLe);
+    }
+    return map;
+  }
+
+  EnvoisEnAttenteCompanion toCompanion(bool nullToAbsent) {
+    return EnvoisEnAttenteCompanion(
+      id: Value(id),
+      utilisateurId: Value(utilisateurId),
+      type: Value(type),
+      cle: Value(cle),
+      payload: Value(payload),
+      refLocale: refLocale == null && nullToAbsent
+          ? const Value.absent()
+          : Value(refLocale),
+      serveurId: serveurId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(serveurId),
+      etat: Value(etat),
+      essais: Value(essais),
+      derniereErreur: derniereErreur == null && nullToAbsent
+          ? const Value.absent()
+          : Value(derniereErreur),
+      creeLe: Value(creeLe),
+      misAJourLe: Value(misAJourLe),
+      envoyeLe: envoyeLe == null && nullToAbsent
+          ? const Value.absent()
+          : Value(envoyeLe),
+    );
+  }
+
+  factory EnvoiLocal.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return EnvoiLocal(
+      id: serializer.fromJson<int>(json['id']),
+      utilisateurId: serializer.fromJson<String>(json['utilisateurId']),
+      type: serializer.fromJson<String>(json['type']),
+      cle: serializer.fromJson<String>(json['cle']),
+      payload: serializer.fromJson<String>(json['payload']),
+      refLocale: serializer.fromJson<String?>(json['refLocale']),
+      serveurId: serializer.fromJson<String?>(json['serveurId']),
+      etat: serializer.fromJson<String>(json['etat']),
+      essais: serializer.fromJson<int>(json['essais']),
+      derniereErreur: serializer.fromJson<String?>(json['derniereErreur']),
+      creeLe: serializer.fromJson<DateTime>(json['creeLe']),
+      misAJourLe: serializer.fromJson<DateTime>(json['misAJourLe']),
+      envoyeLe: serializer.fromJson<DateTime?>(json['envoyeLe']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<int>(id),
+      'utilisateurId': serializer.toJson<String>(utilisateurId),
+      'type': serializer.toJson<String>(type),
+      'cle': serializer.toJson<String>(cle),
+      'payload': serializer.toJson<String>(payload),
+      'refLocale': serializer.toJson<String?>(refLocale),
+      'serveurId': serializer.toJson<String?>(serveurId),
+      'etat': serializer.toJson<String>(etat),
+      'essais': serializer.toJson<int>(essais),
+      'derniereErreur': serializer.toJson<String?>(derniereErreur),
+      'creeLe': serializer.toJson<DateTime>(creeLe),
+      'misAJourLe': serializer.toJson<DateTime>(misAJourLe),
+      'envoyeLe': serializer.toJson<DateTime?>(envoyeLe),
+    };
+  }
+
+  EnvoiLocal copyWith({
+    int? id,
+    String? utilisateurId,
+    String? type,
+    String? cle,
+    String? payload,
+    Value<String?> refLocale = const Value.absent(),
+    Value<String?> serveurId = const Value.absent(),
+    String? etat,
+    int? essais,
+    Value<String?> derniereErreur = const Value.absent(),
+    DateTime? creeLe,
+    DateTime? misAJourLe,
+    Value<DateTime?> envoyeLe = const Value.absent(),
+  }) => EnvoiLocal(
+    id: id ?? this.id,
+    utilisateurId: utilisateurId ?? this.utilisateurId,
+    type: type ?? this.type,
+    cle: cle ?? this.cle,
+    payload: payload ?? this.payload,
+    refLocale: refLocale.present ? refLocale.value : this.refLocale,
+    serveurId: serveurId.present ? serveurId.value : this.serveurId,
+    etat: etat ?? this.etat,
+    essais: essais ?? this.essais,
+    derniereErreur: derniereErreur.present
+        ? derniereErreur.value
+        : this.derniereErreur,
+    creeLe: creeLe ?? this.creeLe,
+    misAJourLe: misAJourLe ?? this.misAJourLe,
+    envoyeLe: envoyeLe.present ? envoyeLe.value : this.envoyeLe,
+  );
+  EnvoiLocal copyWithCompanion(EnvoisEnAttenteCompanion data) {
+    return EnvoiLocal(
+      id: data.id.present ? data.id.value : this.id,
+      utilisateurId: data.utilisateurId.present
+          ? data.utilisateurId.value
+          : this.utilisateurId,
+      type: data.type.present ? data.type.value : this.type,
+      cle: data.cle.present ? data.cle.value : this.cle,
+      payload: data.payload.present ? data.payload.value : this.payload,
+      refLocale: data.refLocale.present ? data.refLocale.value : this.refLocale,
+      serveurId: data.serveurId.present ? data.serveurId.value : this.serveurId,
+      etat: data.etat.present ? data.etat.value : this.etat,
+      essais: data.essais.present ? data.essais.value : this.essais,
+      derniereErreur: data.derniereErreur.present
+          ? data.derniereErreur.value
+          : this.derniereErreur,
+      creeLe: data.creeLe.present ? data.creeLe.value : this.creeLe,
+      misAJourLe: data.misAJourLe.present
+          ? data.misAJourLe.value
+          : this.misAJourLe,
+      envoyeLe: data.envoyeLe.present ? data.envoyeLe.value : this.envoyeLe,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('EnvoiLocal(')
+          ..write('id: $id, ')
+          ..write('utilisateurId: $utilisateurId, ')
+          ..write('type: $type, ')
+          ..write('cle: $cle, ')
+          ..write('payload: $payload, ')
+          ..write('refLocale: $refLocale, ')
+          ..write('serveurId: $serveurId, ')
+          ..write('etat: $etat, ')
+          ..write('essais: $essais, ')
+          ..write('derniereErreur: $derniereErreur, ')
+          ..write('creeLe: $creeLe, ')
+          ..write('misAJourLe: $misAJourLe, ')
+          ..write('envoyeLe: $envoyeLe')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    id,
+    utilisateurId,
+    type,
+    cle,
+    payload,
+    refLocale,
+    serveurId,
+    etat,
+    essais,
+    derniereErreur,
+    creeLe,
+    misAJourLe,
+    envoyeLe,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is EnvoiLocal &&
+          other.id == this.id &&
+          other.utilisateurId == this.utilisateurId &&
+          other.type == this.type &&
+          other.cle == this.cle &&
+          other.payload == this.payload &&
+          other.refLocale == this.refLocale &&
+          other.serveurId == this.serveurId &&
+          other.etat == this.etat &&
+          other.essais == this.essais &&
+          other.derniereErreur == this.derniereErreur &&
+          other.creeLe == this.creeLe &&
+          other.misAJourLe == this.misAJourLe &&
+          other.envoyeLe == this.envoyeLe);
+}
+
+class EnvoisEnAttenteCompanion extends UpdateCompanion<EnvoiLocal> {
+  final Value<int> id;
+  final Value<String> utilisateurId;
+  final Value<String> type;
+  final Value<String> cle;
+  final Value<String> payload;
+  final Value<String?> refLocale;
+  final Value<String?> serveurId;
+  final Value<String> etat;
+  final Value<int> essais;
+  final Value<String?> derniereErreur;
+  final Value<DateTime> creeLe;
+  final Value<DateTime> misAJourLe;
+  final Value<DateTime?> envoyeLe;
+  const EnvoisEnAttenteCompanion({
+    this.id = const Value.absent(),
+    this.utilisateurId = const Value.absent(),
+    this.type = const Value.absent(),
+    this.cle = const Value.absent(),
+    this.payload = const Value.absent(),
+    this.refLocale = const Value.absent(),
+    this.serveurId = const Value.absent(),
+    this.etat = const Value.absent(),
+    this.essais = const Value.absent(),
+    this.derniereErreur = const Value.absent(),
+    this.creeLe = const Value.absent(),
+    this.misAJourLe = const Value.absent(),
+    this.envoyeLe = const Value.absent(),
+  });
+  EnvoisEnAttenteCompanion.insert({
+    this.id = const Value.absent(),
+    required String utilisateurId,
+    required String type,
+    required String cle,
+    required String payload,
+    this.refLocale = const Value.absent(),
+    this.serveurId = const Value.absent(),
+    this.etat = const Value.absent(),
+    this.essais = const Value.absent(),
+    this.derniereErreur = const Value.absent(),
+    this.creeLe = const Value.absent(),
+    this.misAJourLe = const Value.absent(),
+    this.envoyeLe = const Value.absent(),
+  }) : utilisateurId = Value(utilisateurId),
+       type = Value(type),
+       cle = Value(cle),
+       payload = Value(payload);
+  static Insertable<EnvoiLocal> custom({
+    Expression<int>? id,
+    Expression<String>? utilisateurId,
+    Expression<String>? type,
+    Expression<String>? cle,
+    Expression<String>? payload,
+    Expression<String>? refLocale,
+    Expression<String>? serveurId,
+    Expression<String>? etat,
+    Expression<int>? essais,
+    Expression<String>? derniereErreur,
+    Expression<DateTime>? creeLe,
+    Expression<DateTime>? misAJourLe,
+    Expression<DateTime>? envoyeLe,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (utilisateurId != null) 'utilisateur_id': utilisateurId,
+      if (type != null) 'type': type,
+      if (cle != null) 'cle': cle,
+      if (payload != null) 'payload': payload,
+      if (refLocale != null) 'ref_locale': refLocale,
+      if (serveurId != null) 'serveur_id': serveurId,
+      if (etat != null) 'etat': etat,
+      if (essais != null) 'essais': essais,
+      if (derniereErreur != null) 'derniere_erreur': derniereErreur,
+      if (creeLe != null) 'cree_le': creeLe,
+      if (misAJourLe != null) 'mis_a_jour_le': misAJourLe,
+      if (envoyeLe != null) 'envoye_le': envoyeLe,
+    });
+  }
+
+  EnvoisEnAttenteCompanion copyWith({
+    Value<int>? id,
+    Value<String>? utilisateurId,
+    Value<String>? type,
+    Value<String>? cle,
+    Value<String>? payload,
+    Value<String?>? refLocale,
+    Value<String?>? serveurId,
+    Value<String>? etat,
+    Value<int>? essais,
+    Value<String?>? derniereErreur,
+    Value<DateTime>? creeLe,
+    Value<DateTime>? misAJourLe,
+    Value<DateTime?>? envoyeLe,
+  }) {
+    return EnvoisEnAttenteCompanion(
+      id: id ?? this.id,
+      utilisateurId: utilisateurId ?? this.utilisateurId,
+      type: type ?? this.type,
+      cle: cle ?? this.cle,
+      payload: payload ?? this.payload,
+      refLocale: refLocale ?? this.refLocale,
+      serveurId: serveurId ?? this.serveurId,
+      etat: etat ?? this.etat,
+      essais: essais ?? this.essais,
+      derniereErreur: derniereErreur ?? this.derniereErreur,
+      creeLe: creeLe ?? this.creeLe,
+      misAJourLe: misAJourLe ?? this.misAJourLe,
+      envoyeLe: envoyeLe ?? this.envoyeLe,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<int>(id.value);
+    }
+    if (utilisateurId.present) {
+      map['utilisateur_id'] = Variable<String>(utilisateurId.value);
+    }
+    if (type.present) {
+      map['type'] = Variable<String>(type.value);
+    }
+    if (cle.present) {
+      map['cle'] = Variable<String>(cle.value);
+    }
+    if (payload.present) {
+      map['payload'] = Variable<String>(payload.value);
+    }
+    if (refLocale.present) {
+      map['ref_locale'] = Variable<String>(refLocale.value);
+    }
+    if (serveurId.present) {
+      map['serveur_id'] = Variable<String>(serveurId.value);
+    }
+    if (etat.present) {
+      map['etat'] = Variable<String>(etat.value);
+    }
+    if (essais.present) {
+      map['essais'] = Variable<int>(essais.value);
+    }
+    if (derniereErreur.present) {
+      map['derniere_erreur'] = Variable<String>(derniereErreur.value);
+    }
+    if (creeLe.present) {
+      map['cree_le'] = Variable<DateTime>(creeLe.value);
+    }
+    if (misAJourLe.present) {
+      map['mis_a_jour_le'] = Variable<DateTime>(misAJourLe.value);
+    }
+    if (envoyeLe.present) {
+      map['envoye_le'] = Variable<DateTime>(envoyeLe.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('EnvoisEnAttenteCompanion(')
+          ..write('id: $id, ')
+          ..write('utilisateurId: $utilisateurId, ')
+          ..write('type: $type, ')
+          ..write('cle: $cle, ')
+          ..write('payload: $payload, ')
+          ..write('refLocale: $refLocale, ')
+          ..write('serveurId: $serveurId, ')
+          ..write('etat: $etat, ')
+          ..write('essais: $essais, ')
+          ..write('derniereErreur: $derniereErreur, ')
+          ..write('creeLe: $creeLe, ')
+          ..write('misAJourLe: $misAJourLe, ')
+          ..write('envoyeLe: $envoyeLe')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $EnvoisFichiersTable extends EnvoisFichiers
+    with TableInfo<$EnvoisFichiersTable, EnvoiFichierLocal> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $EnvoisFichiersTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<int> id = GeneratedColumn<int>(
+    'id',
+    aliasedName,
+    false,
+    hasAutoIncrement: true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'PRIMARY KEY AUTOINCREMENT',
+    ),
+  );
+  static const VerificationMeta _envoiIdMeta = const VerificationMeta(
+    'envoiId',
+  );
+  @override
+  late final GeneratedColumn<int> envoiId = GeneratedColumn<int>(
+    'envoi_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _photoIdMeta = const VerificationMeta(
+    'photoId',
+  );
+  @override
+  late final GeneratedColumn<int> photoId = GeneratedColumn<int>(
+    'photo_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _etapeMeta = const VerificationMeta('etape');
+  @override
+  late final GeneratedColumn<String> etape = GeneratedColumn<String>(
+    'etape',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _idApkMeta = const VerificationMeta('idApk');
+  @override
+  late final GeneratedColumn<String> idApk = GeneratedColumn<String>(
+    'id_apk',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _etatMeta = const VerificationMeta('etat');
+  @override
+  late final GeneratedColumn<String> etat = GeneratedColumn<String>(
+    'etat',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('a_envoyer'),
+  );
+  static const VerificationMeta _derniereErreurMeta = const VerificationMeta(
+    'derniereErreur',
+  );
+  @override
+  late final GeneratedColumn<String> derniereErreur = GeneratedColumn<String>(
+    'derniere_erreur',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    envoiId,
+    photoId,
+    etape,
+    idApk,
+    etat,
+    derniereErreur,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'envois_fichiers';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<EnvoiFichierLocal> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    }
+    if (data.containsKey('envoi_id')) {
+      context.handle(
+        _envoiIdMeta,
+        envoiId.isAcceptableOrUnknown(data['envoi_id']!, _envoiIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_envoiIdMeta);
+    }
+    if (data.containsKey('photo_id')) {
+      context.handle(
+        _photoIdMeta,
+        photoId.isAcceptableOrUnknown(data['photo_id']!, _photoIdMeta),
+      );
+    }
+    if (data.containsKey('etape')) {
+      context.handle(
+        _etapeMeta,
+        etape.isAcceptableOrUnknown(data['etape']!, _etapeMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_etapeMeta);
+    }
+    if (data.containsKey('id_apk')) {
+      context.handle(
+        _idApkMeta,
+        idApk.isAcceptableOrUnknown(data['id_apk']!, _idApkMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_idApkMeta);
+    }
+    if (data.containsKey('etat')) {
+      context.handle(
+        _etatMeta,
+        etat.isAcceptableOrUnknown(data['etat']!, _etatMeta),
+      );
+    }
+    if (data.containsKey('derniere_erreur')) {
+      context.handle(
+        _derniereErreurMeta,
+        derniereErreur.isAcceptableOrUnknown(
+          data['derniere_erreur']!,
+          _derniereErreurMeta,
+        ),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  EnvoiFichierLocal map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return EnvoiFichierLocal(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}id'],
+      )!,
+      envoiId: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}envoi_id'],
+      )!,
+      photoId: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}photo_id'],
+      ),
+      etape: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}etape'],
+      )!,
+      idApk: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}id_apk'],
+      )!,
+      etat: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}etat'],
+      )!,
+      derniereErreur: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}derniere_erreur'],
+      ),
+    );
+  }
+
+  @override
+  $EnvoisFichiersTable createAlias(String alias) {
+    return $EnvoisFichiersTable(attachedDatabase, alias);
+  }
+}
+
+class EnvoiFichierLocal extends DataClass
+    implements Insertable<EnvoiFichierLocal> {
+  final int id;
+  final int envoiId;
+
+  /// Ligne de [PhotosVisite] (nulle une fois la photo acceptée et ses octets effacés).
+  final int? photoId;
+
+  /// Étape du parcours (`arrivee`, `rayonArrivee`, `rayonFin`).
+  final String etape;
+
+  /// Clé d'idempotence de la photo côté CRM : un renvoi ne crée pas de doublon.
+  final String idApk;
+
+  /// `a_envoyer`, `envoye` ou `refuse`.
+  final String etat;
+  final String? derniereErreur;
+  const EnvoiFichierLocal({
+    required this.id,
+    required this.envoiId,
+    this.photoId,
+    required this.etape,
+    required this.idApk,
+    required this.etat,
+    this.derniereErreur,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<int>(id);
+    map['envoi_id'] = Variable<int>(envoiId);
+    if (!nullToAbsent || photoId != null) {
+      map['photo_id'] = Variable<int>(photoId);
+    }
+    map['etape'] = Variable<String>(etape);
+    map['id_apk'] = Variable<String>(idApk);
+    map['etat'] = Variable<String>(etat);
+    if (!nullToAbsent || derniereErreur != null) {
+      map['derniere_erreur'] = Variable<String>(derniereErreur);
+    }
+    return map;
+  }
+
+  EnvoisFichiersCompanion toCompanion(bool nullToAbsent) {
+    return EnvoisFichiersCompanion(
+      id: Value(id),
+      envoiId: Value(envoiId),
+      photoId: photoId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(photoId),
+      etape: Value(etape),
+      idApk: Value(idApk),
+      etat: Value(etat),
+      derniereErreur: derniereErreur == null && nullToAbsent
+          ? const Value.absent()
+          : Value(derniereErreur),
+    );
+  }
+
+  factory EnvoiFichierLocal.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return EnvoiFichierLocal(
+      id: serializer.fromJson<int>(json['id']),
+      envoiId: serializer.fromJson<int>(json['envoiId']),
+      photoId: serializer.fromJson<int?>(json['photoId']),
+      etape: serializer.fromJson<String>(json['etape']),
+      idApk: serializer.fromJson<String>(json['idApk']),
+      etat: serializer.fromJson<String>(json['etat']),
+      derniereErreur: serializer.fromJson<String?>(json['derniereErreur']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<int>(id),
+      'envoiId': serializer.toJson<int>(envoiId),
+      'photoId': serializer.toJson<int?>(photoId),
+      'etape': serializer.toJson<String>(etape),
+      'idApk': serializer.toJson<String>(idApk),
+      'etat': serializer.toJson<String>(etat),
+      'derniereErreur': serializer.toJson<String?>(derniereErreur),
+    };
+  }
+
+  EnvoiFichierLocal copyWith({
+    int? id,
+    int? envoiId,
+    Value<int?> photoId = const Value.absent(),
+    String? etape,
+    String? idApk,
+    String? etat,
+    Value<String?> derniereErreur = const Value.absent(),
+  }) => EnvoiFichierLocal(
+    id: id ?? this.id,
+    envoiId: envoiId ?? this.envoiId,
+    photoId: photoId.present ? photoId.value : this.photoId,
+    etape: etape ?? this.etape,
+    idApk: idApk ?? this.idApk,
+    etat: etat ?? this.etat,
+    derniereErreur: derniereErreur.present
+        ? derniereErreur.value
+        : this.derniereErreur,
+  );
+  EnvoiFichierLocal copyWithCompanion(EnvoisFichiersCompanion data) {
+    return EnvoiFichierLocal(
+      id: data.id.present ? data.id.value : this.id,
+      envoiId: data.envoiId.present ? data.envoiId.value : this.envoiId,
+      photoId: data.photoId.present ? data.photoId.value : this.photoId,
+      etape: data.etape.present ? data.etape.value : this.etape,
+      idApk: data.idApk.present ? data.idApk.value : this.idApk,
+      etat: data.etat.present ? data.etat.value : this.etat,
+      derniereErreur: data.derniereErreur.present
+          ? data.derniereErreur.value
+          : this.derniereErreur,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('EnvoiFichierLocal(')
+          ..write('id: $id, ')
+          ..write('envoiId: $envoiId, ')
+          ..write('photoId: $photoId, ')
+          ..write('etape: $etape, ')
+          ..write('idApk: $idApk, ')
+          ..write('etat: $etat, ')
+          ..write('derniereErreur: $derniereErreur')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode =>
+      Object.hash(id, envoiId, photoId, etape, idApk, etat, derniereErreur);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is EnvoiFichierLocal &&
+          other.id == this.id &&
+          other.envoiId == this.envoiId &&
+          other.photoId == this.photoId &&
+          other.etape == this.etape &&
+          other.idApk == this.idApk &&
+          other.etat == this.etat &&
+          other.derniereErreur == this.derniereErreur);
+}
+
+class EnvoisFichiersCompanion extends UpdateCompanion<EnvoiFichierLocal> {
+  final Value<int> id;
+  final Value<int> envoiId;
+  final Value<int?> photoId;
+  final Value<String> etape;
+  final Value<String> idApk;
+  final Value<String> etat;
+  final Value<String?> derniereErreur;
+  const EnvoisFichiersCompanion({
+    this.id = const Value.absent(),
+    this.envoiId = const Value.absent(),
+    this.photoId = const Value.absent(),
+    this.etape = const Value.absent(),
+    this.idApk = const Value.absent(),
+    this.etat = const Value.absent(),
+    this.derniereErreur = const Value.absent(),
+  });
+  EnvoisFichiersCompanion.insert({
+    this.id = const Value.absent(),
+    required int envoiId,
+    this.photoId = const Value.absent(),
+    required String etape,
+    required String idApk,
+    this.etat = const Value.absent(),
+    this.derniereErreur = const Value.absent(),
+  }) : envoiId = Value(envoiId),
+       etape = Value(etape),
+       idApk = Value(idApk);
+  static Insertable<EnvoiFichierLocal> custom({
+    Expression<int>? id,
+    Expression<int>? envoiId,
+    Expression<int>? photoId,
+    Expression<String>? etape,
+    Expression<String>? idApk,
+    Expression<String>? etat,
+    Expression<String>? derniereErreur,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (envoiId != null) 'envoi_id': envoiId,
+      if (photoId != null) 'photo_id': photoId,
+      if (etape != null) 'etape': etape,
+      if (idApk != null) 'id_apk': idApk,
+      if (etat != null) 'etat': etat,
+      if (derniereErreur != null) 'derniere_erreur': derniereErreur,
+    });
+  }
+
+  EnvoisFichiersCompanion copyWith({
+    Value<int>? id,
+    Value<int>? envoiId,
+    Value<int?>? photoId,
+    Value<String>? etape,
+    Value<String>? idApk,
+    Value<String>? etat,
+    Value<String?>? derniereErreur,
+  }) {
+    return EnvoisFichiersCompanion(
+      id: id ?? this.id,
+      envoiId: envoiId ?? this.envoiId,
+      photoId: photoId ?? this.photoId,
+      etape: etape ?? this.etape,
+      idApk: idApk ?? this.idApk,
+      etat: etat ?? this.etat,
+      derniereErreur: derniereErreur ?? this.derniereErreur,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<int>(id.value);
+    }
+    if (envoiId.present) {
+      map['envoi_id'] = Variable<int>(envoiId.value);
+    }
+    if (photoId.present) {
+      map['photo_id'] = Variable<int>(photoId.value);
+    }
+    if (etape.present) {
+      map['etape'] = Variable<String>(etape.value);
+    }
+    if (idApk.present) {
+      map['id_apk'] = Variable<String>(idApk.value);
+    }
+    if (etat.present) {
+      map['etat'] = Variable<String>(etat.value);
+    }
+    if (derniereErreur.present) {
+      map['derniere_erreur'] = Variable<String>(derniereErreur.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('EnvoisFichiersCompanion(')
+          ..write('id: $id, ')
+          ..write('envoiId: $envoiId, ')
+          ..write('photoId: $photoId, ')
+          ..write('etape: $etape, ')
+          ..write('idApk: $idApk, ')
+          ..write('etat: $etat, ')
+          ..write('derniereErreur: $derniereErreur')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$AppDatabase extends GeneratedDatabase {
   _$AppDatabase(QueryExecutor e) : super(e);
   $AppDatabaseManager get managers => $AppDatabaseManager(this);
@@ -2727,6 +3945,10 @@ abstract class _$AppDatabase extends GeneratedDatabase {
       $EnregistrementsLocauxTable(this);
   late final $PhotosLocalesTable photosLocales = $PhotosLocalesTable(this);
   late final $PhotosVisiteTable photosVisite = $PhotosVisiteTable(this);
+  late final $EnvoisEnAttenteTable envoisEnAttente = $EnvoisEnAttenteTable(
+    this,
+  );
+  late final $EnvoisFichiersTable envoisFichiers = $EnvoisFichiersTable(this);
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -2738,6 +3960,8 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     enregistrementsLocaux,
     photosLocales,
     photosVisite,
+    envoisEnAttente,
+    envoisFichiers,
   ];
 }
 
@@ -4239,6 +5463,618 @@ typedef $$PhotosVisiteTableProcessedTableManager =
       PhotoVisiteLocale,
       PrefetchHooks Function()
     >;
+typedef $$EnvoisEnAttenteTableCreateCompanionBuilder =
+    EnvoisEnAttenteCompanion Function({
+      Value<int> id,
+      required String utilisateurId,
+      required String type,
+      required String cle,
+      required String payload,
+      Value<String?> refLocale,
+      Value<String?> serveurId,
+      Value<String> etat,
+      Value<int> essais,
+      Value<String?> derniereErreur,
+      Value<DateTime> creeLe,
+      Value<DateTime> misAJourLe,
+      Value<DateTime?> envoyeLe,
+    });
+typedef $$EnvoisEnAttenteTableUpdateCompanionBuilder =
+    EnvoisEnAttenteCompanion Function({
+      Value<int> id,
+      Value<String> utilisateurId,
+      Value<String> type,
+      Value<String> cle,
+      Value<String> payload,
+      Value<String?> refLocale,
+      Value<String?> serveurId,
+      Value<String> etat,
+      Value<int> essais,
+      Value<String?> derniereErreur,
+      Value<DateTime> creeLe,
+      Value<DateTime> misAJourLe,
+      Value<DateTime?> envoyeLe,
+    });
+
+class $$EnvoisEnAttenteTableFilterComposer
+    extends Composer<_$AppDatabase, $EnvoisEnAttenteTable> {
+  $$EnvoisEnAttenteTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get utilisateurId => $composableBuilder(
+    column: $table.utilisateurId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get type => $composableBuilder(
+    column: $table.type,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get cle => $composableBuilder(
+    column: $table.cle,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get payload => $composableBuilder(
+    column: $table.payload,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get refLocale => $composableBuilder(
+    column: $table.refLocale,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get serveurId => $composableBuilder(
+    column: $table.serveurId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get etat => $composableBuilder(
+    column: $table.etat,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get essais => $composableBuilder(
+    column: $table.essais,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get derniereErreur => $composableBuilder(
+    column: $table.derniereErreur,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get creeLe => $composableBuilder(
+    column: $table.creeLe,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get misAJourLe => $composableBuilder(
+    column: $table.misAJourLe,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get envoyeLe => $composableBuilder(
+    column: $table.envoyeLe,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$EnvoisEnAttenteTableOrderingComposer
+    extends Composer<_$AppDatabase, $EnvoisEnAttenteTable> {
+  $$EnvoisEnAttenteTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get utilisateurId => $composableBuilder(
+    column: $table.utilisateurId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get type => $composableBuilder(
+    column: $table.type,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get cle => $composableBuilder(
+    column: $table.cle,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get payload => $composableBuilder(
+    column: $table.payload,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get refLocale => $composableBuilder(
+    column: $table.refLocale,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get serveurId => $composableBuilder(
+    column: $table.serveurId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get etat => $composableBuilder(
+    column: $table.etat,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get essais => $composableBuilder(
+    column: $table.essais,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get derniereErreur => $composableBuilder(
+    column: $table.derniereErreur,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get creeLe => $composableBuilder(
+    column: $table.creeLe,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get misAJourLe => $composableBuilder(
+    column: $table.misAJourLe,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get envoyeLe => $composableBuilder(
+    column: $table.envoyeLe,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$EnvoisEnAttenteTableAnnotationComposer
+    extends Composer<_$AppDatabase, $EnvoisEnAttenteTable> {
+  $$EnvoisEnAttenteTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<int> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get utilisateurId => $composableBuilder(
+    column: $table.utilisateurId,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get type =>
+      $composableBuilder(column: $table.type, builder: (column) => column);
+
+  GeneratedColumn<String> get cle =>
+      $composableBuilder(column: $table.cle, builder: (column) => column);
+
+  GeneratedColumn<String> get payload =>
+      $composableBuilder(column: $table.payload, builder: (column) => column);
+
+  GeneratedColumn<String> get refLocale =>
+      $composableBuilder(column: $table.refLocale, builder: (column) => column);
+
+  GeneratedColumn<String> get serveurId =>
+      $composableBuilder(column: $table.serveurId, builder: (column) => column);
+
+  GeneratedColumn<String> get etat =>
+      $composableBuilder(column: $table.etat, builder: (column) => column);
+
+  GeneratedColumn<int> get essais =>
+      $composableBuilder(column: $table.essais, builder: (column) => column);
+
+  GeneratedColumn<String> get derniereErreur => $composableBuilder(
+    column: $table.derniereErreur,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<DateTime> get creeLe =>
+      $composableBuilder(column: $table.creeLe, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get misAJourLe => $composableBuilder(
+    column: $table.misAJourLe,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<DateTime> get envoyeLe =>
+      $composableBuilder(column: $table.envoyeLe, builder: (column) => column);
+}
+
+class $$EnvoisEnAttenteTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $EnvoisEnAttenteTable,
+          EnvoiLocal,
+          $$EnvoisEnAttenteTableFilterComposer,
+          $$EnvoisEnAttenteTableOrderingComposer,
+          $$EnvoisEnAttenteTableAnnotationComposer,
+          $$EnvoisEnAttenteTableCreateCompanionBuilder,
+          $$EnvoisEnAttenteTableUpdateCompanionBuilder,
+          (
+            EnvoiLocal,
+            BaseReferences<_$AppDatabase, $EnvoisEnAttenteTable, EnvoiLocal>,
+          ),
+          EnvoiLocal,
+          PrefetchHooks Function()
+        > {
+  $$EnvoisEnAttenteTableTableManager(
+    _$AppDatabase db,
+    $EnvoisEnAttenteTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$EnvoisEnAttenteTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$EnvoisEnAttenteTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$EnvoisEnAttenteTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                Value<String> utilisateurId = const Value.absent(),
+                Value<String> type = const Value.absent(),
+                Value<String> cle = const Value.absent(),
+                Value<String> payload = const Value.absent(),
+                Value<String?> refLocale = const Value.absent(),
+                Value<String?> serveurId = const Value.absent(),
+                Value<String> etat = const Value.absent(),
+                Value<int> essais = const Value.absent(),
+                Value<String?> derniereErreur = const Value.absent(),
+                Value<DateTime> creeLe = const Value.absent(),
+                Value<DateTime> misAJourLe = const Value.absent(),
+                Value<DateTime?> envoyeLe = const Value.absent(),
+              }) => EnvoisEnAttenteCompanion(
+                id: id,
+                utilisateurId: utilisateurId,
+                type: type,
+                cle: cle,
+                payload: payload,
+                refLocale: refLocale,
+                serveurId: serveurId,
+                etat: etat,
+                essais: essais,
+                derniereErreur: derniereErreur,
+                creeLe: creeLe,
+                misAJourLe: misAJourLe,
+                envoyeLe: envoyeLe,
+              ),
+          createCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                required String utilisateurId,
+                required String type,
+                required String cle,
+                required String payload,
+                Value<String?> refLocale = const Value.absent(),
+                Value<String?> serveurId = const Value.absent(),
+                Value<String> etat = const Value.absent(),
+                Value<int> essais = const Value.absent(),
+                Value<String?> derniereErreur = const Value.absent(),
+                Value<DateTime> creeLe = const Value.absent(),
+                Value<DateTime> misAJourLe = const Value.absent(),
+                Value<DateTime?> envoyeLe = const Value.absent(),
+              }) => EnvoisEnAttenteCompanion.insert(
+                id: id,
+                utilisateurId: utilisateurId,
+                type: type,
+                cle: cle,
+                payload: payload,
+                refLocale: refLocale,
+                serveurId: serveurId,
+                etat: etat,
+                essais: essais,
+                derniereErreur: derniereErreur,
+                creeLe: creeLe,
+                misAJourLe: misAJourLe,
+                envoyeLe: envoyeLe,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable<$EnvoisEnAttenteTable, EnvoiLocal>(table),
+                  BaseReferences<
+                    _$AppDatabase,
+                    $EnvoisEnAttenteTable,
+                    EnvoiLocal
+                  >(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$EnvoisEnAttenteTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $EnvoisEnAttenteTable,
+      EnvoiLocal,
+      $$EnvoisEnAttenteTableFilterComposer,
+      $$EnvoisEnAttenteTableOrderingComposer,
+      $$EnvoisEnAttenteTableAnnotationComposer,
+      $$EnvoisEnAttenteTableCreateCompanionBuilder,
+      $$EnvoisEnAttenteTableUpdateCompanionBuilder,
+      (
+        EnvoiLocal,
+        BaseReferences<_$AppDatabase, $EnvoisEnAttenteTable, EnvoiLocal>,
+      ),
+      EnvoiLocal,
+      PrefetchHooks Function()
+    >;
+typedef $$EnvoisFichiersTableCreateCompanionBuilder =
+    EnvoisFichiersCompanion Function({
+      Value<int> id,
+      required int envoiId,
+      Value<int?> photoId,
+      required String etape,
+      required String idApk,
+      Value<String> etat,
+      Value<String?> derniereErreur,
+    });
+typedef $$EnvoisFichiersTableUpdateCompanionBuilder =
+    EnvoisFichiersCompanion Function({
+      Value<int> id,
+      Value<int> envoiId,
+      Value<int?> photoId,
+      Value<String> etape,
+      Value<String> idApk,
+      Value<String> etat,
+      Value<String?> derniereErreur,
+    });
+
+class $$EnvoisFichiersTableFilterComposer
+    extends Composer<_$AppDatabase, $EnvoisFichiersTable> {
+  $$EnvoisFichiersTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get envoiId => $composableBuilder(
+    column: $table.envoiId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get photoId => $composableBuilder(
+    column: $table.photoId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get etape => $composableBuilder(
+    column: $table.etape,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get idApk => $composableBuilder(
+    column: $table.idApk,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get etat => $composableBuilder(
+    column: $table.etat,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get derniereErreur => $composableBuilder(
+    column: $table.derniereErreur,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$EnvoisFichiersTableOrderingComposer
+    extends Composer<_$AppDatabase, $EnvoisFichiersTable> {
+  $$EnvoisFichiersTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get envoiId => $composableBuilder(
+    column: $table.envoiId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get photoId => $composableBuilder(
+    column: $table.photoId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get etape => $composableBuilder(
+    column: $table.etape,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get idApk => $composableBuilder(
+    column: $table.idApk,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get etat => $composableBuilder(
+    column: $table.etat,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get derniereErreur => $composableBuilder(
+    column: $table.derniereErreur,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$EnvoisFichiersTableAnnotationComposer
+    extends Composer<_$AppDatabase, $EnvoisFichiersTable> {
+  $$EnvoisFichiersTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<int> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<int> get envoiId =>
+      $composableBuilder(column: $table.envoiId, builder: (column) => column);
+
+  GeneratedColumn<int> get photoId =>
+      $composableBuilder(column: $table.photoId, builder: (column) => column);
+
+  GeneratedColumn<String> get etape =>
+      $composableBuilder(column: $table.etape, builder: (column) => column);
+
+  GeneratedColumn<String> get idApk =>
+      $composableBuilder(column: $table.idApk, builder: (column) => column);
+
+  GeneratedColumn<String> get etat =>
+      $composableBuilder(column: $table.etat, builder: (column) => column);
+
+  GeneratedColumn<String> get derniereErreur => $composableBuilder(
+    column: $table.derniereErreur,
+    builder: (column) => column,
+  );
+}
+
+class $$EnvoisFichiersTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $EnvoisFichiersTable,
+          EnvoiFichierLocal,
+          $$EnvoisFichiersTableFilterComposer,
+          $$EnvoisFichiersTableOrderingComposer,
+          $$EnvoisFichiersTableAnnotationComposer,
+          $$EnvoisFichiersTableCreateCompanionBuilder,
+          $$EnvoisFichiersTableUpdateCompanionBuilder,
+          (
+            EnvoiFichierLocal,
+            BaseReferences<
+              _$AppDatabase,
+              $EnvoisFichiersTable,
+              EnvoiFichierLocal
+            >,
+          ),
+          EnvoiFichierLocal,
+          PrefetchHooks Function()
+        > {
+  $$EnvoisFichiersTableTableManager(
+    _$AppDatabase db,
+    $EnvoisFichiersTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$EnvoisFichiersTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$EnvoisFichiersTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$EnvoisFichiersTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                Value<int> envoiId = const Value.absent(),
+                Value<int?> photoId = const Value.absent(),
+                Value<String> etape = const Value.absent(),
+                Value<String> idApk = const Value.absent(),
+                Value<String> etat = const Value.absent(),
+                Value<String?> derniereErreur = const Value.absent(),
+              }) => EnvoisFichiersCompanion(
+                id: id,
+                envoiId: envoiId,
+                photoId: photoId,
+                etape: etape,
+                idApk: idApk,
+                etat: etat,
+                derniereErreur: derniereErreur,
+              ),
+          createCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                required int envoiId,
+                Value<int?> photoId = const Value.absent(),
+                required String etape,
+                required String idApk,
+                Value<String> etat = const Value.absent(),
+                Value<String?> derniereErreur = const Value.absent(),
+              }) => EnvoisFichiersCompanion.insert(
+                id: id,
+                envoiId: envoiId,
+                photoId: photoId,
+                etape: etape,
+                idApk: idApk,
+                etat: etat,
+                derniereErreur: derniereErreur,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable<$EnvoisFichiersTable, EnvoiFichierLocal>(table),
+                  BaseReferences<
+                    _$AppDatabase,
+                    $EnvoisFichiersTable,
+                    EnvoiFichierLocal
+                  >(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$EnvoisFichiersTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $EnvoisFichiersTable,
+      EnvoiFichierLocal,
+      $$EnvoisFichiersTableFilterComposer,
+      $$EnvoisFichiersTableOrderingComposer,
+      $$EnvoisFichiersTableAnnotationComposer,
+      $$EnvoisFichiersTableCreateCompanionBuilder,
+      $$EnvoisFichiersTableUpdateCompanionBuilder,
+      (
+        EnvoiFichierLocal,
+        BaseReferences<_$AppDatabase, $EnvoisFichiersTable, EnvoiFichierLocal>,
+      ),
+      EnvoiFichierLocal,
+      PrefetchHooks Function()
+    >;
 
 class $AppDatabaseManager {
   final _$AppDatabase _db;
@@ -4255,4 +6091,8 @@ class $AppDatabaseManager {
       $$PhotosLocalesTableTableManager(_db, _db.photosLocales);
   $$PhotosVisiteTableTableManager get photosVisite =>
       $$PhotosVisiteTableTableManager(_db, _db.photosVisite);
+  $$EnvoisEnAttenteTableTableManager get envoisEnAttente =>
+      $$EnvoisEnAttenteTableTableManager(_db, _db.envoisEnAttente);
+  $$EnvoisFichiersTableTableManager get envoisFichiers =>
+      $$EnvoisFichiersTableTableManager(_db, _db.envoisFichiers);
 }

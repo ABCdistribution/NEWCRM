@@ -129,7 +129,10 @@ void main() {
       depuisFiche: true,
     );
     await tester.pumpAndSettle();
-    expect(find.text('Planifier · Carrefour – Ivry-sur-Seine'), findsOneWidget);
+    expect(
+      find.text('Planifier · Carrefour – Ivry-sur-Seine · Classe F'),
+      findsOneWidget,
+    );
     await tester.tap(find.text('Ajouter la ligne'));
     await tester.pump();
     await tester.pump(const Duration(seconds: 3));

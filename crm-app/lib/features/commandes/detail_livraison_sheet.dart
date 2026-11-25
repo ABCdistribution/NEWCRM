@@ -44,6 +44,10 @@ class DetailLivraisonSheet extends ConsumerWidget {
               c.statut.libelle,
               variante: livree ? VariantePastille.vert : VariantePastille.jaune,
             ),
+            if (classeValide(m?.classe).isNotEmpty) ...[
+              const SizedBox(width: 6),
+              PastilleClasse(m?.classe),
+            ],
             const SizedBox(width: 8),
             Flexible(
               child: Text(

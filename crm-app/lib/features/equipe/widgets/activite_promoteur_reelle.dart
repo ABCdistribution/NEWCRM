@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/logic/classes.dart';
 import '../../../core/models/models.dart';
 import '../../../core/state/state.dart';
 import '../../../core/ui/ui.dart';
@@ -34,7 +35,11 @@ class _ActiviteDuPromoteurState extends ConsumerState<ActiviteDuPromoteur> {
       for (final c in etat.commandes)
         if (id != null && c.auteurId == id) c,
     ];
-    String client(String magasinId) => etat.magasinParId(magasinId)?.nom ?? '';
+    String client(String magasinId) {
+      final m = etat.magasinParId(magasinId);
+      return m == null ? '' : nomEtClasse(m.nom, m.classe);
+    }
+
     final liste = _onglet == 0;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,

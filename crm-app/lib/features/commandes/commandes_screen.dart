@@ -249,9 +249,9 @@ class _CarteAttenteCrm extends ConsumerWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
+                    NomMagasin(
                       magasin?.nom ?? a.clientNom,
-                      style: AppText.titreCarte,
+                      classe: magasin?.classe ?? a.clientClasse,
                     ),
                     const SizedBox(height: 3),
                     Text(
@@ -336,9 +336,9 @@ class _CarteAttente extends ConsumerWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
+                    NomMagasin(
                       magasin?.nom ?? a.magasinId,
-                      style: AppText.titreCarte,
+                      classe: magasin?.classe,
                     ),
                     const SizedBox(height: 3),
                     Text(

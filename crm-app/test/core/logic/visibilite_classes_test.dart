@@ -41,6 +41,25 @@ void main() {
       expect(seuilPourClasse('?'), 28);
     });
 
+    test('classeValide : A à G en majuscule, sinon vide', () {
+      expect(classeValide('b'), 'B');
+      expect(classeValide(' G '), 'G');
+      expect(classeValide('A++'), 'A++');
+      expect(classeValide('A+'), 'A+');
+      for (final x in ['—', '', 'H', 'AA', 'Z', null]) {
+        expect(classeValide(x), isEmpty);
+      }
+    });
+
+    test('nomEtClasse : la classe est ajoutée si elle est connue', () {
+      expect(
+        nomEtClasse('Carrefour – Rouen', 'c'),
+        'Carrefour – Rouen · Classe C',
+      );
+      expect(nomEtClasse('Carrefour – Rouen', '—'), 'Carrefour – Rouen');
+      expect(nomEtClasse('Carrefour – Rouen', null), 'Carrefour – Rouen');
+    });
+
     test('classeRang : le meilleur niveau d’abord', () {
       final tri = ['G', 'B', 'A', 'A++', 'C', 'A+']
         ..sort((a, b) => classeRang(a).compareTo(classeRang(b)));

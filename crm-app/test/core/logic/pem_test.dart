@@ -239,6 +239,18 @@ void main() {
       expect(p.planningId, isNull);
     });
 
+    test('classe du client : niveauClass normalisé, sinon vide', () {
+      Map<String, dynamic> avec(Object? classe) {
+        final j = jsonProposition();
+        j['client'] = {...(j['client'] as Map), 'niveauClass': classe};
+        return j;
+      }
+
+      expect(propositionPemDepuisJson(avec('c'))!.clientClasse, 'C');
+      expect(propositionPemDepuisJson(avec('—'))!.clientClasse, isEmpty);
+      expect(propositionPemDepuisJson(avec(null))!.clientClasse, isEmpty);
+    });
+
     test('date avec heure, reports restants absents ou négatifs', () {
       final p = propositionPemDepuisJson(
         jsonProposition(

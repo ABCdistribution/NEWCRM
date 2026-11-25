@@ -36,6 +36,9 @@ class BlocVisitesPem extends ConsumerWidget {
           _CartePem(
             proposition: p,
             nomClient: etat.magasinParId(p.clientId)?.nom ?? p.clientNom,
+            classe: etat.classeMagasin(p.clientId).isEmpty
+                ? p.clientClasse
+                : etat.classeMagasin(p.clientId),
             brouillon: brouillon,
           ),
       ],
@@ -47,11 +50,13 @@ class _CartePem extends StatelessWidget {
   const _CartePem({
     required this.proposition,
     required this.nomClient,
+    required this.classe,
     required this.brouillon,
   });
 
   final PropositionPem proposition;
   final String nomClient;
+  final String classe;
 
   /// Une visite PEM de cette proposition est déjà commencée sur le téléphone.
   final bool brouillon;
@@ -91,7 +96,7 @@ class _CartePem extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(nomClient, style: AppText.titreCarte),
+                    NomMagasin(nomClient, classe: classe),
                     const SizedBox(height: 3),
                     Text(
                       '${acceptee ? 'Prévue le' : 'Proposée pour le'} ${libelleDatePem(p.dateProposee)}',

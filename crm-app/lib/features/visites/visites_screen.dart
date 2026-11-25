@@ -48,6 +48,7 @@ class VisitesScreen extends ConsumerWidget {
             _CarteVisite(
               ligne: v,
               nomClient: etat.magasinParId(v.magasinId)?.nom ?? '',
+              classe: etat.classeMagasin(v.magasinId),
             ),
       ],
     );
@@ -57,10 +58,15 @@ class VisitesScreen extends ConsumerWidget {
 /// Carte d'une visite : client, date (et auteur si ce n'est pas la mienne), pastille d'état. Une visite du profil
 /// s'ouvre comme un brouillon ou un compte rendu, celle d'un autre en lecture seule.
 class _CarteVisite extends StatelessWidget {
-  const _CarteVisite({required this.ligne, required this.nomClient});
+  const _CarteVisite({
+    required this.ligne,
+    required this.nomClient,
+    required this.classe,
+  });
 
   final LigneVisite ligne;
   final String nomClient;
+  final String classe;
 
   @override
   Widget build(BuildContext context) {
@@ -80,7 +86,7 @@ class _CarteVisite extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(nomClient, style: AppText.titreCarte),
+                NomMagasin(nomClient, classe: classe),
                 Padding(
                   padding: const EdgeInsets.only(top: 3),
                   child: Text.rich(

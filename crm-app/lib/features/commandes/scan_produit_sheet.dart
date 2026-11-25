@@ -9,6 +9,7 @@ import '../../core/logic/logic.dart';
 import '../../core/models/models.dart';
 import '../../core/theme/theme.dart';
 import '../../core/ui/ui.dart';
+import '../catalogue/fiche_produit_sheet.dart';
 import 'logic/scan_produit.dart';
 import 'produits_remplacement_sheet.dart';
 import 'state/commande_provider.dart';
@@ -19,11 +20,27 @@ import 'state/scan_provider.dart';
 Future<void> ouvrirScanProduit(BuildContext context) =>
     showAppSheet<void>(context, builder: (_) => const ScanProduitSheet());
 
+/// Ouvre la feuille de scan depuis le catalogue : le produit lu par son EAN ouvre sa fiche.
+/// Appelée par `AppRoutes.scannerCatalogue(context)`.
+Future<void> ouvrirScanCatalogue(BuildContext context) async {
+  final produit = await showAppSheet<Produit>(
+    context,
+    builder: (_) => const ScanProduitSheet(pourCatalogue: true),
+  );
+  if (produit == null || !context.mounted) return;
+  await ouvrirFicheProduit(context, produit.id);
+}
+
 /// Feuille « Scanner un produit ». Connecté au CRM : vraie caméra, le produit lu par son EAN est ajouté à la
 /// commande ; un produit en rupture n'est pas ajouté, un message s'affiche aussitôt dans la feuille. En
 /// démonstration : aperçu simulé (coins blancs, ligne rouge animée) et boutons « Simuler… ».
+///
+/// `pourCatalogue` : la feuille sert au référentiel produits. Le produit lu (disponible ou en rupture) est rendu à
+/// l'appelant par la fermeture de la feuille, rien n'est ajouté à une commande.
 class ScanProduitSheet extends ConsumerStatefulWidget {
-  const ScanProduitSheet({super.key});
+  const ScanProduitSheet({super.key, this.pourCatalogue = false});
+
+  final bool pourCatalogue;
 
   @override
   ConsumerState<ScanProduitSheet> createState() => _ScanProduitSheetState();
@@ -83,6 +100,10 @@ class _ScanProduitSheetState extends ConsumerState<ScanProduitSheet>
   void _traiter(LectureScan lecture, String code) {
     final navigateur = Navigator.of(context);
     final p = lecture.produit;
+    if (widget.pourCatalogue && p != null) {
+      navigateur.pop(p);
+      return;
+    }
     switch (lecture.resultat) {
       case ResultatScan.inconnu:
         AppToast.show(context, 'Produit inconnu : $code');
@@ -126,7 +147,7 @@ class _ScanProduitSheetState extends ConsumerState<ScanProduitSheet>
   /// `cmd-scan-ok` : le scan est simulé, il « lit » le produit disponible suivant du catalogue.
   void _simuler() {
     final navigateur = Navigator.of(context);
-    if (ref.read(commandeEnCoursProvider) == null) {
+    if (!widget.pourCatalogue && ref.read(commandeEnCoursProvider) == null) {
       navigateur.pop();
       return;
     }
@@ -203,7 +224,9 @@ class _ScanProduitSheetState extends ConsumerState<ScanProduitSheet>
             child: SizedBox(
               width: double.infinity,
               child: Text(
-                'Pointez la caméra vers le code-barres (EAN) du produit : il est ajouté à la commande.',
+                widget.pourCatalogue
+                    ? 'Pointez la caméra vers le code-barres (EAN) du produit.'
+                    : 'Pointez la caméra vers le code-barres (EAN) du produit : il est ajouté à la commande.',
                 textAlign: TextAlign.center,
                 style: AppText.t(13, c: AppColors.muted),
               ),
@@ -225,7 +248,7 @@ class _ScanProduitSheetState extends ConsumerState<ScanProduitSheet>
                 ),
             ],
           ),
-          if (!_reel)
+          if (!_reel && !widget.pourCatalogue)
             Padding(
               padding: const EdgeInsets.only(top: 8),
               child: SizedBox(

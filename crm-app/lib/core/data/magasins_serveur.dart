@@ -1,4 +1,5 @@
 import '../db/app_database.dart';
+import '../logic/classes.dart';
 import '../models/models.dart';
 
 /// Magasin de l'app à partir d'un client téléchargé du CRM.
@@ -18,7 +19,7 @@ Magasin magasinDepuisClient(ClientLocal c) {
     id: c.id,
     nom: ville.isEmpty ? _titre(c.enseigne) : '${_titre(c.enseigne)} – $ville',
     statut: c.actif ? 'Client actif' : 'Client inactif',
-    classe: c.niveauClass ?? '—',
+    classe: classeValide(c.niveauClass),
     adresse: adresse,
     ca: '—',
     evo: '',

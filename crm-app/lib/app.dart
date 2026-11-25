@@ -3,6 +3,7 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'core/auth/session.dart';
+import 'core/envoi/envoi_provider.dart';
 import 'core/models/models.dart';
 import 'core/state/state.dart';
 import 'core/sync/catalogue_provider.dart';
@@ -28,6 +29,8 @@ class CrmApp extends ConsumerWidget {
     // Démarre le chargement du catalogue réel dès qu'un utilisateur est connecté ; tant qu'aucune donnée n'est
     // téléchargée (premier lancement), l'écran de chargement remplace l'application.
     final jeux = ref.watch(jeuxDeDonneesProvider).map((e) => e.$2);
+    // File d'envoi vers le CRM : elle repart dès le démarrage (visites et commandes validées hors connexion).
+    ref.watch(envoiProvider);
     // Commandes en attente : téléchargées en arrière-plan, sans retenir l'ouverture de l'application.
     ref.watch(commandesAttenteSynchroProvider);
     // Visites PEM (propositions et articles à vérifier) : de même, en arrière-plan.

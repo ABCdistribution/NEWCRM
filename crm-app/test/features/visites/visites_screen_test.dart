@@ -13,9 +13,11 @@ import '../../support/app_test_support.dart';
 ProviderContainer conteneurEcran(WidgetTester tester) =>
     ProviderScope.containerOf(tester.element(find.byType(VisitesScreen)));
 
-/// Nombre de cartes de visite affichées (une pastille d'état par carte).
-int nbCartes(WidgetTester tester) =>
-    tester.widgetList(find.byType(Pastille)).length;
+/// Nombre de cartes de visite affichées (une pastille d'état par carte, hors pastilles de classe du client).
+int nbCartes(WidgetTester tester) => tester
+    .widgetList<Pastille>(find.byType(Pastille))
+    .where((p) => p.variante != VariantePastille.client)
+    .length;
 
 void main() {
   group('Onglet « Visites » du promoteur (salesVisites l.1180-1186)', () {
@@ -35,6 +37,8 @@ void main() {
       expect(find.text('U Express – Boulogne-Billancourt'), findsOneWidget);
       expect(find.text('10 oct. 09:15'), findsOneWidget);
       expect(find.text('Envoyée'), findsNWidgets(4));
+      // La classe du client s'affiche à côté de son nom quand elle est connue.
+      expect(find.text('A++'), findsWidgets);
       expect(find.textContaining('par '), findsNothing);
       expect(tester.takeException(), isNull);
     });

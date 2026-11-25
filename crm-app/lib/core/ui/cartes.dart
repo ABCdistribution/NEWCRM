@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../logic/classes.dart';
 import '../theme/theme.dart';
 
 /// Variantes de pastille (`.p-gris`, `.p-bleu`…).
@@ -63,6 +64,53 @@ class Pastille extends StatelessWidget {
           c: texte ?? fg,
         ),
       ),
+    );
+  }
+}
+
+/// Pastille de classe d'un client (« A » à « G »). Rien n'est affiché si la classe est inconnue ou invalide ;
+/// `avecMot` ajoute « Classe » devant la lettre.
+class PastilleClasse extends StatelessWidget {
+  const PastilleClasse(
+    this.classe, {
+    super.key,
+    this.avecMot = false,
+    this.petite = true,
+  });
+
+  final String? classe;
+  final bool avecMot;
+  final bool petite;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = classeValide(classe);
+    if (c.isEmpty) return const SizedBox.shrink();
+    return Pastille(
+      avecMot ? 'Classe $c' : c,
+      variante: VariantePastille.client,
+      petite: petite,
+    );
+  }
+}
+
+/// Nom d'un client suivi de sa pastille de classe (aucune pastille si la classe est inconnue).
+class NomMagasin extends StatelessWidget {
+  const NomMagasin(this.nom, {super.key, this.classe, this.style});
+
+  final String nom;
+  final String? classe;
+  final TextStyle? style;
+
+  @override
+  Widget build(BuildContext context) {
+    final texte = Text(nom, style: style ?? AppText.titreCarte);
+    if (classeValide(classe).isEmpty) return texte;
+    return Wrap(
+      spacing: 8,
+      runSpacing: 4,
+      crossAxisAlignment: WrapCrossAlignment.center,
+      children: [texte, PastilleClasse(classe)],
     );
   }
 }

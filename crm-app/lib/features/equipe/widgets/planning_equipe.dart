@@ -110,6 +110,7 @@ class VuePlanningEquipe extends ConsumerWidget {
         fond: Color(style.fond),
         texte: Color(style.texte),
         detail: detail,
+        classe: crm.classeEtape(e),
         onTap: lecture ? null : () => modifier(e),
         onModifier: !lecture && modifiable ? () => modifier(e) : null,
       );

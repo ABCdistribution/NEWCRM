@@ -54,6 +54,7 @@ class _PanierScreenState extends ConsumerState<PanierScreen> {
       entete: TopbarEcran(
         titre: 'Panier',
         sous: magasin?.nom,
+        classe: magasin?.classe,
         droite: ConstrainedBox(
           // Largeur naturelle d'environ 170 px ; le plafond protège la ligne si la police ou l'échelle de texte grossit.
           constraints: const BoxConstraints(maxWidth: 210),

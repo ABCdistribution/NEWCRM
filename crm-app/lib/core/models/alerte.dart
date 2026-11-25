@@ -37,6 +37,19 @@ class Alerte {
   /// Ordre de tri : plus petit = plus urgent.
   final int rang;
 
+  /// La même alerte avec la classe du client visé (utile pour une notification du CRM, qui n'en porte pas).
+  Alerte avecClasse(String classe) => Alerte(
+    niveau: niveau,
+    icone: icone,
+    titre: titre,
+    classe: classe,
+    detail: detail,
+    rang: rang,
+    magasinId: magasinId,
+    prospectId: prospectId,
+    notificationId: notificationId,
+  );
+
   bool get estProspect => prospectId != null;
 
   bool get estNotification => notificationId != null;

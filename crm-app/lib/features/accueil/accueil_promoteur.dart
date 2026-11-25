@@ -11,6 +11,7 @@ import '../../core/state/state.dart';
 import '../../core/theme/theme.dart';
 import '../../core/ui/ui.dart';
 import 'accueil_logique.dart';
+import 'widgets/bloc_envoi.dart';
 import 'widgets/bloc_livraisons.dart';
 import 'widgets/bloc_visites_pem.dart';
 
@@ -70,6 +71,7 @@ class AccueilPromoteur extends ConsumerWidget {
         ),
       ),
       enfants: [
+        const BlocEnvoi(),
         AppBouton(
           '＋ Nouvelle commande',
           variante: VarianteBouton.plein,
@@ -88,7 +90,10 @@ class AccueilPromoteur extends ConsumerWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(prochaine.magasin.nom, style: AppText.titreCarte),
+                NomMagasin(
+                  prochaine.magasin.nom,
+                  classe: prochaine.magasin.classe,
+                ),
                 const SizedBox(height: 3),
                 Text(
                   [
@@ -109,9 +114,9 @@ class AccueilPromoteur extends ConsumerWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
+                  NomMagasin(
                     etat.magasinParId(v.magasinId)?.nom ?? v.magasinId,
-                    style: AppText.titreCarte,
+                    classe: etat.classeMagasin(v.magasinId),
                   ),
                   const SizedBox(height: 3),
                   Text(
@@ -162,7 +167,11 @@ class _CarteTournee extends StatelessWidget {
   Widget build(BuildContext context) {
     final puce = _puce(ligne.etat);
     final enCours = ligne.etat == EtatTournee.enCours;
-    void ouvrir() => AppRoutes.demarrerVisite(context, ligne.magasin.id);
+    void ouvrir() => AppRoutes.demarrerVisite(
+      context,
+      ligne.magasin.id,
+      planningId: ligne.visite.id,
+    );
     return AppCarte(
       padding: EdgeInsets.zero,
       child: Column(
@@ -189,14 +198,16 @@ class _CarteTournee extends StatelessWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(
+                        NomMagasin(
                           ligne.magasin.nom,
+                          classe: ligne.magasin.classe,
                           style: AppText.t(15, w: FontWeight.w800),
                         ),
                         const SizedBox(height: 3),
                         Text(
                           [
-                            if (ligne.visite.heure.isNotEmpty) ligne.visite.heure,
+                            if (ligne.visite.heure.isNotEmpty)
+                              ligne.visite.heure,
                             ligne.visite.type,
                           ].join(' · '),
                           style: AppText.sousCarte,

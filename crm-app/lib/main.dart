@@ -7,6 +7,7 @@ import 'app.dart';
 import 'core/auth/session.dart';
 import 'core/db/base_provider.dart';
 import 'core/db/cle_base.dart';
+import 'core/db/envois_base.dart';
 import 'core/db/ouverture_base.dart';
 import 'core/state/state.dart';
 
@@ -15,6 +16,9 @@ Future<void> main() async {
   await initializeDateFormatting('fr_FR');
   await SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
   final base = await ouvrirBaseLocale();
+  // Les visites en cours ne survivent pas à un redémarrage : leurs photos restées sans visite sont effacées, sinon une
+  // nouvelle visite qui reprend le même numéro les récupérerait.
+  await base.purgerPhotosOrphelines();
   // Session enregistrée : relue sans réseau, l'utilisateur retrouve directement son application.
   final utilisateur = await const StockageSession(
     StockageSecretSysteme(),

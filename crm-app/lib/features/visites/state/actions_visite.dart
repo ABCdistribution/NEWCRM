@@ -84,6 +84,7 @@ class ActionsVisite {
       cmd: v.cmd,
       typeVisite: v.typeVisite,
       propositionPemId: v.propositionPemId,
+      planningId: v.planningId,
       articlesPem: v.articlesPem,
       libellesArticlesPem: v.libellesArticlesPem,
     ),

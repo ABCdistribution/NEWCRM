@@ -68,8 +68,8 @@ Uri? uriItineraire(String? adresse, {TargetPlatform? plateforme}) {
   return Uri.https('www.google.com', '/maps/search/', {'api': '1', 'query': a});
 }
 
-/// Lance `uri` ; un toast sobre signale l'échec (aucune application pour la gérer).
-Future<void> lancerExterne(
+/// Lance `uri` ; un toast sobre signale l'échec (aucune application pour la gérer). Vrai si l'application s'est ouverte.
+Future<bool> lancerExterne(
   BuildContext context,
   LanceurExterne lanceur,
   Uri uri,
@@ -78,4 +78,5 @@ Future<void> lancerExterne(
   if (!ok && context.mounted) {
     AppToast.show(context, "Impossible d'ouvrir l'application.");
   }
+  return ok;
 }

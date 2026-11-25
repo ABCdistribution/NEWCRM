@@ -123,7 +123,7 @@ class _CarteMagasin extends ConsumerWidget {
                 Padding(
                   padding: const EdgeInsets.only(top: 3),
                   child: Text(
-                    x.type == TypeMagasinEnseigne.client
+                    x.type == TypeMagasinEnseigne.client && x.detail.isNotEmpty
                         ? '${x.ville} · ${x.detail}'
                         : x.ville,
                     style: AppText.sousCarte,

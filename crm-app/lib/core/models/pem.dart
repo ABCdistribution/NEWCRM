@@ -34,6 +34,7 @@ class PropositionPem {
     this.motifDernierReport,
     this.planningId,
     this.visiteId,
+    this.clientClasse = '',
   }) : reportsRestants =
            reportsRestants ??
            (nbReports >= nbReportsAvantObligation
@@ -45,6 +46,9 @@ class PropositionPem {
 
   /// « Enseigne – Ville » d'après le CRM, quand le client n'est pas dans le portefeuille local.
   final String clientNom;
+
+  /// Classe du client d'après le CRM (« A » à « G »), vide si inconnue.
+  final String clientClasse;
 
   /// Date proposée, `aaaa-mm-jj`.
   final String dateProposee;
@@ -89,5 +93,6 @@ class PropositionPem {
     motifDernierReport: motifDernierReport ?? this.motifDernierReport,
     planningId: planningId,
     visiteId: visiteId,
+    clientClasse: clientClasse,
   );
 }

@@ -82,8 +82,13 @@ final apiClientProvider = Provider<ApiLecture>(
   (ref) => ApiClient(jeton: () => ref.read(stockageSessionProvider).jeton()),
 );
 
-/// Écritures sur l'API : réservées aux commandes en attente (l'app reste en lecture seule pour le reste).
+/// Écritures JSON sur l'API : commandes, visites (file d'envoi), propositions PEM, notifications.
 final apiEcritureProvider = Provider<ApiEcriture>(
+  (ref) => ApiClient(jeton: () => ref.read(stockageSessionProvider).jeton()),
+);
+
+/// Envoi de fichiers à l'API : les photos des visites (file d'envoi).
+final apiFichiersProvider = Provider<ApiFichiers>(
   (ref) => ApiClient(jeton: () => ref.read(stockageSessionProvider).jeton()),
 );
 

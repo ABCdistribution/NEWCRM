@@ -43,13 +43,15 @@ String commentaireDe(CommandeEnCours cmd) => cmd.note.trim();
   );
 }
 
-/// `POST /commandes/apk` d'une commande mise en attente.
+/// `POST /commandes/apk` : d'une commande mise en attente (`EN_ATTENTE`, brouillon modifiable) ou d'une commande
+/// validée directement (`VALIDEE`, ferme et exportable vers Minos).
 Map<String, Object?> corpsCreation(
   CommandeEnCours cmd, {
   required String idApk,
   required DateTime maintenant,
   required PrixArticle prixDe,
   String? email,
+  String statut = 'EN_ATTENTE',
 }) {
   final commentaire = commentaireDe(cmd);
   final consigne = consigneDe(cmd);
@@ -57,7 +59,7 @@ Map<String, Object?> corpsCreation(
     'idCommandeApk': idApk,
     'clientId': cmd.magasinId,
     'dateCommande': maintenant.toUtc().toIso8601String(),
-    'statut': 'EN_ATTENTE',
+    'statut': statut,
     if (email != null && email.isNotEmpty) 'emailValidation': email,
     if (commentaire.isNotEmpty) 'commentaire': commentaire,
     if (consigne != null) 'nePasLivrerAvant': consigne.date,

@@ -109,8 +109,11 @@ void main() {
       expect(find.text('Ajouter la ligne'), findsOneWidget);
       expect(find.text('Visite effectuée'), findsNothing);
       expect(find.text('Supprimer la ligne'), findsNothing);
-      // Premier client du secteur par défaut.
-      expect(find.text('Carrefour Market – Versailles'), findsWidgets);
+      // Premier client du secteur par défaut, avec sa classe.
+      expect(
+        find.text('Carrefour Market – Versailles · Classe A++'),
+        findsWidgets,
+      );
       expect(tester.takeException(), isNull);
     });
 
@@ -338,7 +341,7 @@ void main() {
       await monterPlanning(tester, Role.dir);
       await ouvrir(tester);
       final liste = find.byType(DropdownButtonFormField<String>).first;
-      await choisir(tester, liste, 'U Express – Paris');
+      await choisir(tester, liste, 'U Express – Paris · Classe E');
       await toucher(tester, find.text('Ajouter la ligne'));
       final e = etat(tester).etapes.last;
       expect(e.ref, 'm5');
@@ -469,7 +472,7 @@ void main() {
         depuisFiche: true,
       );
       expect(
-        find.text('Planifier · Carrefour – Ivry-sur-Seine'),
+        find.text('Planifier · Carrefour – Ivry-sur-Seine · Classe F'),
         findsOneWidget,
       );
       expect(dans('Prospect'), findsNothing);
@@ -538,7 +541,7 @@ void main() {
       expect(find.text('Soirée étape'), findsNothing);
       expect(find.text('Supprimer la visite'), findsNothing);
       // Clients des visites de Léa P. : Rouen en premier.
-      expect(find.text('Carrefour Market – Rouen'), findsWidgets);
+      expect(find.text('Carrefour Market – Rouen · Classe B'), findsWidgets);
       expect(find.text('Mer 4 nov.'), findsOneWidget);
     });
 

@@ -10,8 +10,9 @@ import '../../../core/ui/ui.dart';
 /// Délai entre la validation d'une visite et son « envoi au serveur » simulé (`setTimeout(…, 3500)`).
 const Duration delaiEnvoiVisite = Duration(milliseconds: 3500);
 
-/// Simule l'envoi d'une visite validée : au bout de 3,5 s elle passe de « À envoyer » à « Envoyée »
-/// et, pour le promoteur, un message le confirme (maquette : `v-valider-ok`).
+/// Simule l'envoi d'une visite validée, en démonstration seulement (connecté, la visite part par la file d'envoi
+/// `core/envoi`) : au bout de 3,5 s elle passe de « À envoyer » à « Envoyée » et, pour le promoteur, un message le
+/// confirme (maquette : `v-valider-ok`).
 class EnvoiVisites {
   EnvoiVisites(this._ref);
 

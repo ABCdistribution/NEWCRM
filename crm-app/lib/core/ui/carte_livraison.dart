@@ -46,9 +46,9 @@ class CarteLivraison extends ConsumerWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
+                    NomMagasin(
                       magasin?.nom ?? c.magasinId,
-                      style: AppText.titreCarte,
+                      classe: magasin?.classe,
                     ),
                     const SizedBox(height: 3),
                     Text.rich(

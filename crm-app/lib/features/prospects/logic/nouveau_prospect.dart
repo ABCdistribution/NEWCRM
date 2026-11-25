@@ -3,6 +3,7 @@
 /// Maquette : `nouveauProspect` (l.1718-1736), `lireFP` (l.1715) et l'action `np-creer` (l.2007-2021).
 library;
 
+import '../../../core/api/erreur_api.dart';
 import '../../../core/data/data.dart';
 import '../../../core/models/models.dart';
 
@@ -101,13 +102,29 @@ double? lirePotentiel(String saisie) {
   return double.tryParse(t.replaceFirst(',', '.')) ?? double.nan;
 }
 
-/// Erreurs de validation par champ (clés : `enseigne`, `raison`, `email`, `proba`, `pot`) ; vide = formulaire valide.
+/// Erreurs de validation par champ (clés : `enseigne`, `raison`, `ville`, `cp`, `tel`, `email`, `proba`, `pot`) ;
+/// vide = formulaire valide. Les longueurs sont celles que le CRM accepte.
 Map<String, String> validerProspect(BrouillonProspect f) {
   final erreurs = <String, String>{};
-  if (f.enseigne.trim().isEmpty) erreurs['enseigne'] = 'Enseigne requise';
-  if (f.raison.trim().isEmpty) erreurs['raison'] = 'Raison sociale requise';
+  String? trop(String v, int max) =>
+      v.trim().length > max ? '$max caractères au plus' : null;
+  if (f.enseigne.trim().isEmpty) {
+    erreurs['enseigne'] = 'Enseigne requise';
+  } else if (trop(f.enseigne, 200) case final m?) {
+    erreurs['enseigne'] = m;
+  }
+  if (f.raison.trim().isEmpty) {
+    erreurs['raison'] = 'Raison sociale requise';
+  } else if (trop(f.raison, 200) case final m?) {
+    erreurs['raison'] = m;
+  }
+  if (trop(f.ville, 100) case final m?) erreurs['ville'] = m;
+  if (trop(f.cp, 10) case final m?) erreurs['cp'] = m;
+  if (trop(f.tel, 20) case final m?) erreurs['tel'] = m;
   if (f.email.trim().isNotEmpty && !_formeEmail.hasMatch(f.email.trim())) {
     erreurs['email'] = 'Email invalide';
+  } else if (trop(f.email, 200) case final m?) {
+    erreurs['email'] = m;
   }
   final proba = f.proba.trim();
   if (proba.isNotEmpty &&
@@ -115,8 +132,47 @@ Map<String, String> validerProspect(BrouillonProspect f) {
           (int.tryParse(proba) ?? 101) <= 100)) {
     erreurs['proba'] = 'Entre 0 et 100';
   }
-  if (lirePotentiel(f.pot)?.isNaN ?? false) erreurs['pot'] = 'Montant invalide';
+  final pot = lirePotentiel(f.pot);
+  if (pot != null && (pot.isNaN || pot < 0 || pot.isInfinite)) {
+    erreurs['pot'] = 'Montant invalide';
+  }
   return erreurs;
+}
+
+/// Corps de `POST /prospects/apk` pour un formulaire valide. Les champs vides ne sont pas envoyés : le CRM applique
+/// alors ses valeurs par défaut (probabilité de l'étape, par exemple). Le prospect est assigné à son créateur.
+Map<String, Object?> corpsProspect(
+  BrouillonProspect f, {
+  required String idApk,
+}) {
+  String? texte(String v) => v.trim().isEmpty ? null : v.trim();
+  final proba = texte(f.proba);
+  final pot = lirePotentiel(f.pot);
+  return {
+    'idApk': idApk,
+    'raisonSociale': f.raison.trim(),
+    'enseigne': f.enseigne.trim(),
+    'codePostal': ?texte(f.cp),
+    'ville': ?texte(f.ville),
+    'telephone': ?texte(f.tel),
+    'email': ?texte(f.email),
+    'statut': f.etape.code,
+    if (proba != null) 'probabilite': int.parse(proba),
+    'potentielCaAnnuel': ?pot,
+    if (f.source.isNotEmpty) 'source': f.source,
+    if (f.classe.isNotEmpty) 'niveauClass': f.classe,
+  };
+}
+
+/// Message affiché quand la création échoue : celui de l'API quand elle en donne un, sinon un texte selon le statut.
+String messageErreurProspect(ErreurApi e) {
+  if (e.detail != null || e.type != TypeErreurApi.inattendue) return e.message;
+  return switch (e.statut) {
+    400 => 'Ces informations sont refusées par le CRM. Vérifiez la saisie.',
+    404 => 'Secteur introuvable dans votre périmètre.',
+    409 => 'Ce prospect a déjà été créé.',
+    _ => e.message,
+  };
 }
 
 /// Identifiant du nouveau prospect : « p » suivi du nombre de prospects visibles plus un, décalé s'il est déjà pris

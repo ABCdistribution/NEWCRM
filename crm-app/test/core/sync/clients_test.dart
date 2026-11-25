@@ -166,7 +166,8 @@ void main() {
         final b = m['b']!;
         expect(b.actif, isFalse);
         expect(b.statut, 'Client inactif');
-        expect(b.classe, '—');
+        // Classe inconnue : vide (jamais « — »), aucune pastille n'est affichée.
+        expect(b.classe, isEmpty);
       },
     );
   });

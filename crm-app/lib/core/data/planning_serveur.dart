@@ -1,3 +1,4 @@
+import '../logic/classes.dart';
 import '../logic/dates.dart';
 import '../logic/ecarts.dart';
 import '../models/models.dart';
@@ -190,8 +191,13 @@ EtapePlanning? etapeDepuisTournee(Map<String, dynamic> j, DateTime lundi) {
     note: _texte(j['note']) ?? '',
     fait: _vrai(j['fait']),
     sem: q.sem,
+    classe: cible == CiblePlanning.client ? _classeDe(client) : '',
   );
 }
+
+/// Classe du client d'une réponse de l'API (`client.niveauClass`), vide si absente ou invalide.
+String _classeDe(Object? client) =>
+    client is Map ? classeValide(_texte(client['niveauClass'])) : '';
 
 /// Ligne de planning à partir d'une visite planifiée d'un promoteur (`GET /plannings`) : un client, un jour, sans heure.
 EtapePlanning? etapeDepuisPlanning(Map<String, dynamic> j, DateTime lundi) {
@@ -210,6 +216,7 @@ EtapePlanning? etapeDepuisPlanning(Map<String, dynamic> j, DateTime lundi) {
     note: _texte(j['raison']) ?? '',
     fait: _vrai(j['fait']),
     sem: q.sem,
+    classe: _classeDe(client),
   );
 }
 
@@ -262,6 +269,9 @@ EtapePlanning? etapeDepuisLigne(
     note: _texte(j['note']) ?? '',
     fait: _vrai(j['fait']),
     sem: q.sem,
+    classe: cible == CiblePlanning.client
+        ? classeValide(_texte(j['niveauClass']))
+        : '',
   );
 }
 
@@ -336,6 +346,7 @@ List<EtapePlanning> rapprocherPrevue(
         note: prevue[i].note,
         fait: false,
         sem: prevue[i].sem,
+        classe: prevue[i].classe,
       ),
   ];
 }

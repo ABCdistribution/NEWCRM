@@ -12,11 +12,25 @@ abstract interface class ApiLecture {
   Future<Object?> get(String chemin, {Map<String, String>? query});
 }
 
-/// Écriture authentifiée (abstraction : faux en test). Réservée aux commandes en attente.
+/// Écriture JSON authentifiée (abstraction : faux en test) : commandes, visites, propositions PEM, notifications.
 abstract interface class ApiEcriture {
   /// `POST`, `PATCH` ou `DELETE` de `chemin` avec `corps` (JSON) : renvoie le JSON décodé de la réponse (null si elle
   /// est vide). Lève [ErreurApi], dont le message est celui de l'API quand elle en donne un.
   Future<Object?> envoyer(String methode, String chemin, {Object? corps});
+}
+
+/// Envoi authentifié d'un fichier (abstraction : faux en test) : les photos de visite, en `multipart/form-data`.
+abstract interface class ApiFichiers {
+  /// `POST {chemin}` : `octets` dans le champ `champ` (nom `nomFichier`, type `typeMime`) et les `champs` texte en plus.
+  /// Renvoie le JSON décodé de la réponse (null si elle est vide). Lève [ErreurApi].
+  Future<Object?> televerser(
+    String chemin, {
+    required String champ,
+    required String nomFichier,
+    required String typeMime,
+    required List<int> octets,
+    Map<String, String> champs = const {},
+  });
 }
 
 /// Téléchargement authentifié d'un fichier (photo de profil).
@@ -26,7 +40,7 @@ abstract interface class ApiOctets {
 }
 
 /// Client HTTP de l'API du CRM : jeton en `Authorization: Bearer`, sans dépendance externe.
-class ApiClient implements ApiLecture, ApiOctets, ApiEcriture {
+class ApiClient implements ApiLecture, ApiOctets, ApiEcriture, ApiFichiers {
   ApiClient({required this._jeton, String? urlBase, HttpClient? client})
     : _urlBase = urlBase ?? ConfigApi.url,
       _client =
@@ -87,11 +101,51 @@ class ApiClient implements ApiLecture, ApiOctets, ApiEcriture {
   }
 
   @override
-  Future<Object?> envoyer(
-    String methode,
+  Future<Object?> envoyer(String methode, String chemin, {Object? corps}) =>
+      _ecrire(methode, chemin, (requete) {
+        if (corps != null) {
+          requete.headers.contentType = ContentType.json;
+          requete.add(utf8.encode(jsonEncode(corps)));
+        }
+      });
+
+  @override
+  Future<Object?> televerser(
     String chemin, {
-    Object? corps,
-  }) async {
+    required String champ,
+    required String nomFichier,
+    required String typeMime,
+    required List<int> octets,
+    Map<String, String> champs = const {},
+  }) {
+    final limite =
+        'crm-${DateTime.now().microsecondsSinceEpoch}-${octets.length}';
+    final corps = corpsMultipart(
+      limite: limite,
+      champ: champ,
+      nomFichier: nomFichier,
+      typeMime: typeMime,
+      octets: octets,
+      champs: champs,
+    );
+    return _ecrire('POST', chemin, (requete) {
+      requete.headers.contentType = ContentType(
+        'multipart',
+        'form-data',
+        parameters: {'boundary': limite},
+      );
+      requete.contentLength = corps.length;
+      requete.add(corps);
+    });
+  }
+
+  /// Appel d'écriture : `remplir` pose l'en-tête et le corps ; le JSON de la réponse est décodé, une réponse d'erreur
+  /// devient une [ErreurApi] (message de l'API gardé).
+  Future<Object?> _ecrire(
+    String methode,
+    String chemin,
+    void Function(HttpClientRequest requete) remplir,
+  ) async {
     final jeton = await _jeton();
     if (jeton == null || jeton.isEmpty) {
       throw const ErreurApi(TypeErreurApi.sessionExpiree);
@@ -103,10 +157,7 @@ class ApiClient implements ApiLecture, ApiOctets, ApiEcriture {
       );
       requete.headers.set(HttpHeaders.authorizationHeader, 'Bearer $jeton');
       requete.headers.set(HttpHeaders.acceptHeader, 'application/json');
-      if (corps != null) {
-        requete.headers.contentType = ContentType.json;
-        requete.add(utf8.encode(jsonEncode(corps)));
-      }
+      remplir(requete);
       final reponse = await requete.close().timeout(delaiReponse);
       final texte = await reponse
           .transform(utf8.decoder)
@@ -170,4 +221,39 @@ class ApiClient implements ApiLecture, ApiOctets, ApiEcriture {
       throw const ErreurApi(TypeErreurApi.reseau);
     }
   }
+}
+
+/// Corps `multipart/form-data` : les champs texte, puis le fichier.
+List<int> corpsMultipart({
+  required String limite,
+  required String champ,
+  required String nomFichier,
+  required String typeMime,
+  required List<int> octets,
+  Map<String, String> champs = const {},
+}) {
+  String protege(String v) =>
+      v.replaceAll('"', '').replaceAll(RegExp(r'[\r\n]'), ' ');
+  final corps = BytesBuilder(copy: false);
+  for (final e in champs.entries) {
+    corps.add(
+      utf8.encode(
+        '--$limite\r\n'
+        'Content-Disposition: form-data; name="${protege(e.key)}"\r\n\r\n'
+        '${e.value}\r\n',
+      ),
+    );
+  }
+  corps
+    ..add(
+      utf8.encode(
+        '--$limite\r\n'
+        'Content-Disposition: form-data; name="${protege(champ)}"; '
+        'filename="${protege(nomFichier)}"\r\n'
+        'Content-Type: $typeMime\r\n\r\n',
+      ),
+    )
+    ..add(octets)
+    ..add(utf8.encode('\r\n--$limite--\r\n'));
+  return corps.takeBytes();
 }

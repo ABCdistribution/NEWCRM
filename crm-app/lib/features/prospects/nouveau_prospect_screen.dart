@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -6,6 +8,7 @@ import '../../core/logic/logic.dart';
 import '../../core/models/models.dart';
 import '../../core/nav/nav.dart';
 import '../../core/state/state.dart';
+import '../../core/sync/domaines_provider.dart';
 import '../../core/ui/ui.dart';
 import 'logic/nouveau_prospect.dart';
 import 'logic/vue_prospects.dart';
@@ -20,6 +23,9 @@ import 'state/prospects_state.dart';
 /// (secteur en démonstration seulement, source, classe, étape, probabilité, potentiel). « Créer le prospect » vérifie les champs et affiche les
 /// erreurs sous chaque champ ; s'ils sont valides, le prospect entre dans le store « En attente d'envoi », la page
 /// Prospects s'ouvre sur « Mes prospects » sans filtre et le toast « Prospect créé… » s'affiche.
+///
+/// Connecté au CRM, la création est envoyée (`POST /prospects/apk`, même `idApk` à chaque nouvel essai) puis la liste
+/// des prospects est relue ; en cas d'échec le formulaire reste ouvert avec le message de l'API.
 class NouveauProspectScreen extends ConsumerWidget {
   const NouveauProspectScreen({super.key});
 
@@ -57,6 +63,7 @@ class NouveauProspectScreen extends ConsumerWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
+            if (etat.erreurApi != null) MessageErreur(etat.erreurApi!),
             const SectionTitre('Identité'),
             texte(
               'Enseigne *',
@@ -74,12 +81,18 @@ class NouveauProspectScreen extends ConsumerWidget {
             ),
             Rangee(
               children: [
-                texte('Ville', f.ville, (b, v) => b.copyWith(ville: v)),
+                texte(
+                  'Ville',
+                  f.ville,
+                  (b, v) => b.copyWith(ville: v),
+                  erreur: e['ville'],
+                ),
                 texte(
                   'Code postal',
                   f.cp,
                   (b, v) => b.copyWith(cp: v),
                   clavier: TextInputType.number,
+                  erreur: e['cp'],
                 ),
               ],
             ),
@@ -90,6 +103,7 @@ class NouveauProspectScreen extends ConsumerWidget {
                   f.tel,
                   (b, v) => b.copyWith(tel: v),
                   clavier: TextInputType.phone,
+                  erreur: e['tel'],
                 ),
                 texte(
                   'Email',
@@ -166,7 +180,7 @@ class NouveauProspectScreen extends ConsumerWidget {
           AppBouton(
             '＋ Créer le prospect',
             variante: VarianteBouton.plein,
-            onPressed: () => _creer(context, ref),
+            onPressed: etat.envoi ? null : () => _creer(context, ref),
           ),
         ],
       ),
@@ -176,7 +190,11 @@ class NouveauProspectScreen extends ConsumerWidget {
   /// `np-creer` : valide, crée le prospect et revient sur la page Prospects.
   void _creer(BuildContext context, WidgetRef ref) {
     final notifier = ref.read(nouveauProspectProvider.notifier);
-    if (!notifier.valider()) return;
+    if (!ref.read(peutCreerProspectProvider) || !notifier.valider()) return;
+    if (DemoTemps.reel) {
+      unawaited(_envoyer(context, ref));
+      return;
+    }
     final store = ref.read(crmProvider.notifier);
     final existants = ref.read(prospectsProvider);
     store.ajouterProspect(
@@ -189,6 +207,18 @@ class NouveauProspectScreen extends ConsumerWidget {
     ref.read(vueProspectsProvider.notifier).choisir(VueProspects.liste);
     ref.read(filtreGroupeProvider.notifier).definir(null);
     AppToast.show(context, 'Prospect créé. Envoi dès que le réseau le permet.');
+    AppRoutes.allerOnglet(context, OngletApp.prospects);
+  }
+
+  /// Connecté : envoie la création au CRM, relit la liste des prospects puis revient sur la page Prospects.
+  Future<void> _envoyer(BuildContext context, WidgetRef ref) async {
+    final cree = await ref.read(nouveauProspectProvider.notifier).envoyer();
+    if (!cree) return;
+    unawaited(ref.read(prospectsSynchroProvider.notifier).rafraichir());
+    if (!context.mounted) return;
+    ref.read(vueProspectsProvider.notifier).choisir(VueProspects.liste);
+    ref.read(filtreGroupeProvider.notifier).definir(null);
+    AppToast.show(context, 'Prospect créé.');
     AppRoutes.allerOnglet(context, OngletApp.prospects);
   }
 }

@@ -26,6 +26,31 @@ void main() {
     );
   }
 
+  testWidgets('NomMagasin : pastille de classe seulement si elle est connue', (
+    tester,
+  ) async {
+    await pumpEcran(
+      tester,
+      const Column(
+        children: [
+          NomMagasin('Carrefour – Rouen', classe: 'b'),
+          NomMagasin('Leclerc – Caen', classe: '—'),
+          NomMagasin('U Express – Lille'),
+          PastilleClasse('A++', avecMot: true),
+          PastilleClasse(''),
+        ],
+      ),
+      role: Role.promoteur,
+    );
+    expect(find.text('Carrefour – Rouen'), findsOneWidget);
+    expect(find.text('B'), findsOneWidget);
+    expect(find.text('Leclerc – Caen'), findsOneWidget);
+    expect(find.text('—'), findsNothing);
+    expect(find.text('U Express – Lille'), findsOneWidget);
+    expect(find.text('Classe A++'), findsOneWidget);
+    expect(find.byType(Pastille), findsNWidgets(2));
+  });
+
   testWidgets('la palette suit l’univers du thème', (tester) async {
     late UniversPalette p;
     await pumpEcran(

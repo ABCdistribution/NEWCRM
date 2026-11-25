@@ -91,8 +91,17 @@ typedef ReleveArticlePem = ({bool present, bool misEnAvant});
 
 /// Commande liée à une visite (`cmd` : `{ id, ht, liv }`).
 class CommandeLiee {
-  const CommandeLiee({required this.id, required this.ht, required this.liv});
+  const CommandeLiee({
+    required this.id,
+    required this.ht,
+    required this.liv,
+    this.idApk,
+  });
   final String id;
+
+  /// Identifiant mobile de la commande (`idCommandeApk`) : le compte-rendu de visite envoyé au CRM s'y rattache. Nul
+  /// pour une commande qui ne passe pas par la file d'envoi (démonstration, visite venue du CRM).
+  final String? idApk;
 
   /// Montant HT déjà formaté (« 2 340,00 € »).
   final String ht;
@@ -125,6 +134,7 @@ class Visite {
     this.cmd,
     this.typeVisite = TypeVisite.commerciale,
     this.propositionPemId,
+    this.planningId,
     this.articlesPem = const {},
     this.libellesArticlesPem = const {},
   });
@@ -187,6 +197,10 @@ class Visite {
   /// Proposition PEM du CRM à laquelle la visite répond (visite PEM seulement).
   final String? propositionPemId;
 
+  /// Visite planifiée du CRM (ligne de planning du promoteur) que cette visite solde : renseignée seulement quand la
+  /// visite démarre depuis « Ma tournée du jour » (étape venue du CRM), nulle sinon.
+  final String? planningId;
+
   /// Articles PEM relevés : identifiant de l'article → présent / mis en avant.
   final Map<String, ReleveArticlePem> articlesPem;
 
@@ -230,6 +244,7 @@ class Visite {
     CommandeLiee? cmd,
     Map<String, ReleveArticlePem>? articlesPem,
     Map<String, String>? libellesArticlesPem,
+    String? planningId,
   }) {
     return Visite(
       id: id,
@@ -255,6 +270,7 @@ class Visite {
       cmd: cmd ?? this.cmd,
       typeVisite: typeVisite,
       propositionPemId: propositionPemId,
+      planningId: planningId ?? this.planningId,
       articlesPem: articlesPem ?? this.articlesPem,
       libellesArticlesPem: libellesArticlesPem ?? this.libellesArticlesPem,
     );

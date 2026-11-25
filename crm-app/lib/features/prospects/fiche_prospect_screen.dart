@@ -1,4 +1,6 @@
 import '../../core/auth/session.dart';
+import '../../core/envoi/corps_activite.dart';
+import '../../core/envoi/journal_contact.dart';
 import '../../core/sync/detail_prospect_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -10,6 +12,7 @@ import '../../core/state/state.dart';
 import '../../core/theme/theme.dart';
 import '../../core/ui/ui.dart';
 import 'logic/vue_prospects.dart';
+import 'state/prospects_state.dart';
 import 'widgets/onglet_magasins_prospect.dart';
 
 /// Fiche d'un prospect (écran empilé `prospect`). Maquette : fichePros l.1776-1792.
@@ -61,10 +64,22 @@ class _FicheProspectScreenState extends ConsumerState<FicheProspectScreen> {
     }
     final prochaine = prochaineEtape(ref.watch(etapesProvider), id);
 
-    // Actions externes : inactives (onTap nul) tant que le CRM ne fournit pas la donnée.
-    final lanceur = ref.read(lanceurExterneProvider);
-    VoidCallback? lancer(Uri? uri) =>
-        uri == null ? null : () => lancerExterne(context, lanceur, uri);
+    // Droits du rôle connecté sur les routes de l'API (tous en démonstration).
+    final peutNoter = ref.watch(peutNoterProspectProvider);
+    final peutAvancer = ref.watch(peutFaireAvancerProspectProvider);
+
+    // Actions externes : inactives (onTap nul) tant que le CRM ne fournit pas la donnée. Connecté, un appel ou un e-mail
+    // lancé est journalisé dans le CRM (si le rôle le peut).
+    VoidCallback? lancer(Uri? uri) => uri == null
+        ? null
+        : () => lancerEtJournaliser(
+            context,
+            ref,
+            uri,
+            cible: CibleActivite.prospect,
+            id: id,
+            journaliser: peutNoter,
+          );
     final uriCarte = uriItineraire(
       detail?.adresse ?? (p.cp.isEmpty ? null : p.cp),
     );
@@ -91,8 +106,13 @@ class _FicheProspectScreenState extends ConsumerState<FicheProspectScreen> {
             Padding(
               padding: const EdgeInsets.only(top: 2),
               child: Text(
-                '${p.raison} · classe ${p.classe} · ${p.cp}'
-                '${p.cs != null && p.cs!.isNotEmpty ? ' · Resp. ${p.cs}' : ''}',
+                [
+                  p.raison,
+                  if (classeValide(p.classe).isNotEmpty)
+                    'classe ${classeValide(p.classe)}',
+                  p.cp,
+                  if (p.cs != null && p.cs!.isNotEmpty) 'Resp. ${p.cs}',
+                ].join(' · '),
                 style: AppText.t(12.5, c: u.encre2),
               ),
             ),
@@ -125,11 +145,12 @@ class _FicheProspectScreenState extends ConsumerState<FicheProspectScreen> {
                     visite: false,
                   ),
                 ),
-                ActionRapide(
-                  label: 'Note',
-                  icone: AppIcons.note,
-                  onTap: () => AppRoutes.noteProspect(context, id),
-                ),
+                if (peutNoter)
+                  ActionRapide(
+                    label: 'Note',
+                    icone: AppIcons.note,
+                    onTap: () => AppRoutes.noteProspect(context, id),
+                  ),
               ],
             ),
           ],
@@ -160,21 +181,23 @@ class _FicheProspectScreenState extends ConsumerState<FicheProspectScreen> {
           Timeline(_evenements(p, prochaine)),
         ],
       ],
-      bas: BarreBasse(
-        enfants: [
-          AppBouton(
-            "Changer d'étape",
-            variante: VarianteBouton.tonal,
-            onPressed: () => AppRoutes.changerEtapeProspect(context, id),
-          ),
-          if (p.statut != StatutProspect.gagne)
-            AppBouton(
-              'Passer en client',
-              variante: VarianteBouton.plein,
-              onPressed: () => AppRoutes.passerEnClient(context, id),
-            ),
-        ],
-      ),
+      bas: peutAvancer
+          ? BarreBasse(
+              enfants: [
+                AppBouton(
+                  "Changer d'étape",
+                  variante: VarianteBouton.tonal,
+                  onPressed: () => AppRoutes.changerEtapeProspect(context, id),
+                ),
+                if (p.statut != StatutProspect.gagne)
+                  AppBouton(
+                    'Passer en client',
+                    variante: VarianteBouton.plein,
+                    onPressed: () => AppRoutes.passerEnClient(context, id),
+                  ),
+              ],
+            )
+          : null,
     );
   }
 

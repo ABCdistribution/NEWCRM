@@ -61,7 +61,11 @@ class BlocProspectsASuivre extends ConsumerWidget {
                           Text(p.nom, style: AppText.titreCarte),
                           const SizedBox(height: 3),
                           Text(
-                            'Classe ${p.classe} · probabilité ${p.proba} %',
+                            [
+                              if (classeValide(p.classe).isNotEmpty)
+                                'Classe ${classeValide(p.classe)}',
+                              'probabilité ${p.proba} %',
+                            ].join(' · '),
                             style: AppText.sousCarte,
                           ),
                         ],

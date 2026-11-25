@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/api/erreur_api.dart';
 import '../../../core/logic/logic.dart';
 import '../../../core/models/models.dart';
+import '../../../core/state/state.dart';
 import '../../../core/sync/pem_provider.dart';
 import '../../../core/theme/theme.dart';
 import '../../../core/ui/ui.dart';
@@ -95,12 +96,16 @@ class _FeuillePemState extends ConsumerState<FeuillePem> {
   @override
   Widget build(BuildContext context) {
     final p = widget.proposition;
+    final classe = ref.watch(classeMagasinProvider(p.clientId));
     return FeuilleBase(
       titre: widget.report
           ? 'Reporter la visite PEM'
           : 'Accepter la visite PEM',
       children: [
-        Text(widget.nomClient, style: AppText.titreCarte),
+        NomMagasin(
+          widget.nomClient,
+          classe: classe.isNotEmpty ? classe : p.clientClasse,
+        ),
         const SizedBox(height: 3),
         Text(
           'Proposée pour le ${libelleDatePem(p.dateProposee)}',

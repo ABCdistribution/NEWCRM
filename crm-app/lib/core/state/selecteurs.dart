@@ -57,6 +57,11 @@ final magasinParIdProvider = Provider.family<Magasin?, String>(
   (ref, id) => ref.watch(crmProvider.select((e) => e.magasinParId(id))),
 );
 
+/// Classe d'un client par id (« A » à « G »), vide si inconnue.
+final classeMagasinProvider = Provider.family<String, String>(
+  (ref, id) => ref.watch(crmProvider.select((e) => e.classeMagasin(id))),
+);
+
 /// Un prospect par id.
 final prospectParIdProvider = Provider.family<Prospect?, String>(
   (ref, id) => ref.watch(crmProvider.select((e) => e.prospectParId(id))),

@@ -33,6 +33,7 @@ class EtapePlanning {
     this.note = '',
     this.fait = false,
     this.sem,
+    this.classe = '',
   });
 
   final String id;
@@ -69,6 +70,9 @@ class EtapePlanning {
   /// Décalage de semaine (planning d'un promoteur ouvert par son encadrement) ; nul = semaine courante.
   final int? sem;
 
+  /// Classe du client visé d'après le CRM (« A » à « G »), vide si inconnue ou si la ligne ne vise pas un client.
+  final String classe;
+
   EtapePlanning copyWith({
     int? jour,
     String? heure,
@@ -86,6 +90,7 @@ class EtapePlanning {
     String? note,
     bool? fait,
     int? sem,
+    String? classe,
   }) {
     return EtapePlanning(
       id: id,
@@ -105,6 +110,7 @@ class EtapePlanning {
       note: note ?? this.note,
       fait: fait ?? this.fait,
       sem: sem ?? this.sem,
+      classe: classe ?? this.classe,
     );
   }
 }

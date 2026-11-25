@@ -24,6 +24,30 @@ void main() {
     );
   });
 
+  test(
+    'demarrerVisite garde le lien avec la visite planifiée du CRM (UUID)',
+    () {
+      const planning = '66666666-6666-4666-8666-666666666666';
+      final c = conteneurPour(Role.promoteur);
+      final n = c.read(crmProvider.notifier);
+      // Identifiant de démonstration : ignoré.
+      final id = n.demarrerVisite('m1', planningId: 'v3');
+      expect(c.read(crmProvider).visites.first.planningId, isNull);
+      // Reprise du brouillon depuis la tournée du CRM : le lien est acquis.
+      expect(n.demarrerVisite('m1', planningId: planning), id);
+      expect(c.read(crmProvider).visites.first.planningId, planning);
+      // Visite démarrée ailleurs (fiche magasin) : le lien reste.
+      expect(n.demarrerVisite('m1'), id);
+      expect(c.read(crmProvider).visites.first.planningId, planning);
+      // Nouveau brouillon depuis une étape du CRM.
+      final autre = n.demarrerVisite('m2', planningId: planning);
+      expect(
+        c.read(crmProvider).visites.firstWhere((v) => v.id == autre).planningId,
+        planning,
+      );
+    },
+  );
+
   test('changerEtapeProspect met à jour statut, probabilité et timeline', () {
     final c = conteneurPour(Role.cs);
     final n = c.read(crmProvider.notifier);

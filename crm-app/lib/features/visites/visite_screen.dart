@@ -170,6 +170,7 @@ class _ParcoursVisiteState extends ConsumerState<_ParcoursVisite> {
       entete: _EnteteVisite(
         visite: visite,
         nomClient: nom,
+        classe: ref.watch(classeMagasinProvider(visite.magasinId)),
         etape: _index + 1,
         total: etapes.length,
         onBriefing: avecBriefing
@@ -224,6 +225,7 @@ class _EnteteVisite extends StatelessWidget {
   const _EnteteVisite({
     required this.visite,
     required this.nomClient,
+    required this.classe,
     required this.etape,
     required this.total,
     this.onBriefing,
@@ -231,6 +233,7 @@ class _EnteteVisite extends StatelessWidget {
 
   final Visite visite;
   final String nomClient;
+  final String classe;
 
   /// Ouvre la feuille du briefing ; nul quand le magasin n'a rien à montrer.
   final VoidCallback? onBriefing;
@@ -261,8 +264,9 @@ class _EnteteVisite extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
+                    NomMagasin(
                       nomClient,
+                      classe: classe,
                       style: AppText.t(17, w: FontWeight.w800, h: 1.2),
                     ),
                     Padding(

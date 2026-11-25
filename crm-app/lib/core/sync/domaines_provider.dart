@@ -87,8 +87,9 @@ final commandesProvider = NotifierProvider<CommandesNotifier, EtatSynchro>(
 /// Commandes mises en attente par le promoteur dans le CRM (`GET /commandes/apk?statut=EN_ATTENTE`), avec leur détail
 /// (lignes, e-mail du client) : lisibles hors connexion. Réservé au promoteur (COMMERCIAL), seul à pouvoir les modifier.
 ///
-/// C'est aussi le seul endroit où l'app écrit dans le CRM : créer, modifier, valider, supprimer une commande en
-/// attente et l'envoyer par mail. Chaque écriture met à jour la copie locale avec la réponse de l'API.
+/// Écritures en direct : créer, modifier, valider, supprimer une commande en attente et l'envoyer par mail ; chaque
+/// écriture met à jour la copie locale avec la réponse de l'API. Les visites terminées et les commandes validées sans
+/// passer par l'attente partent par la file d'envoi (`core/envoi`).
 class CommandesAttenteNotifier extends SynchroDomaineNotifier {
   @override
   String get domaine => 'commandes_attente';

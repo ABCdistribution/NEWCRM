@@ -5,6 +5,7 @@ library;
 
 import 'dart:math' as math;
 
+import '../../../core/logic/classes.dart';
 import '../../../core/models/models.dart';
 import '../data/villes_a_prospecter.dart';
 import 'vue_prospects.dart';
@@ -74,7 +75,9 @@ List<MagasinEnseigne> magasinsDeLEnseigne(
           nom: m.nom,
           ville: m.adresse,
           type: TypeMagasinEnseigne.client,
-          detail: 'Classe ${m.classe}',
+          detail: classeValide(m.classe).isEmpty
+              ? ''
+              : 'Classe ${classeValide(m.classe)}',
           magasinId: m.id,
         ),
       )

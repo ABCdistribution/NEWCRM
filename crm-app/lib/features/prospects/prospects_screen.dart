@@ -37,6 +37,7 @@ class ProspectsScreen extends ConsumerWidget {
     final liste = listeAffichee(base, filtre);
     final tous = vue == VueProspects.tous;
     final nb = base.length;
+    final peutCreer = ref.watch(peutCreerProspectProvider);
 
     final cartes = vue == VueProspects.pipeline
         ? _parEtape(context, liste, etapes)
@@ -98,11 +99,13 @@ class ProspectsScreen extends ConsumerWidget {
         else
           ...cartes,
       ],
-      fab: AppFab(
-        label: '＋ Nouveau prospect',
-        onPressed: () => AppRoutes.nouveauProspect(context),
-      ),
-      paddingBasFab: true,
+      fab: peutCreer
+          ? AppFab(
+              label: '＋ Nouveau prospect',
+              onPressed: () => AppRoutes.nouveauProspect(context),
+            )
+          : null,
+      paddingBasFab: peutCreer,
     );
   }
 

@@ -115,7 +115,7 @@ class _ChoixClient extends ConsumerWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(m.nom, style: AppText.titreCarte),
+                      NomMagasin(m.nom, classe: m.classe),
                       const SizedBox(height: 3),
                       Text(m.adresse, style: AppText.sousCarte),
                     ],
@@ -152,7 +152,11 @@ class _Catalogue extends ConsumerWidget {
     );
     final n = cmd.nbArticles;
     return PageUnivers(
-      entete: TopbarEcran(titre: 'Nouvelle commande', sous: magasin?.nom ?? ''),
+      entete: TopbarEcran(
+        titre: 'Nouvelle commande',
+        sous: magasin?.nom ?? '',
+        classe: magasin?.classe,
+      ),
       enfants: [
         BarreRecherche(
           hint: 'Nom, marque, réf. ou EAN',

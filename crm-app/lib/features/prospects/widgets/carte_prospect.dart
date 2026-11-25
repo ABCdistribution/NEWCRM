@@ -49,7 +49,11 @@ class CarteProspect extends StatelessWidget {
     final p = prospect;
     final chef = p.cs;
     final prochaine = prochaineEtape(etapes, p.id);
-    final suite = avecChef && chef != null && chef.isNotEmpty ? ' · $chef' : '';
+    final classe = classeValide(p.classe);
+    final ligneClasse = [
+      if (classe.isNotEmpty) 'Classe $classe',
+      if (avecChef && chef != null && chef.isNotEmpty) chef,
+    ].join(' · ');
     return AppCarte(
       onTap: onTap,
       child: Column(
@@ -62,13 +66,11 @@ class CarteProspect extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(p.nom, style: AppText.titreCarte),
-                    Padding(
-                      padding: const EdgeInsets.only(top: 3),
-                      child: Text(
-                        'Classe ${p.classe}$suite',
-                        style: AppText.sousCarte,
+                    if (ligneClasse.isNotEmpty)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 3),
+                        child: Text(ligneClasse, style: AppText.sousCarte),
                       ),
-                    ),
                   ],
                 ),
               ),
