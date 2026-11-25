@@ -36,6 +36,13 @@ const int = (min, max) => min + Math.floor(rand() * (max - min + 1));
 const chance = (p) => rand() < p;
 const daysAgo = (n) => new Date(Date.now() - n * 24 * 3600 * 1000);
 const daysAhead = (n) => new Date(Date.now() + n * 24 * 3600 * 1000);
+// EAN-13 valide à partir de douze chiffres (clé de contrôle ajoutée) : crm-web ne dessine le code-barres
+// d'un produit que si le gencode est un EAN-13 correct.
+function ean13(douze) {
+  let somme = 0;
+  for (let i = 0; i < 12; i++) somme += Number(douze[i]) * (i % 2 === 0 ? 1 : 3);
+  return `${douze}${(10 - (somme % 10)) % 10}`;
+}
 
 async function main() {
   console.log('— Seed CRM ABC —');
@@ -193,13 +200,15 @@ async function main() {
     for (const libelle of nomsProduits[f.code]) {
       numArticle += 1;
       const codeAs400 = String(900000 + numArticle);
+      // `gencode` aussi à la mise à jour : un nouveau passage corrige les gencodes de 12 chiffres déjà en base.
+      const gencode = ean13(`37612345${String(10000 + numArticle).slice(1)}`);
       const art = await prisma.article.upsert({
         where: { codeAs400 },
-        update: { libelle },
+        update: { libelle, gencode },
         create: {
           codeAs400,
           libelle,
-          gencode: `37612345${String(10000 + numArticle).slice(1)}`,
+          gencode,
           typeArticle: pick(['PF', 'PF', 'PF', 'PLV']),
           sousFamille: f.code.replace('F-', ''),
           marqueId: marque.id,

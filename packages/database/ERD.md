@@ -41,6 +41,22 @@ G G
     
 
 
+        TypeVisite {
+            COMMERCIALE COMMERCIALE
+PEM PEM
+        }
+    
+
+
+        StatutPropositionPem {
+            PROPOSEE PROPOSEE
+ACCEPTEE ACCEPTEE
+REALISEE REALISEE
+ANNULEE ANNULEE
+        }
+    
+
+
         TypeDn {
             ABC ABC
 CONCURRENCE CONCURRENCE
@@ -190,6 +206,7 @@ VALIDEE VALIDEE
     Float longitude "❓"
     Boolean actif 
     NiveauClass niveauClass "❓"
+    Boolean suiviPem 
     String statutCommande "❓"
     String statutLivre "❓"
     String statutFacture "❓"
@@ -372,6 +389,7 @@ VALIDEE VALIDEE
     String alerteObs "❓"
     String idCommandeApk "❓"
     Boolean commandeEnRayon "❓"
+    TypeVisite typeVisite 
     DateTime createdAt 
     DateTime updatedAt 
     DateTime deletedAt "❓"
@@ -386,6 +404,51 @@ VALIDEE VALIDEE
     DateTime createdAt 
     DateTime updatedAt 
     DateTime deletedAt "❓"
+    }
+  
+
+  "produits_indispensables" {
+    String id "🗝️"
+    Int ordre 
+    DateTime createdAt 
+    DateTime updatedAt 
+    DateTime deletedAt "❓"
+    }
+  
+
+  "visite_indispensables" {
+    String id "🗝️"
+    Boolean present 
+    DateTime createdAt 
+    }
+  
+
+  "visite_pem_articles" {
+    String id "🗝️"
+    Boolean present 
+    Boolean misEnAvant 
+    DateTime createdAt 
+    }
+  
+
+  "frequences_pem_classes" {
+    String id "🗝️"
+    NiveauClass niveauClass 
+    Int semaines 
+    DateTime createdAt 
+    DateTime updatedAt 
+    }
+  
+
+  "propositions_pem" {
+    String id "🗝️"
+    DateTime dateProposee 
+    StatutPropositionPem statut 
+    Int nbReports 
+    Boolean obligatoire 
+    String motifDernierReport "❓"
+    DateTime createdAt 
+    DateTime updatedAt 
     }
   
 
@@ -468,6 +531,8 @@ VALIDEE VALIDEE
     DateTime datePassage 
     Boolean fait 
     String raison "❓"
+    String note "❓"
+    String idApk "❓"
     DateTime createdAt 
     DateTime updatedAt 
     DateTime deletedAt "❓"
@@ -497,6 +562,8 @@ VALIDEE VALIDEE
     Boolean visiteSimple 
     Boolean accompagnement 
     Boolean rdv 
+    Boolean appel 
+    Boolean remplacement 
     Boolean soireeEtape 
     String soireeLieu "❓"
     String soireeAdresse "❓"
@@ -785,6 +852,19 @@ VALIDEE VALIDEE
     "visites" }o--|o prospects : "prospect"
     "visites" }o--|o raisons_absence_commande : "raisonAbsenceCommande"
     "visites" |o--|o visites : "visiteLiee"
+    "visites" |o--|| "TypeVisite" : "enum:typeVisite"
+    "produits_indispensables" }o--|| centrales : "centrale"
+    "produits_indispensables" }o--|| articles : "article"
+    "visite_indispensables" }o--|| visites : "visite"
+    "visite_indispensables" }o--|| articles : "article"
+    "visite_pem_articles" }o--|| visites : "visite"
+    "visite_pem_articles" }o--|| articles : "article"
+    "frequences_pem_classes" |o--|| "NiveauClass" : "enum:niveauClass"
+    "propositions_pem" }o--|| clients : "client"
+    "propositions_pem" }o--|| users : "promoteur"
+    "propositions_pem" |o--|| "StatutPropositionPem" : "enum:statut"
+    "propositions_pem" }o--|o plannings : "planning"
+    "propositions_pem" |o--|o visites : "visite"
     "visite_dns" }o--|| visites : "visite"
     "visite_dns" |o--|| "TypeDn" : "enum:type"
     "visite_kits" }o--|| visites : "visite"
@@ -853,5 +933,6 @@ VALIDEE VALIDEE
     "objectifs" }o--|o users : "creePar"
     "notifications" }o--|| users : "user"
     "notifications" }o--|o users : "emetteur"
+    "notifications" }o--|o clients : "client"
     "news" }o--|| users : "auteur"
 ```

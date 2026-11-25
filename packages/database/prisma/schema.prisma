@@ -1045,6 +1045,8 @@ model Planning {
   datePassage DateTime
   fait        Boolean  @default(false) // ex-green
   raison      String?
+  note        String? // consigne de l'encadrement pour le promoteur (saisie depuis l'app mobile)
+  idApk       String? @unique // clé d'idempotence de la création depuis l'app mobile (rejeu de l'outbox sans doublon)
 
   plannificationId String?         @db.Uuid
   plannification   Plannification? @relation(fields: [plannificationId], references: [id])
@@ -1114,6 +1116,8 @@ model TourneeEtape {
   visiteSimple   Boolean @default(true) // visite simple (vs accompagnement)
   accompagnement Boolean @default(false) // accompagnement promoteur
   rdv            Boolean @default(false) // passage sur rendez-vous
+  appel          Boolean @default(false) // rendez-vous téléphonique
+  remplacement   Boolean @default(false) // remplacement d'un promoteur absent
   soireeEtape    Boolean @default(false) // soirée étape (découcher)
   soireeLieu     String? // lieu de l'étape (si soirée étape)
   soireeAdresse  String? // adresse de l'étape (si soirée étape)
