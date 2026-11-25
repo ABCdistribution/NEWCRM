@@ -5,12 +5,13 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { Role } from '@crm/database';
+import { Prisma, Role } from '@crm/database';
 import { PrismaService } from '../prisma/prisma.service';
 import { perimetreEquipe } from '../common/perimetre-users.util';
+import { filtreClientsDuPerimetre } from '../common/perimetre-clients.util';
 
 /** Appelant authentifié (sous-ensemble de User). */
-export type Appelant = { id: string; role: string; regionId?: string | null };
+export type Appelant = { id: string; role: string; regionId?: string | null; idRepr?: string | null };
 
 /** Lundi (minuit local) de la semaine contenant `d`. */
 function mondayOf(d: Date): Date {
@@ -158,36 +159,93 @@ export class PlanningsService {
         datePassage: true,
         fait: true,
         raison: true,
+        note: true,
         plannificationId: true,
         client: { select: { id: true, codeAs400: true, enseigne: true, ville: true, niveauClass: true } },
       },
     });
   }
 
-  /** Planifie une visite ponctuelle (direction). Refuse le doublon même client / même jour. */
-  async create(me: Appelant, promoteurId: string, clientId: string, datePassage: Date) {
+  /**
+   * Planifie une visite ponctuelle chez un magasin, pour un promoteur du périmètre de l'appelant (encadrement).
+   * Le magasin doit lui aussi être dans le périmètre de l'appelant (hors périmètre = 404). Refuse le doublon même
+   * client / même jour pour ce promoteur (409).
+   * Idempotent par `idApk` (app mobile : rejeu de l'outbox) : la ligne déjà créée est renvoyée avec
+   * `dejaSynchronise: true` ; un idApk réutilisé pour une autre cible répond 409.
+   */
+  async create(
+    me: Appelant,
+    promoteurId: string,
+    clientId: string,
+    datePassage: Date,
+    options: { idApk?: string; note?: string } = {},
+  ) {
     await this.verifierAcces(me, promoteurId, true);
+    const select = {
+      id: true,
+      datePassage: true,
+      fait: true,
+      note: true,
+      client: { select: { id: true, enseigne: true, ville: true, niveauClass: true } },
+    } satisfies Prisma.PlanningSelect;
+
+    // Rejeu : avant tout autre contrôle (la ligne existe déjà, le doublon jour/magasin serait pris pour un conflit).
+    if (options.idApk) {
+      const existante = await this.prisma.planning.findUnique({
+        where: { idApk: options.idApk },
+        select: { promoteurId: true, clientId: true, ...select },
+      });
+      if (existante) {
+        if (existante.promoteurId !== promoteurId || existante.clientId !== clientId) {
+          throw new ConflictException('idApk déjà utilisé pour une autre visite planifiée');
+        }
+        const { promoteurId: _p, clientId: _c, ...ligne } = existante;
+        void _p;
+        void _c;
+        return { ...ligne, dejaSynchronise: true };
+      }
+    }
+
     if (Number.isNaN(datePassage.getTime())) {
       throw new BadRequestException('Date invalide');
     }
     const [promoteur, client] = await Promise.all([
       this.prisma.user.findFirst({ where: { id: promoteurId, isActive: true } }),
-      this.prisma.client.findFirst({ where: { id: clientId, deletedAt: null } }),
+      this.prisma.client.findFirst({
+        where: {
+          id: clientId,
+          deletedAt: null,
+          ...(await filtreClientsDuPerimetre(this.prisma, { ...me, idRepr: me.idRepr ?? null })),
+        },
+      }),
     ]);
     if (!promoteur) throw new NotFoundException('Promoteur introuvable');
     if (!client) throw new NotFoundException('Client introuvable');
 
     await this.verifieDoublon(promoteurId, clientId, datePassage);
 
-    return this.prisma.planning.create({
-      data: { promoteurId, clientId, datePassage },
-      select: {
-        id: true,
-        datePassage: true,
-        fait: true,
-        client: { select: { id: true, enseigne: true, ville: true, niveauClass: true } },
-      },
-    });
+    try {
+      const cree = await this.prisma.planning.create({
+        data: { promoteurId, clientId, datePassage, note: options.note?.trim() || null, idApk: options.idApk ?? null },
+        select,
+      });
+      return { ...cree, dejaSynchronise: false };
+    } catch (err) {
+      // Deux rejeux simultanés : le second heurte l'unicité de idApk, on renvoie la ligne déjà créée.
+      if (options.idApk && err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002') {
+        const existante = await this.prisma.planning.findUnique({
+          where: { idApk: options.idApk },
+          select: { promoteurId: true, clientId: true, ...select },
+        });
+        if (existante && existante.promoteurId === promoteurId && existante.clientId === clientId) {
+          const { promoteurId: _p, clientId: _c, ...ligne } = existante;
+          void _p;
+          void _c;
+          return { ...ligne, dejaSynchronise: true };
+        }
+      }
+      throw err;
+    }
   }
 
   /** Déplace une visite planifiée vers une autre date (même garde anti-doublon). */

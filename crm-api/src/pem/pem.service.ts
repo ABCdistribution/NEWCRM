@@ -33,7 +33,7 @@ const selectProposition = {
   visiteId: true,
   createdAt: true,
   updatedAt: true,
-  client: { select: { id: true, enseigne: true, ville: true } },
+  client: { select: { id: true, enseigne: true, ville: true, niveauClass: true } },
   promoteur: { select: { id: true, displayName: true } },
 } satisfies Prisma.PropositionPemSelect;
 type PropositionLue = Prisma.PropositionPemGetPayload<{ select: typeof selectProposition }>;

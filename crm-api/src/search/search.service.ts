@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { Prisma, Role, User } from '@crm/database';
+import { NiveauClass, Prisma, Role, User } from '@crm/database';
 import { PrismaService } from '../prisma/prisma.service';
 import { codesRepresentantsDuPerimetre } from '../common/perimetre-codes.util';
 import { perimetreEquipe } from '../common/perimetre-users.util';
@@ -19,6 +19,8 @@ export interface Resultat {
   clientId?: string | null;
   /** Visites et produits : texte à passer à la liste de destination (?search=). */
   recherche?: string;
+  /** Clients, commandes et visites : classe A à G du magasin concerné (null si non classé ou sans magasin). */
+  niveauClass?: NiveauClass | null;
 }
 
 export interface GroupeResultats {
@@ -115,14 +117,14 @@ export class SearchService {
         where,
         take: PAR_GROUPE,
         orderBy: { enseigne: 'asc' },
-        select: { id: true, enseigne: true, raisonSociale: true, ville: true, codeAs400: true },
+        select: { id: true, enseigne: true, raisonSociale: true, ville: true, codeAs400: true, niveauClass: true },
       }),
       this.prisma.client.count({ where }),
     ]);
     return {
       type: 'clients',
       total,
-      items: rows.map((c) => ({ id: c.id, titre: c.enseigne || c.raisonSociale, detail: joindre(c.ville, c.codeAs400) })),
+      items: rows.map((c) => ({ id: c.id, titre: c.enseigne || c.raisonSociale, detail: joindre(c.ville, c.codeAs400), niveauClass: c.niveauClass })),
     };
   }
 
@@ -150,7 +152,7 @@ export class SearchService {
           dateCommande: true,
           dateAnnulation: true,
           raisonSocialeCmd: true,
-          client: { select: { enseigne: true } },
+          client: { select: { enseigne: true, niveauClass: true } },
         },
       }),
       this.prisma.commande.count({ where }),
@@ -162,6 +164,7 @@ export class SearchService {
         id: c.id,
         titre: `Commande ${c.numero}`,
         detail: joindre(c.client?.enseigne ?? c.raisonSocialeCmd, dateFr(c.dateCommande), c.dateAnnulation && 'annulée'),
+        niveauClass: c.client?.niveauClass ?? null,
       })),
     };
   }
@@ -187,7 +190,7 @@ export class SearchService {
         select: {
           id: true,
           createdAt: true,
-          client: { select: { id: true, enseigne: true, ville: true } },
+          client: { select: { id: true, enseigne: true, ville: true, niveauClass: true } },
           promoteur: { select: { displayName: true } },
         },
       }),
@@ -201,6 +204,7 @@ export class SearchService {
         titre: `Visite ${v.client?.enseigne ?? 'prospect'}`,
         detail: joindre(v.promoteur.displayName, dateFr(v.createdAt)),
         clientId: v.client?.id ?? null,
+        niveauClass: v.client?.niveauClass ?? null,
         ...(v.client?.enseigne ? { recherche: v.client.enseigne } : {}),
       })),
     };

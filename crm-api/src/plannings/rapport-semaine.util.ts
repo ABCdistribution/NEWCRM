@@ -8,7 +8,9 @@
  *  - rapport validé    : la tournée réalisée verrouillée à la clôture (manuelle ou automatique).
  */
 
-const TZ = 'Europe/Paris';
+import type { NiveauClass } from '@crm/database';
+
+const TZ ='Europe/Paris';
 const JOUR_PARIS = new Intl.DateTimeFormat('sv-SE', { timeZone: TZ, year: 'numeric', month: '2-digit', day: '2-digit' });
 const HEURE_PARIS = new Intl.DateTimeFormat('en-GB', { timeZone: TZ, hour: '2-digit', hourCycle: 'h23' });
 
@@ -90,10 +92,15 @@ export interface LigneRapport {
   /** Nom affiché : enseigne du client ou du prospect, texte libre, ou « ADM ». */
   titre: string;
   ville: string | null;
+  /** Classe A à G du magasin (null pour un prospect, une étape libre ou un magasin non classé) ; absente des anciennes photographies. */
+  niveauClass?: NiveauClass | null;
   adresse: string | null;
   visiteSimple: boolean;
   accompagnement: boolean;
   rdv: boolean;
+  /** Absents des photographies de prévision enregistrées avant l'ajout de ces champs. */
+  appel?: boolean;
+  remplacement?: boolean;
   soireeEtape: boolean;
   soireeLieu: string | null;
   soireeAdresse: string | null;
@@ -119,6 +126,8 @@ export function ligneVide(l: LigneRapport): boolean {
     !l.heure &&
     !l.accompagnement &&
     !l.rdv &&
+    !l.appel &&
+    !l.remplacement &&
     !l.soireeEtape &&
     !(l.soireeLieu ?? '').trim() &&
     !(l.soireeAdresse ?? '').trim()

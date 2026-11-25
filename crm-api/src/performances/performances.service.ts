@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { Prisma } from '@crm/database';
+import { Prisma, NiveauClass } from '@crm/database';
 import { PrismaService } from '../prisma/prisma.service';
 import { idReprVariants } from '../common/id-repr.util';
 
@@ -63,7 +63,7 @@ export class PerformancesService {
             OR: [{ idCommercial1: { in: codes } }, { idCommercial2: { in: codes } }],
             commandes: { none: { dateAnnulation: null, dateCommande: { gte: debut, lt: fin } } },
           },
-          select: { id: true, enseigne: true, raisonSociale: true, ville: true },
+          select: { id: true, enseigne: true, raisonSociale: true, ville: true, niveauClass: true },
           orderBy: { enseigne: 'asc' },
           take: 5,
         }),
@@ -131,15 +131,15 @@ export class PerformancesService {
 
     // Top 5 de mes magasins par CA du mois
     const topMagasins = await this.prisma.$queryRaw<
-      { id: string; enseigne: string; ca: number; nb: number }[]
+      { id: string; enseigne: string; niveauClass: NiveauClass | null; ca: number; nb: number }[]
     >`
-      SELECT c.id, c.enseigne, COALESCE(SUM(co."montantTotal"), 0)::float8 AS ca, COUNT(*)::int AS nb
+      SELECT c.id, c.enseigne, c."niveauClass", COALESCE(SUM(co."montantTotal"), 0)::float8 AS ca, COUNT(*)::int AS nb
       FROM commandes co
       JOIN clients c ON c.id = co."clientId"
       WHERE co."idRepr" IN (${Prisma.join(codes)})
         AND co."dateAnnulation" IS NULL
         AND co."dateCommande" >= ${debut} AND co."dateCommande" < ${fin}
-      GROUP BY c.id, c.enseigne
+      GROUP BY c.id, c.enseigne, c."niveauClass"
       ORDER BY 3 DESC
       LIMIT 5
     `;
@@ -171,6 +171,7 @@ export class PerformancesService {
           id: c.id,
           nom: (c.enseigne || c.raisonSociale).trim(),
           ville: c.ville?.trim() || null,
+          niveauClass: c.niveauClass,
         })),
       },
       ca12mois: { anneeN: annee, courbeN, courbeN1 },

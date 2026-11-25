@@ -14,7 +14,7 @@ const opportuniteSelect = {
   dateFin: true,
   createdAt: true,
   prospect: { select: { id: true, enseigne: true, ville: true, statut: true } },
-  client: { select: { id: true, codeAs400: true, enseigne: true, ville: true } },
+  client: { select: { id: true, codeAs400: true, enseigne: true, ville: true, niveauClass: true } },
   assignedTo: { select: { id: true, displayName: true } },
   articles: { select: { id: true, codeAs400: true, libelle: true } },
 } satisfies Prisma.OpportuniteSelect;

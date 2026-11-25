@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { Prisma, Role, User } from '@crm/database';
+import { NiveauClass, Prisma, Role, User } from '@crm/database';
 import { PrismaService } from '../prisma/prisma.service';
 import { PlanningsService } from '../plannings/plannings.service';
 import { idReprVariants } from '../common/id-repr.util';
@@ -71,7 +71,7 @@ export class DashboardService {
             id: true,
             fait: true,
             client: {
-              select: { enseigne: true, raisonSociale: true, ville: true, adresse1: true, codePostal: true },
+              select: { enseigne: true, raisonSociale: true, ville: true, adresse1: true, codePostal: true, niveauClass: true },
             },
           },
           orderBy: { datePassage: 'asc' },
@@ -117,7 +117,7 @@ export class DashboardService {
     // promoteur : uniquement le sien).
     const lignesMois = await this.prisma.commande.findMany({
       where: { ...whereActives, dateCommande: { gte: monthStart }, clientId: { not: null } },
-      select: { idRepr: true, client: { select: { enseigne: true, raisonSociale: true } } },
+      select: { idRepr: true, client: { select: { enseigne: true, raisonSociale: true, niveauClass: true } } },
     });
     const reprentants = await this.prisma.user.findMany({
       where: { idRepr: { not: null } },
@@ -127,14 +127,20 @@ export class DashboardService {
     for (const u of reprentants) {
       for (const v of idReprVariants(u.idRepr!)) nomParCode.set(v, u.displayName);
     }
-    const groupes = new Map<string, { idRepr: string | null; promoteur: string; magasins: Set<string> }>();
+    const groupes = new Map<
+      string,
+      { idRepr: string | null; promoteur: string; magasins: Set<string>; classes: Map<string, NiveauClass | null> }
+    >();
     for (const c of lignesMois) {
       const code = c.idRepr?.trim() || null;
       const nomPromoteur = (code && nomParCode.get(code)) || (code ? `Code ${code}` : 'Sans représentant');
       const cle = code ?? '∅';
-      if (!groupes.has(cle)) groupes.set(cle, { idRepr: code, promoteur: nomPromoteur, magasins: new Set() });
+      if (!groupes.has(cle)) groupes.set(cle, { idRepr: code, promoteur: nomPromoteur, magasins: new Set(), classes: new Map() });
       const enseigne = (c.client?.enseigne || c.client?.raisonSociale || '').trim();
-      if (enseigne) groupes.get(cle)!.magasins.add(enseigne);
+      if (enseigne) {
+        groupes.get(cle)!.magasins.add(enseigne);
+        groupes.get(cle)!.classes.set(enseigne, c.client?.niveauClass ?? null);
+      }
     }
     const commandesParPromoteur = [...groupes.values()]
       .map((g) => ({
@@ -142,6 +148,11 @@ export class DashboardService {
         promoteur: g.promoteur,
         totalMagasins: g.magasins.size,
         magasins: [...g.magasins].sort().slice(0, 6),
+        // Classe de chaque magasin listé ci-dessus (même ordre).
+        magasinsDetail: [...g.magasins]
+          .sort()
+          .slice(0, 6)
+          .map((nom) => ({ nom, niveauClass: g.classes.get(nom) ?? null })),
       }))
       .sort((a, b) => b.totalMagasins - a.totalMagasins)
       .slice(0, 12);
@@ -155,7 +166,7 @@ export class DashboardService {
         numero: true,
         statutLivraison: true,
         dateCommande: true,
-        client: { select: { enseigne: true, raisonSociale: true } },
+        client: { select: { enseigne: true, raisonSociale: true, niveauClass: true } },
       },
       orderBy: { dateCommande: 'asc' },
       take: 8,
@@ -166,6 +177,7 @@ export class DashboardService {
         id: c.id,
         numero: c.numero,
         magasin: (c.client?.enseigne || c.client?.raisonSociale || '—').trim(),
+        niveauClass: c.client?.niveauClass ?? null,
         statut: c.statutLivraison,
         dateCommande: c.dateCommande?.toISOString() ?? null,
         enRetard: c.statutLivraison === 'EN_PREPARATION' ? age > 3 : age > 7,
@@ -180,6 +192,7 @@ export class DashboardService {
       id: p.id,
       nom: (p.client.enseigne || p.client.raisonSociale || '(client)').trim(),
       ville: p.client.ville?.trim() || null,
+      niveauClass: p.client.niveauClass,
       adresse: [p.client.adresse1, p.client.codePostal, p.client.ville]
         .map((s) => s?.trim())
         .filter((s) => s && s !== '.')

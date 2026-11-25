@@ -1,6 +1,8 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { PipelineEtape, Prisma, User } from '@crm/database';
 import { PrismaService } from '../prisma/prisma.service';
+import { filtreProspectsDuPerimetre } from '../common/perimetre-prospects.util';
+import { perimetreEquipe } from '../common/perimetre-users.util';
 import { CreateContactDto, UpdateContactDto } from '../clients/dto/contact.dto';
 import {
   filtreModifieDepuis,
@@ -70,37 +72,9 @@ const prospectListSelect = {
 export class ProspectsService {
   constructor(private readonly prisma: PrismaService) {}
 
-  /** Périmètre de visibilité du rôle sur les prospects. */
+  /** Périmètre de visibilité du rôle sur les prospects (règle partagée : `filtreProspectsDuPerimetre`). */
   scope(user: User): { where: Prisma.ProspectWhereInput; type: 'secteur' | 'region' | 'global' } {
-    if (user.role === 'CHEF_SECTEUR') {
-      return {
-        type: 'secteur',
-        where: {
-          OR: [
-            { secteur: { managerId: user.id } },
-            { assignedToId: user.id },
-            { createdById: user.id },
-          ],
-        },
-      };
-    }
-    if (user.role === 'DIRECTEUR_REGIONAL') {
-      // Sa région + ses propres fiches : un prospect créé à la main n'a pas de
-      // secteur, il doit rester visible par son créateur (sinon 404 post-création).
-      return user.regionId
-        ? {
-            type: 'region',
-            where: {
-              OR: [
-                { secteur: { regionId: user.regionId } },
-                { assignedToId: user.id },
-                { createdById: user.id },
-              ],
-            },
-          }
-        : { type: 'region', where: { OR: [{ assignedToId: user.id }, { createdById: user.id }] } };
-    }
-    return { type: 'global', where: {} };
+    return filtreProspectsDuPerimetre(user);
   }
 
   async findAll(user: User, query: QueryProspectsDto) {
@@ -191,7 +165,7 @@ export class ProspectsService {
         secteur: { select: { id: true, code: true, nom: true } },
         assignedTo: { select: { id: true, displayName: true } },
         createdBy: { select: { id: true, displayName: true } },
-        client: { select: { id: true, codeAs400: true, enseigne: true } },
+        client: { select: { id: true, codeAs400: true, enseigne: true, niveauClass: true } },
         contacts: { where: { deletedAt: null }, orderBy: { createdAt: 'desc' } },
         notes: {
           where: { deletedAt: null },
@@ -429,7 +403,36 @@ export class ProspectsService {
     return { ...email, dejaSynchronise: false };
   }
 
+  /**
+   * Le secteur et le responsable d'un prospect (création ou modification) restent dans le périmètre de l'appelant : secteur parmi
+   * `secteursDisponibles` (CS : les siens, DR : sa région), responsable = lui-même ou un membre de son équipe.
+   * ADMIN : aucune restriction. Hors périmètre : 404, comme un identifiant inexistant.
+   */
+  private async verifierPerimetreAffectation(
+    user: User,
+    dto: { secteurId?: string | null; assignedToId?: string | null },
+  ): Promise<void> {
+    if (user.role === 'ADMIN') return;
+    if (dto.secteurId) {
+      const secteurs = await this.secteursDisponibles(user);
+      if (!secteurs.some((s) => s.id === dto.secteurId)) {
+        throw new NotFoundException('Secteur introuvable dans votre périmètre');
+      }
+    }
+    if (dto.assignedToId && dto.assignedToId !== user.id) {
+      const perimetre = perimetreEquipe(user);
+      const cible = perimetre
+        ? await this.prisma.user.findFirst({
+            where: { AND: [{ id: dto.assignedToId, isActive: true }, perimetre] },
+            select: { id: true },
+          })
+        : null;
+      if (!cible) throw new NotFoundException('Responsable introuvable dans votre périmètre');
+    }
+  }
+
   async create(user: User, dto: CreateProspectDto, idApk?: string) {
+    await this.verifierPerimetreAffectation(user, dto);
     const statut = dto.statut ?? 'NOUVEAU';
     return this.prisma.prospect.create({
       data: {
@@ -456,14 +459,35 @@ export class ProspectsService {
 
   /** Création depuis le mobile — idempotente par idApk (l'outbox peut rejouer). */
   async createApk(user: User, dto: CreateProspectApkDto) {
-    const existant = await this.prisma.prospect.findUnique({ where: { idApk: dto.idApk } });
-    if (existant) return { id: existant.id, idApk: dto.idApk, dejaSynchronise: true };
-    const cree = await this.create(user, dto, dto.idApk);
-    return { id: cree.id, idApk: dto.idApk, dejaSynchronise: false };
+    const rejeu = async () => {
+      const existant = await this.prisma.prospect.findUnique({
+        where: { idApk: dto.idApk },
+        select: { id: true, createdById: true },
+      });
+      if (!existant) return null;
+      // Un idApk déjà pris par un autre utilisateur n'est jamais renvoyé (ni son id) : conflit.
+      if (existant.createdById !== user.id) throw new ConflictException('idApk déjà utilisé par un autre utilisateur');
+      return { id: existant.id, idApk: dto.idApk, dejaSynchronise: true };
+    };
+    const deja = await rejeu();
+    if (deja) return deja;
+    try {
+      const cree = await this.create(user, dto, dto.idApk);
+      return { id: cree.id, idApk: dto.idApk, dejaSynchronise: false };
+    } catch (err) {
+      // Deux rejeux simultanés : le second heurte l'unicité de idApk, on renvoie le prospect déjà créé.
+      if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002') {
+        const concurrent = await rejeu();
+        if (concurrent) return concurrent;
+      }
+      throw err;
+    }
   }
 
   async update(user: User, id: string, dto: UpdateProspectDto) {
     const prospect = await this.findOne(user, id);
+    // Mêmes contrôles qu'à la création : on ne peut pas rattacher un prospect à un secteur ou à un responsable hors périmètre.
+    await this.verifierPerimetreAffectation(user, dto);
 
     // Changement d'étape : la probabilité par défaut de la nouvelle étape
     // s'applique, sauf probabilité explicitement fournie.

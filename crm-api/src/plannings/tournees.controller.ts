@@ -15,13 +15,15 @@ import {
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiPropertyOptional, ApiTags } from '@nestjs/swagger';
 import { IsBoolean, IsDateString, IsOptional, IsString, IsUUID, MaxLength } from 'class-validator';
-import { Role, User } from '@crm/database';
+import { Prisma, Role, User } from '@crm/database';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { PrismaService } from '../prisma/prisma.service';
 import { perimetreEquipe } from '../common/perimetre-users.util';
+import { filtreClientsDuPerimetre } from '../common/perimetre-clients.util';
+import { filtreProspectsDuPerimetre } from '../common/perimetre-prospects.util';
 import { icalToken } from './ical.controller';
 import { RapportsService } from './rapports.service';
 import { dateDePassage, lundiDe } from './rapport-semaine.util';
@@ -78,6 +80,16 @@ class CreateEtapeDto {
   @IsOptional()
   @IsBoolean()
   rdv?: boolean;
+
+  @ApiPropertyOptional({ description: 'Rendez-vous téléphonique (appel)' })
+  @IsOptional()
+  @IsBoolean()
+  appel?: boolean;
+
+  @ApiPropertyOptional({ description: "Remplacement d'un promoteur absent" })
+  @IsOptional()
+  @IsBoolean()
+  remplacement?: boolean;
 
   @ApiPropertyOptional({ description: 'Soirée étape (découcher)' })
   @IsOptional()
@@ -147,6 +159,16 @@ class UpdateEtapeDto {
   @IsBoolean()
   rdv?: boolean;
 
+  @ApiPropertyOptional({ description: 'Requalification : rendez-vous téléphonique (appel)' })
+  @IsOptional()
+  @IsBoolean()
+  appel?: boolean;
+
+  @ApiPropertyOptional({ description: "Requalification : remplacement d'un promoteur absent" })
+  @IsOptional()
+  @IsBoolean()
+  remplacement?: boolean;
+
   @ApiPropertyOptional({ description: 'Requalification : soirée étape (découcher)' })
   @IsOptional()
   @IsBoolean()
@@ -182,6 +204,8 @@ const etapeSelect = {
   visiteSimple: true,
   accompagnement: true,
   rdv: true,
+  appel: true,
+  remplacement: true,
   soireeEtape: true,
   soireeLieu: true,
   soireeAdresse: true,
@@ -324,36 +348,74 @@ export class TourneesController {
     } else if (!dto.clientId === !dto.prospectId) {
       throw new BadRequestException('Renseigner soit clientId, soit prospectId (exactement un des deux), ou un libellé libre.');
     }
-    // Rejeu de l'outbox mobile : l'étape existe déjà → on la renvoie telle quelle.
-    if (dto.idApk) {
-      const existante = await this.prisma.tourneeEtape.findFirst({
-        where: { idApk: dto.idApk, userId: me.id },
-        select: etapeSelect,
+    // Rejeu de l'outbox mobile : l'étape existe déjà → on la renvoie telle quelle (avant tout autre contrôle : un rejeu
+    // doit rester possible même si le périmètre ou la semaine ont changé depuis).
+    const rejeu = async () => {
+      if (!dto.idApk) return null;
+      const existante = await this.prisma.tourneeEtape.findUnique({
+        where: { idApk: dto.idApk },
+        select: { userId: true, ...etapeSelect },
       });
-      if (existante) return existante;
+      if (!existante) return null;
+      // Un idApk déjà pris par un autre utilisateur n'est jamais renvoyé : conflit.
+      if (existante.userId !== me.id) throw new ConflictException('idApk déjà utilisé par un autre utilisateur');
+      const { userId: _userId, ...etape } = existante;
+      void _userId;
+      return etape;
+    };
+    const deja = await rejeu();
+    if (deja) return deja;
+
+    const datePassage = dateDePassage(dto.datePassage);
+    if (Number.isNaN(datePassage.getTime())) throw new BadRequestException('Date invalide.');
+    // Cible dans le périmètre de l'appelant : hors périmètre = 404, comme une cible inexistante.
+    if (dto.clientId) {
+      const client = await this.prisma.client.findFirst({
+        where: { id: dto.clientId, deletedAt: null, ...(await filtreClientsDuPerimetre(this.prisma, me)) },
+        select: { id: true },
+      });
+      if (!client) throw new NotFoundException(`Client ${dto.clientId} introuvable`);
+    }
+    if (dto.prospectId) {
+      const prospect = await this.prisma.prospect.findFirst({
+        where: { id: dto.prospectId, deletedAt: null, ...filtreProspectsDuPerimetre(me).where },
+        select: { id: true },
+      });
+      if (!prospect) throw new NotFoundException(`Prospect ${dto.prospectId} introuvable`);
     }
     // Une semaine validée est verrouillée : plus aucune ligne ne s'y ajoute.
-    await this.rapports.verifierModifiable(me.id, dateDePassage(dto.datePassage));
-    return this.prisma.tourneeEtape.create({
-      data: {
-        userId: me.id,
-        adm: dto.adm ?? false,
-        libelle: dto.adm ? null : dto.libelle?.trim() || null,
-        adresse: dto.adresse?.trim() || null,
-        clientId: dto.clientId ?? null,
-        prospectId: dto.prospectId ?? null,
-        datePassage: dateDePassage(dto.datePassage),
-        note: dto.note?.trim() || null,
-        visiteSimple: dto.visiteSimple ?? !dto.accompagnement,
-        accompagnement: dto.accompagnement ?? false,
-        rdv: dto.rdv ?? false,
-        soireeEtape: dto.soireeEtape ?? false,
-        soireeLieu: dto.soireeEtape ? dto.soireeLieu?.trim() || null : null,
-        soireeAdresse: dto.soireeEtape ? dto.soireeAdresse?.trim() || null : null,
-        idApk: dto.idApk ?? null,
-      },
-      select: etapeSelect,
-    });
+    await this.rapports.verifierModifiable(me.id, datePassage);
+    try {
+      return await this.prisma.tourneeEtape.create({
+        data: {
+          userId: me.id,
+          adm: dto.adm ?? false,
+          libelle: dto.adm ? null : dto.libelle?.trim() || null,
+          adresse: dto.adresse?.trim() || null,
+          clientId: dto.clientId ?? null,
+          prospectId: dto.prospectId ?? null,
+          datePassage,
+          note: dto.note?.trim() || null,
+          visiteSimple: dto.visiteSimple ?? !dto.accompagnement,
+          accompagnement: dto.accompagnement ?? false,
+          rdv: dto.rdv ?? false,
+          appel: dto.appel ?? false,
+          remplacement: dto.remplacement ?? false,
+          soireeEtape: dto.soireeEtape ?? false,
+          soireeLieu: dto.soireeEtape ? dto.soireeLieu?.trim() || null : null,
+          soireeAdresse: dto.soireeEtape ? dto.soireeAdresse?.trim() || null : null,
+          idApk: dto.idApk ?? null,
+        },
+        select: etapeSelect,
+      });
+    } catch (err) {
+      // Deux rejeux simultanés : le second heurte l'unicité de idApk, on renvoie l'étape déjà créée.
+      if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002') {
+        const concurrent = await rejeu();
+        if (concurrent) return concurrent;
+      }
+      throw err;
+    }
   }
 
   @Patch(':id')
@@ -372,7 +434,7 @@ export class TourneesController {
     if (dto.datePassage) await this.rapports.verifierModifiable(me.id, dateDePassage(dto.datePassage));
 
     // Requalification : on ne touche à la qualification que si un de ses champs est fourni.
-    const requalifie = [dto.visiteSimple, dto.accompagnement, dto.rdv, dto.soireeEtape, dto.soireeLieu, dto.soireeAdresse]
+    const requalifie = [dto.visiteSimple, dto.accompagnement, dto.rdv, dto.appel, dto.remplacement, dto.soireeEtape, dto.soireeLieu, dto.soireeAdresse]
       .some((v) => v !== undefined);
     let qualif = {};
     if (requalifie) {
@@ -382,6 +444,8 @@ export class TourneesController {
         accompagnement,
         visiteSimple: dto.visiteSimple ?? (dto.accompagnement !== undefined ? !accompagnement : etape.visiteSimple),
         rdv: dto.rdv ?? etape.rdv,
+        appel: dto.appel ?? etape.appel,
+        remplacement: dto.remplacement ?? etape.remplacement,
         soireeEtape,
         soireeLieu: soireeEtape ? (dto.soireeLieu ?? etape.soireeLieu)?.trim() || null : null,
         soireeAdresse: soireeEtape ? (dto.soireeAdresse ?? etape.soireeAdresse)?.trim() || null : null,

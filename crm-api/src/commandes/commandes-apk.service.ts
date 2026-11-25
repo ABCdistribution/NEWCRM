@@ -195,7 +195,7 @@ export class CommandesApkService {
         valideeLe: true,
         nePasLivrerAvant: true,
         motifNePasLivrerAvant: true,
-        client: { select: { id: true, codeAs400: true, enseigne: true, ville: true, email: true } },
+        client: { select: { id: true, codeAs400: true, enseigne: true, ville: true, niveauClass: true, email: true } },
         promoteur: { select: { id: true, displayName: true } },
         lignes: {
           orderBy: { ordre: 'asc' },
@@ -271,7 +271,7 @@ export class CommandesApkService {
           nePasLivrerAvant: true,
           motifNePasLivrerAvant: true,
           ...selectHorodatageSansSuppression(depuis),
-          client: { select: { id: true, codeAs400: true, enseigne: true, ville: true } },
+          client: { select: { id: true, codeAs400: true, enseigne: true, ville: true, niveauClass: true } },
           promoteur: { select: { id: true, displayName: true } },
           lignes: { select: { quantite: true, prixIndicatif: true } },
         },
@@ -409,7 +409,7 @@ export class CommandesApkService {
           nePasLivrerAvant: true,
           motifNePasLivrerAvant: true,
           promoteur: { select: { displayName: true, email: true } },
-          client: { select: { enseigne: true, ville: true, codeAs400: true } },
+          client: { select: { enseigne: true, ville: true, codeAs400: true, niveauClass: true } },
           lignes: {
             orderBy: { ordre: 'asc' },
             select: {

@@ -31,6 +31,9 @@ function joursPeriodicite(libelle?: string | null): number | null {
   return null;
 }
 
+/** Appelant dont on calcule le périmètre de magasins (utilisateur / secteur / région). */
+type UtilisateurPerimetre = { id: string; role: string; idRepr: string | null; regionId?: string | null };
+
 /** Forme d'un magasin chargé avec ses relations pour l'enrichissement. */
 type EnrichInput = {
   id: string;
@@ -178,7 +181,8 @@ export class ClientsService {
       disponible: false as const,
       mois: mois && /^\d{4}-(0[1-9]|1[0-2])$/.test(mois) ? mois : null,
       depuis: null as string | null,
-      lignes: [] as never[],
+      // Contrat d'une ligne (historique à construire) : `niveauClass` = classe A à G du magasin, null si non classé.
+      lignes: [] as { clientId: string; enseigne: string; ville: string | null; niveauClass: NiveauClass | null }[],
     };
   }
 
@@ -335,6 +339,20 @@ export class ClientsService {
   }
 
   /**
+   * Vérifie que le magasin existe ET appartient au périmètre de l'appelant (même règle que `findOneDetail`) : hors
+   * périmètre = 404, indiscernable d'un magasin inexistant.
+   */
+  private async assurerAcces(id: string, user: UtilisateurPerimetre): Promise<void> {
+    const client = await this.prisma.client.findFirst({
+      where: { id, deletedAt: null, ...(await filtreClientsDuPerimetre(this.prisma, user)) },
+      select: { id: true },
+    });
+    if (!client) {
+      throw new NotFoundException(`Client ${id} introuvable`);
+    }
+  }
+
+  /**
    * Fiche magasin complète : relations CRM + compteurs (visites, commandes). Limitée au périmètre de l'appelant (même
    * règle que « Mes clients ») : un magasin hors périmètre répond 404, comme un magasin inexistant.
    */
@@ -390,8 +408,8 @@ export class ClientsService {
    * Historique du magasin : dernières commandes, dernières visites,
    * et CA mensuel N / N-1 (commandes non annulées).
    */
-  async findHistorique(id: string) {
-    await this.findOne(id); // 404 si le client n'existe pas
+  async findHistorique(id: string, user: UtilisateurPerimetre) {
+    await this.assurerAcces(id, user); // 404 si le client n'existe pas ou est hors périmètre
 
     const anneeN = new Date().getFullYear();
 
@@ -477,14 +495,15 @@ export class ClientsService {
 
   // --- Contacts (CRM, jamais touchés par l'import Minos) -----------------
 
-  async addContact(clientId: string, dto: CreateContactDto, creeParId: string) {
-    await this.findOne(clientId); // 404 si le client n'existe pas
+  async addContact(clientId: string, dto: CreateContactDto, user: UtilisateurPerimetre) {
+    await this.assurerAcces(clientId, user); // 404 si le client n'existe pas ou est hors périmètre
     return this.prisma.clientContact.create({
-      data: { ...dto, clientId, creeParId },
+      data: { ...dto, clientId, creeParId: user.id },
     });
   }
 
-  async updateContact(clientId: string, contactId: string, dto: UpdateContactDto) {
+  async updateContact(clientId: string, contactId: string, dto: UpdateContactDto, user: UtilisateurPerimetre) {
+    await this.assurerAcces(clientId, user);
     const contact = await this.prisma.clientContact.findFirst({
       where: { id: contactId, clientId, deletedAt: null },
     });
@@ -494,7 +513,8 @@ export class ClientsService {
     return this.prisma.clientContact.update({ where: { id: contactId }, data: dto });
   }
 
-  async removeContact(clientId: string, contactId: string) {
+  async removeContact(clientId: string, contactId: string, user: UtilisateurPerimetre) {
+    await this.assurerAcces(clientId, user);
     const contact = await this.prisma.clientContact.findFirst({
       where: { id: contactId, clientId, deletedAt: null },
     });
@@ -518,7 +538,7 @@ export class ClientsService {
    */
   async createVisiteCommerciale(
     clientId: string,
-    userId: string,
+    user: UtilisateurPerimetre,
     dto: {
       avecRdv?: boolean;
       objets?: string[];
@@ -531,7 +551,8 @@ export class ClientsService {
       fin?: string;
     },
   ) {
-    await this.findOne(clientId);
+    await this.assurerAcces(clientId, user); // 404 si le client n'existe pas ou est hors périmètre
+    const userId = user.id;
     // Rejeu de l'outbox mobile : la visite existe déjà (Visite.idApk est unique).
     if (dto.idApk) {
       const existante = await this.prisma.visite.findUnique({
@@ -588,10 +609,11 @@ export class ClientsService {
   /** Journalise un appel passé au magasin (bouton « Appeler » de la gestion des magasins secteur). */
   async createAppel(
     clientId: string,
-    auteurId: string,
+    user: UtilisateurPerimetre,
     dto: { dateAppel?: string; dureeSec?: number; resultat?: 'REPONDU' | 'SANS_REPONSE' | 'MESSAGERIE' | 'RAPPEL_PREVU'; commentaire?: string; idApk?: string },
   ) {
-    await this.findOne(clientId); // 404 si le client n'existe pas
+    await this.assurerAcces(clientId, user); // 404 si le client n'existe pas ou est hors périmètre
+    const auteurId = user.id;
     if (dto.idApk) {
       const existant = await this.prisma.clientAppel.findUnique({ where: { idApk: dto.idApk } });
       if (existant) return { id: existant.id, idApk: dto.idApk, dejaSynchronise: true };
@@ -614,10 +636,11 @@ export class ClientsService {
   /** Journalise un email envoyé au magasin. */
   async createEmail(
     clientId: string,
-    auteurId: string,
+    user: UtilisateurPerimetre,
     dto: { dateEmail?: string; destinataire?: string; sujet?: string; commentaire?: string; idApk?: string },
   ) {
-    await this.findOne(clientId);
+    await this.assurerAcces(clientId, user); // 404 si le client n'existe pas ou est hors périmètre
+    const auteurId = user.id;
     if (dto.idApk) {
       const existant = await this.prisma.clientEmail.findUnique({ where: { idApk: dto.idApk } });
       if (existant) return { id: existant.id, idApk: dto.idApk, dejaSynchronise: true };
@@ -638,8 +661,8 @@ export class ClientsService {
   }
 
   /** Derniers contacts (appels + emails mêlés, plus récent d'abord) — affiché dans la modale magasin. */
-  async journalContacts(clientId: string, limit = 10) {
-    await this.findOne(clientId);
+  async journalContacts(clientId: string, user: UtilisateurPerimetre, limit = 10) {
+    await this.assurerAcces(clientId, user); // 404 si le client n'existe pas ou est hors périmètre
     const [appels, emails] = await Promise.all([
       this.prisma.clientAppel.findMany({
         where: { clientId, deletedAt: null },
@@ -661,8 +684,9 @@ export class ClientsService {
     return { data: items.slice(0, limit) };
   }
 
-  async addNote(clientId: string, remarque: string, auteurId: string, idApk?: string) {
-    await this.findOne(clientId); // 404 si le client n'existe pas
+  async addNote(clientId: string, remarque: string, user: UtilisateurPerimetre, idApk?: string) {
+    await this.assurerAcces(clientId, user); // 404 si le client n'existe pas ou est hors périmètre
+    const auteurId = user.id;
     // Idempotence : l'outbox mobile peut rejouer la même note sans doublon.
     if (idApk) {
       const existante = await this.prisma.clientNote.findFirst({
@@ -689,17 +713,14 @@ export class ClientsService {
 
   /**
    * Fiches du portefeuille pour la réplication mobile : contacts et notes de
-   * chaque magasin en UN appel (un commercial ne reçoit que SES magasins).
+   * chaque magasin en UN appel, limité au périmètre de l'appelant (même règle que `GET /clients?mes=1` : promoteur =
+   * ses magasins, chef de secteur = ceux de ses promoteurs, directeur régional = ceux de sa région).
    */
-  async findFiches(user?: { role: string; idRepr: string | null }) {
-    const mine =
-      user?.role === 'COMMERCIAL' && user.idRepr ? idReprVariants(user.idRepr) : null;
+  async findFiches(user: UtilisateurPerimetre) {
     return this.prisma.client.findMany({
       where: {
         deletedAt: null,
-        ...(mine
-          ? { OR: [{ idCommercial1: { in: mine } }, { idCommercial2: { in: mine } }] }
-          : {}),
+        ...(await filtreClientsDuPerimetre(this.prisma, user)),
       },
       select: {
         id: true,
@@ -732,7 +753,8 @@ export class ClientsService {
     });
   }
 
-  async removeNote(clientId: string, noteId: string) {
+  async removeNote(clientId: string, noteId: string, user: UtilisateurPerimetre) {
+    await this.assurerAcces(clientId, user);
     const note = await this.prisma.clientNote.findFirst({
       where: { id: noteId, clientId, deletedAt: null },
     });
@@ -755,8 +777,9 @@ export class ClientsService {
   }
 
   /** Remplace la périodicité du client (null = aucune). Historique conservé en soft delete. */
-  async setPeriodicite(clientId: string, periodiciteId: string | null, affecteParId: string) {
-    await this.findOne(clientId);
+  async setPeriodicite(clientId: string, periodiciteId: string | null, user: UtilisateurPerimetre) {
+    await this.assurerAcces(clientId, user); // 404 si le client n'existe pas ou est hors périmètre
+    const affecteParId = user.id;
     if (periodiciteId) {
       const ref = await this.prisma.periodicite.findFirst({ where: { id: periodiciteId, actif: true } });
       if (!ref) {

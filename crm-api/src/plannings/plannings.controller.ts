@@ -11,9 +11,9 @@ import {
   Query,
   UseGuards,
 } from '@nestjs/common';
-import { ApiBearerAuth, ApiOperation, ApiProperty, ApiQuery, ApiTags } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiOperation, ApiProperty, ApiPropertyOptional, ApiQuery, ApiTags } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
-import { ArrayNotEmpty, IsArray, IsDateString, IsInt, IsNotEmpty, IsUUID, Max, Min } from 'class-validator';
+import { ArrayNotEmpty, IsArray, IsDateString, IsInt, IsNotEmpty, IsOptional, IsString, IsUUID, Max, MaxLength, Min } from 'class-validator';
 import { Role, User } from '@crm/database';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
@@ -44,6 +44,18 @@ class CreatePlanningDto {
   @IsDateString()
   @IsNotEmpty()
   datePassage!: string;
+
+  @ApiPropertyOptional({ description: "Consigne de l'encadrement pour le promoteur" })
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  note?: string;
+
+  @ApiPropertyOptional({ description: "Clé d'idempotence générée côté mobile (rejeu de l'outbox sans doublon)" })
+  @IsOptional()
+  @IsString()
+  @MaxLength(64)
+  idApk?: string;
 }
 
 @ApiTags('plannings')
@@ -81,9 +93,15 @@ export class PlanningsController {
 
   @Post()
   @Roles(...PLANIFICATEURS)
-  @ApiOperation({ summary: 'Planifier une visite (direction)' })
+  @ApiOperation({
+    summary:
+      "Planifier une visite chez un magasin pour un promoteur du périmètre (encadrement) — idempotent par idApk ; promoteur ou magasin hors périmètre = 404",
+  })
   create(@CurrentUser() me: User, @Body() dto: CreatePlanningDto) {
-    return this.plannings.create(me, dto.promoteurId, dto.clientId, new Date(dto.datePassage));
+    return this.plannings.create(me, dto.promoteurId, dto.clientId, new Date(dto.datePassage), {
+      idApk: dto.idApk,
+      note: dto.note,
+    });
   }
 
   @Patch(':id')

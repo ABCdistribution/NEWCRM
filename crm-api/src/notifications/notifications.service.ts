@@ -1,6 +1,7 @@
 import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { PlanningsService, type Appelant } from '../plannings/plannings.service';
+import { filtreClientsDuPerimetre } from '../common/perimetre-clients.util';
 
 const DATE_FMT = new Intl.DateTimeFormat('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' });
 
@@ -56,8 +57,15 @@ export class NotificationsService {
   /**
    * Relance d'un membre de l'équipe (ABC Pilot Mobile — « Mon équipe »).
    * Un DR ne peut relancer que ses propres collaborateurs (directeurId AD).
+   * `clientId` (facultatif) rattache la relance à un magasin : il doit appartenir au périmètre de l'émetteur
+   * (même règle que `GET /clients/:id`, hors périmètre = 404). Absent : la notification n'est liée à aucun magasin.
    */
-  async relancerMembre(userId: string, message: string, emetteur: { id: string; role: string }) {
+  async relancerMembre(
+    userId: string,
+    message: string,
+    emetteur: { id: string; role: string; idRepr: string | null; regionId?: string | null },
+    clientId?: string,
+  ) {
     const cible = await this.prisma.user.findFirst({
       where: { id: userId, isActive: true },
       select: { id: true, directeurId: true },
@@ -65,6 +73,13 @@ export class NotificationsService {
     const encadreTout = emetteur.role === 'ADMIN' || emetteur.role === 'DIRECTION';
     if (!cible || (!encadreTout && cible.directeurId !== emetteur.id)) {
       throw new NotFoundException('Membre introuvable dans votre équipe');
+    }
+    if (clientId) {
+      const client = await this.prisma.client.findFirst({
+        where: { id: clientId, deletedAt: null, ...(await filtreClientsDuPerimetre(this.prisma, emetteur)) },
+        select: { id: true },
+      });
+      if (!client) throw new NotFoundException(`Client ${clientId} introuvable`);
     }
     return this.prisma.notification.create({
       data: {
@@ -74,8 +89,9 @@ export class NotificationsService {
         titre: 'Relance de votre responsable',
         message: message.trim(),
         lien: '/pilotage/ma-tournee',
+        clientId: clientId ?? null,
       },
-      select: { id: true, userId: true, titre: true, message: true, createdAt: true },
+      select: { id: true, userId: true, titre: true, message: true, clientId: true, createdAt: true },
     });
   }
 
@@ -96,6 +112,8 @@ export class NotificationsService {
           luAt: true,
           createdAt: true,
           emetteur: { select: { displayName: true } },
+          // Classe du magasin lié (la notification appartient à l'utilisateur, aucun autre magasin n'est exposé).
+          client: { select: { niveauClass: true } },
         },
       }),
       this.prisma.notification.count({ where: { userId, luAt: null } }),

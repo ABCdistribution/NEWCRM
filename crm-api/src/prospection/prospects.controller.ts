@@ -98,14 +98,14 @@ export class ProspectsController {
   }
 
   @Get(':id/pieces-jointes')
-  @Roles(Role.CHEF_SECTEUR, Role.DIRECTEUR_REGIONAL, Role.DIRECTION, Role.ADMIN, Role.COMMERCIAL)
+  @Roles(Role.CHEF_SECTEUR, Role.DIRECTEUR_REGIONAL, Role.DIRECTION, Role.ADMIN)
   @ApiOperation({ summary: 'Pièces jointes de la fiche prospect' })
   listPiecesJointes(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: User) {
     return this.prospects.listPiecesJointes(user, id);
   }
 
   @Post(':id/pieces-jointes')
-  @Roles(Role.CHEF_SECTEUR, Role.DIRECTEUR_REGIONAL, Role.DIRECTION, Role.ADMIN, Role.COMMERCIAL)
+  @Roles(Role.CHEF_SECTEUR, Role.DIRECTEUR_REGIONAL, Role.DIRECTION, Role.ADMIN)
   @UseInterceptors(FileInterceptor('fichier'))
   @ApiOperation({ summary: 'Déposer une pièce jointe (multipart, champ « fichier », 10 Mo max)' })
   addPieceJointe(
@@ -118,7 +118,7 @@ export class ProspectsController {
   }
 
   @Get(':id/pieces-jointes/:pjId')
-  @Roles(Role.CHEF_SECTEUR, Role.DIRECTEUR_REGIONAL, Role.DIRECTION, Role.ADMIN, Role.COMMERCIAL)
+  @Roles(Role.CHEF_SECTEUR, Role.DIRECTEUR_REGIONAL, Role.DIRECTION, Role.ADMIN)
   @ApiOperation({ summary: 'Télécharger une pièce jointe' })
   async getPieceJointe(
     @Param('id', ParseUUIDPipe) id: string,
@@ -174,7 +174,7 @@ export class ProspectsController {
   }
 
   @Post(':id/notes')
-  @Roles(Role.CHEF_SECTEUR, Role.DIRECTEUR_REGIONAL, Role.DIRECTION, Role.ADMIN, Role.COMMERCIAL)
+  @Roles(Role.CHEF_SECTEUR, Role.DIRECTEUR_REGIONAL, Role.DIRECTION, Role.ADMIN)
   @ApiOperation({ summary: 'Ajouter une note à la fiche prospect (timeline)' })
   addNote(
     @Param('id', ParseUUIDPipe) id: string,
@@ -185,7 +185,7 @@ export class ProspectsController {
   }
 
   @Post(':id/appels')
-  @Roles(Role.CHEF_SECTEUR, Role.DIRECTEUR_REGIONAL, Role.DIRECTION, Role.ADMIN, Role.COMMERCIAL)
+  @Roles(Role.CHEF_SECTEUR, Role.DIRECTEUR_REGIONAL, Role.DIRECTION, Role.ADMIN)
   @ApiOperation({
     summary: "Journalise un appel téléphonique passé au prospect (app mobile) — idempotent par idApk",
   })
@@ -198,7 +198,7 @@ export class ProspectsController {
   }
 
   @Post(':id/emails')
-  @Roles(Role.CHEF_SECTEUR, Role.DIRECTEUR_REGIONAL, Role.DIRECTION, Role.ADMIN, Role.COMMERCIAL)
+  @Roles(Role.CHEF_SECTEUR, Role.DIRECTEUR_REGIONAL, Role.DIRECTION, Role.ADMIN)
   @ApiOperation({ summary: "Journalise un email envoyé au prospect — idempotent par idApk" })
   createEmail(
     @Param('id', ParseUUIDPipe) id: string,

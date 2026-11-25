@@ -87,7 +87,7 @@ export class CommandesService {
           idRepr: true,
           idCommandeApk: true,
           ...selectHorodatageSansSuppression(depuis),
-          client: { select: { id: true, codeAs400: true, enseigne: true } },
+          client: { select: { id: true, codeAs400: true, enseigne: true, niveauClass: true } },
         },
       }),
       this.prisma.commande.count({ where }),
@@ -154,7 +154,7 @@ export class CommandesService {
         raisonSocialeCmd: true,
         idRepr: true,
         idCommandeApk: true,
-        client: { select: { id: true, codeAs400: true, enseigne: true, ville: true } },
+        client: { select: { id: true, codeAs400: true, enseigne: true, ville: true, niveauClass: true } },
         lignes: {
           orderBy: { noLigne: 'asc' },
           select: {

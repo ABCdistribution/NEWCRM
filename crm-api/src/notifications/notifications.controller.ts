@@ -1,6 +1,6 @@
 import { Body, Controller, Get, Param, ParseUUIDPipe, Patch, Post, UseGuards } from '@nestjs/common';
-import { ApiBearerAuth, ApiOperation, ApiProperty, ApiTags } from '@nestjs/swagger';
-import { IsNotEmpty, IsString, IsUUID, MaxLength } from 'class-validator';
+import { ApiBearerAuth, ApiOperation, ApiProperty, ApiPropertyOptional, ApiTags } from '@nestjs/swagger';
+import { IsNotEmpty, IsOptional, IsString, IsUUID, MaxLength } from 'class-validator';
 import { Role } from '@crm/database';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
@@ -25,6 +25,13 @@ class RelanceMembreDto {
   @IsNotEmpty()
   @MaxLength(500)
   message!: string;
+
+  @ApiPropertyOptional({
+    description: "UUID du magasin concerné par la relance (facultatif, dans le périmètre de l'émetteur : hors périmètre = 404)",
+  })
+  @IsOptional()
+  @IsUUID()
+  clientId?: string;
 }
 
 @ApiTags('notifications')
@@ -46,8 +53,11 @@ export class NotificationsController {
   @UseGuards(RolesGuard)
   @Roles(Role.DIRECTEUR_REGIONAL, Role.DIRECTION, Role.ADMIN)
   @ApiOperation({ summary: "Relancer un membre de MON équipe (DR → ses CS ; Direction/ADMIN → tous)" })
-  relanceMembre(@Body() dto: RelanceMembreDto, @CurrentUser() user: { id: string; role: string }) {
-    return this.notifications.relancerMembre(dto.userId, dto.message, user);
+  relanceMembre(
+    @Body() dto: RelanceMembreDto,
+    @CurrentUser() user: { id: string; role: string; idRepr: string | null; regionId: string | null },
+  ) {
+    return this.notifications.relancerMembre(dto.userId, dto.message, user, dto.clientId);
   }
 
   @Get('me')
