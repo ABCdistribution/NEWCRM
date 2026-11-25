@@ -432,18 +432,26 @@ export class VisitesService {
         return { id: existante.id, createdAt: existante.createdAt, dejaSynchronise: true };
       }
     }
-    const cree = await this.prisma.visitePhoto.create({
-      data: {
-        visiteId,
-        fichier: photo.originalname || 'photo.jpg',
-        taille: photo.size,
-        mime: photo.mimetype,
-        donnees: Uint8Array.from(photo.buffer),
-        idApk: idApk ?? null,
-        etape: etape ?? null,
-        appName: 'helios-mobile',
-      },
-      select: { id: true, createdAt: true },
+    // Une seule photo par étape du parcours : la nouvelle remplace celle de la même étape (reprise de la photo), dans la
+    // même transaction pour ne jamais laisser l'étape sans photo. Les photos sans étape (anciennes) ne sont pas touchées.
+    const cree = await this.prisma.$transaction(async (tx) => {
+      const nouvelle = await tx.visitePhoto.create({
+        data: {
+          visiteId,
+          fichier: photo.originalname || 'photo.jpg',
+          taille: photo.size,
+          mime: photo.mimetype,
+          donnees: Uint8Array.from(photo.buffer),
+          idApk: idApk ?? null,
+          etape: etape ?? null,
+          appName: 'helios-mobile',
+        },
+        select: { id: true, createdAt: true },
+      });
+      if (etape) {
+        await tx.visitePhoto.deleteMany({ where: { visiteId, etape, id: { not: nouvelle.id } } });
+      }
+      return nouvelle;
     });
     return { ...cree, dejaSynchronise: false };
   }
