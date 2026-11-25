@@ -1,14 +1,12 @@
 name: APK crm-app
 
 # Construit l'APK release de l'appli mobile sur un runner GitHub (pas sur le serveur de staging) et le publie comme
-# artefact du run. Déclenché à la main (adresse d'API facultative) ou par un push sur staging qui touche crm-app.
+# artefact du run. Déclenché à la main (adresse d'API facultative) ou en poussant un tag `apk-*` : pas de build à chaque
+# push, pour ménager les minutes et le stockage de GitHub. Un seul artefact (`crm-app-staging`), remplacé à chaque build.
 # L'APK est signé avec la clé de debug tant qu'aucun keystore de release n'est configuré (voir android/app/build.gradle.kts).
 on:
   push:
-    branches: [staging]
-    paths:
-      - 'crm-app/**'
-      - '.github/workflows/build-apk.yml'
+    tags: ['apk-*']
   workflow_dispatch:
     inputs:
       api_url:
@@ -17,7 +15,7 @@ on:
         default: ''
 
 concurrency:
-  group: build-apk-${{ github.ref }}
+  group: build-apk
   cancel-in-progress: true
 
 jobs:
@@ -34,6 +32,7 @@ jobs:
         with:
           distribution: temurin
           java-version: '17'
+          cache: gradle
 
       - uses: subosito/flutter-action@v2
         with:
@@ -60,7 +59,8 @@ jobs:
       - name: Publier l'APK
         uses: actions/upload-artifact@v4
         with:
-          name: crm-app-${{ github.sha }}
+          name: crm-app-staging
           path: crm-app/build/app/outputs/flutter-apk/app-release.apk
-          retention-days: 14
+          retention-days: 7
+          overwrite: true
           if-no-files-found: error
