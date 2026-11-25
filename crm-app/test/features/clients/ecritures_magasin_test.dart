@@ -89,6 +89,7 @@ Future<_Banc> _monter(
   String? roleApi = 'CHEF_SECTEUR',
   Role role = Role.cs,
   LanceurFactice? lanceur,
+  SurveillantFactice? surveillant,
   List<EntreeJournalContact> journal = const [],
 }) async {
   if (roleApi != null) DemoTemps.reel = true;
@@ -104,6 +105,8 @@ Future<_Banc> _monter(
       apiEcritureProvider.overrideWithValue(b.ecriture),
       envoiProvider.overrideWith(() => b.envoi),
       lanceurExterneProvider.overrideWithValue(b.lanceur),
+      if (surveillant != null)
+        surveillantRetourProvider.overrideWithValue(surveillant),
       magasinParIdProvider.overrideWith((ref, id) => _magasin),
       ficheClientProvider.overrideWith((ref, id) => Stream.value(_fiche)),
       journalContactsProvider.overrideWith((ref, id) => Stream.value(journal)),
@@ -450,6 +453,81 @@ void main() {
       await tester.pumpAndSettle();
       expect(b.envoi.activites.single.chemin, '/clients/$_id/appels');
       expect(b.envoi.activites.single.corps.containsKey('resultat'), isFalse);
+    });
+
+    group("retour dans l'application", () {
+      testWidgets('la feuille attend le retour, puis journalise', (
+        tester,
+      ) async {
+        final retour = SurveillantFactice();
+        final b = await _monter(tester, surveillant: retour);
+        await tester.tap(_action('Appeler'));
+        await tester.pumpAndSettle();
+        expect(b.lanceur.ouverts, hasLength(1));
+        expect(find.text("Résultat de l'appel"), findsNothing);
+        expect(b.envoi.activites, isEmpty);
+
+        retour.reviens();
+        await tester.pumpAndSettle();
+        expect(find.text("Résultat de l'appel"), findsOneWidget);
+        expect(b.envoi.activites, isEmpty);
+        await tester.tap(find.text('Rappel prévu'));
+        await tester.pumpAndSettle();
+        final a = b.envoi.activites.single;
+        expect(a.chemin, '/clients/$_id/appels');
+        expect(a.corps['resultat'], ResultatAppel.rappelPrevu.code);
+      });
+
+      testWidgets("sans retour avant le délai : rien n'est journalisé", (
+        tester,
+      ) async {
+        final retour = SurveillantFactice();
+        final b = await _monter(tester, surveillant: retour);
+        await tester.tap(_action('Appeler'));
+        await tester.pumpAndSettle();
+        retour.delaiEcoule();
+        await tester.pumpAndSettle();
+        expect(find.text("Résultat de l'appel"), findsNothing);
+        expect(b.envoi.activites, isEmpty);
+      });
+
+      testWidgets("échec d'ouverture : l'attente est annulée", (tester) async {
+        final retour = SurveillantFactice();
+        final b = await _monter(
+          tester,
+          surveillant: retour,
+          lanceur: LanceurFactice(reussit: false),
+        );
+        await tester.tap(_action('Appeler'));
+        await tester.pump();
+        expect(retour.attentes.single.annulee, isTrue);
+        expect(b.envoi.activites, isEmpty);
+        await tester.pump(const Duration(seconds: 3));
+      });
+
+      testWidgets("écran quitté pendant l'appel : journalisé sans résultat", (
+        tester,
+      ) async {
+        final retour = SurveillantFactice();
+        final b = await _monter(tester, surveillant: retour);
+        await tester.tap(_action('Appeler'));
+        await tester.pumpAndSettle();
+        await tester.pumpWidget(const SizedBox());
+        retour.reviens();
+        await tester.pumpAndSettle();
+        final a = b.envoi.activites.single;
+        expect(a.chemin, '/clients/$_id/appels');
+        expect(a.corps.containsKey('resultat'), isFalse);
+      });
+
+      testWidgets('e-mail : aucune attente', (tester) async {
+        final retour = SurveillantFactice();
+        final b = await _monter(tester, surveillant: retour);
+        await tester.tap(_action('Mail'));
+        await tester.pumpAndSettle();
+        expect(retour.attentes, isEmpty);
+        expect(b.envoi.activites.single.chemin, '/clients/$_id/emails');
+      });
     });
 
     testWidgets('e-mail : aucune question de résultat', (tester) async {

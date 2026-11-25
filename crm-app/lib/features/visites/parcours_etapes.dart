@@ -69,21 +69,6 @@ class _PhotosEtapeState extends ConsumerState<PhotosEtape> {
   ActionsVisite get _actions =>
       ActionsVisite(ref.read(crmProvider.notifier), widget.visite.id);
 
-  @override
-  void initState() {
-    super.initState();
-    _recupererPerdue();
-  }
-
-  /// Android peut fermer l'application pendant que l'appareil photo est ouvert : on récupère alors la photo prise
-  /// (elle remplace celle de l'étape, comme une reprise).
-  Future<void> _recupererPerdue() async {
-    try {
-      final octets = await ref.read(captureurPhotoProvider).retrouverPerdue();
-      if (octets != null) await _enregistrer(octets);
-    } catch (_) {}
-  }
-
   Future<void> _enregistrer(List<int> octets) async {
     final ok = await ref
         .read(photosVisiteProvider(widget.visite.id).notifier)
@@ -99,6 +84,10 @@ class _PhotosEtapeState extends ConsumerState<PhotosEtape> {
   Future<void> _prendre() async {
     if (_occupe) return;
     setState(() => _occupe = true);
+    final photos = ref.read(photosVisiteProvider(widget.visite.id).notifier);
+    // L'étape est mémorisée avant l'appareil photo : si Android ferme l'application, la photo retrouvée y sera
+    // rattachée (voir `RecuperationPhoto`).
+    await photos.memoriserPriseEnCours(widget.etape.cle);
     try {
       // Prise annulée ou en échec : l'ancienne photo est conservée (rien n'est touché avant d'avoir la nouvelle).
       final octets = await ref.read(captureurPhotoProvider).prendre();
@@ -108,6 +97,7 @@ class _PhotosEtapeState extends ConsumerState<PhotosEtape> {
         AppToast.show(context, "L'appareil photo n'est pas disponible.");
       }
     } finally {
+      await photos.effacerPriseEnCours();
       if (mounted) setState(() => _occupe = false);
     }
   }

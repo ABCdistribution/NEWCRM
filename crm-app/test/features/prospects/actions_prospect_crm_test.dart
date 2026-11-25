@@ -51,6 +51,7 @@ Future<_Banc> _monter(
   Role role = Role.cs,
   DetailProspect detail = const DetailProspect(timeline: []),
   LanceurFactice? lanceur,
+  SurveillantFactice? surveillant,
 }) async {
   DemoTemps.reel = true;
   definirProspectsServeur(const [
@@ -88,6 +89,8 @@ Future<_Banc> _monter(
       envoiProvider.overrideWith(() => b.envoi),
       detailProspectProvider.overrideWith((ref, id) => Stream.value(detail)),
       if (lanceur != null) lanceurExterneProvider.overrideWithValue(lanceur),
+      if (surveillant != null)
+        surveillantRetourProvider.overrideWithValue(surveillant),
     ],
   );
   return b;

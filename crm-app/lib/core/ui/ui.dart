@@ -16,5 +16,6 @@ export 'liste_paginee.dart';
 export 'page_univers.dart';
 export 'progression.dart';
 export 'recherche.dart';
+export 'retour_appli.dart';
 export 'timeline.dart';
 export 'toast.dart';

@@ -18,8 +18,13 @@ class _CaptureurFactice implements CaptureurPhoto {
   final List<Object?> prises = [];
   List<int>? perdue;
 
+  /// Intention « photo en cours » lue dans la base pendant que l'appareil est ouvert.
+  Future<({String visiteId, String etape})?> Function()? lireIntention;
+  final List<({String visiteId, String etape})?> intentionsVues = [];
+
   @override
   Future<List<int>?> prendre() async {
+    intentionsVues.add(await lireIntention?.call());
     final r = prises.removeAt(0);
     if (r is Exception) throw r;
     return r as List<int>?;
@@ -71,7 +76,7 @@ void main() {
         dossier.deleteSync(recursive: true);
       });
     });
-    appareil = _CaptureurFactice();
+    appareil = _CaptureurFactice()..lireIntention = () => base.photoEnCours();
     if (avant != null) await tester.runAsync(() => avant(base, appareil));
     final id = await demarrerVisiteChez(
       tester,
@@ -165,6 +170,27 @@ void main() {
       await attendreToast(tester);
     });
 
+    testWidgets("l'étape est mémorisée pendant la prise, effacée après", (
+      tester,
+    ) async {
+      final id = await ouvrir(tester);
+      appareil.prises.addAll([
+        [0xFF, 0xD8, 1],
+        null,
+        Exception('caméra'),
+      ]);
+      await toucherPhoto(tester, '📷 Prendre une photo');
+      await toucherPhoto(tester, '📷 Reprendre la photo');
+      await toucherPhoto(tester, '📷 Reprendre la photo');
+      expect(appareil.intentionsVues, hasLength(3));
+      for (final i in appareil.intentionsVues) {
+        expect(i?.visiteId, id);
+        expect(i?.etape, 'arrivee');
+      }
+      expect(await tester.runAsync(() => base.photoEnCours()), isNull);
+      await attendreToast(tester);
+    });
+
     testWidgets('photo récupérée après fermeture d’Android : elle remplace', (
       tester,
     ) async {
@@ -172,6 +198,7 @@ void main() {
         tester,
         avant: (base, appareil) async {
           await base.ajouterPhotoVisite('v218093', 'arrivee', [0xFF, 0xD8, 1]);
+          await base.memoriserPhotoEnCours('v218093', 'arrivee');
           appareil.perdue = [0xFF, 0xD8, 7];
         },
       );
@@ -183,6 +210,48 @@ void main() {
       final lignes = await photosEnBase(tester, id);
       expect(lignes, hasLength(1));
       expect(lignes.single.octets, [0xFF, 0xD8, 7]);
+      expect(await tester.runAsync(() => base.photoEnCours()), isNull);
+    });
+
+    testWidgets(
+      'photo récupérée : rattachée à l’étape mémorisée, pas à celle qui s’ouvre',
+      (tester) async {
+        final id = await ouvrir(
+          tester,
+          avant: (base, appareil) async {
+            await base.memoriserPhotoEnCours('v218093', 'rayonArrivee');
+            appareil.perdue = [0xFF, 0xD8, 5];
+          },
+        );
+        await attendreBase(tester);
+        await tester.pumpAndSettle();
+
+        final lignes = await photosEnBase(tester, id);
+        expect(lignes.map((p) => p.etape), ['rayonArrivee']);
+        expect(lignes.single.octets, [0xFF, 0xD8, 5]);
+        expect(visite(tester, id).photos[EtapeDph.rayonArrivee], 1);
+        expect(visite(tester, id).photos[EtapeDph.arrivee], isNot(1));
+        // L'écran affiche l'étape de la photo récupérée.
+        expect(find.text('📷 Reprendre la photo'), findsOneWidget);
+        expect(find.text(EtapeDph.rayonArrivee.libelle), findsWidgets);
+      },
+    );
+
+    testWidgets('photo récupérée sans intention : rien rattaché, message', (
+      tester,
+    ) async {
+      final id = await ouvrir(
+        tester,
+        avant: (base, appareil) async {
+          appareil.perdue = [0xFF, 0xD8, 5];
+        },
+      );
+      await attendreBase(tester);
+      await tester.pump();
+      expect(await photosEnBase(tester, id), isEmpty);
+      expect(visite(tester, id).photos[EtapeDph.arrivee], isNot(1));
+      expect(find.textContaining('non rattachée'), findsOneWidget);
+      await attendreToast(tester);
     });
   });
 }

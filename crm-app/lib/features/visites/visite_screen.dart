@@ -7,6 +7,7 @@ import '../../core/data/referentiels_visite.dart';
 import '../../core/models/models.dart';
 import '../../core/nav/nav.dart';
 import '../../core/state/state.dart';
+import '../../core/sync/photos_visite_provider.dart';
 import '../../core/sync/referentiels_visite_provider.dart';
 import '../../core/theme/theme.dart';
 import '../../core/ui/ui.dart';
@@ -109,6 +110,40 @@ class _ParcoursVisiteState extends ConsumerState<_ParcoursVisite> {
       orElse: () => etapes.last,
     );
   }();
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _recupererPhoto());
+  }
+
+  /// Android peut fermer l'application pendant la prise d'une photo : la photo retrouvée est rattachée à l'étape
+  /// mémorisée avant l'ouverture de l'appareil, non à l'écran qui s'ouvre en premier. Si c'est l'étape de cette
+  /// visite, elle s'affiche.
+  Future<void> _recupererPhoto() async {
+    if (!mounted) return;
+    final crm = ref.read(crmProvider.notifier);
+    final photo = await ref
+        .read(recuperationPhotoProvider)
+        .recuperer(
+          visiteExiste: (id) =>
+              ref.read(crmProvider).visiteParId(id)?.etat ==
+              EtatVisite.brouillon,
+        );
+    if (photo == null || !mounted) return;
+    final visiteId = photo.visiteId;
+    final etape = photo.etape;
+    if (visiteId == null || etape == null) {
+      AppToast.show(context, photo.message ?? '');
+      return;
+    }
+    ActionsVisite(crm, visiteId).ajouterPhoto(etape);
+    if (visiteId == widget.visite.id) {
+      if (_etapes.contains(etape)) setState(() => _etape = etape);
+    } else {
+      AppToast.show(context, 'Photo retrouvée, rattachée à sa visite.');
+    }
+  }
 
   /// Briefing du magasin : déplié sur la première étape, replié dès qu'on avance.
   late bool _briefingOuvert = _etape == EtapeDph.arrivee;

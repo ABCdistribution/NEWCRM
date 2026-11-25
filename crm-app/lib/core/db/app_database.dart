@@ -179,6 +179,9 @@ class AppDatabase extends _$AppDatabase {
   /// Clé de métadonnée : date du dernier téléchargement complet des clients (ISO 8601, UTC).
   static const cleClientsMajLe = 'clients_maj_le';
 
+  /// Clé de métadonnée : photo en cours de prise (« visiteId|étape »), posée avant d'ouvrir l'appareil photo.
+  static const clePhotoEnCours = 'photo_en_cours';
+
   @override
   int get schemaVersion => 7;
 
@@ -256,6 +259,23 @@ class AppDatabase extends _$AppDatabase {
       (delete(photosVisite)
             ..where((t) => t.visiteId.equals(visiteId) & t.etape.equals(etape)))
           .go();
+
+  /// Mémorise la photo sur le point d'être prise (visite et étape) : si Android ferme l'application pendant la prise,
+  /// la photo retrouvée est rattachée à cette étape. Aucune migration : la valeur vit dans `MetaBase`.
+  Future<void> memoriserPhotoEnCours(String visiteId, String etape) =>
+      ecrireMeta(clePhotoEnCours, '$visiteId|$etape');
+
+  /// Photo en cours de prise (visite, étape), ou null s'il n'y en a pas.
+  Future<({String visiteId, String etape})?> photoEnCours() async {
+    final v = await meta(clePhotoEnCours);
+    final i = v?.indexOf('|') ?? -1;
+    if (v == null || i <= 0 || i == v.length - 1) return null;
+    return (visiteId: v.substring(0, i), etape: v.substring(i + 1));
+  }
+
+  /// Efface la photo en cours (photo enregistrée, prise annulée ou en échec).
+  Future<void> effacerPhotoEnCours() =>
+      (delete(metaBase)..where((t) => t.cle.equals(clePhotoEnCours))).go();
 
   /// Clé de métadonnée de la date du dernier téléchargement d'un domaine.
   static String cleMajDomaine(String domaine) => 'maj_$domaine';
