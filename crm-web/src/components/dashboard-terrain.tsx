@@ -16,6 +16,7 @@ import {
 import { getPerformances, getDashboard, getEvolutionCa, getVisitesRegions, type Me } from '@/lib/api';
 import { estEncadrement } from '@/lib/roles';
 import { formatEUR } from '@/lib/format';
+import { ClassBadge } from '@/components/class-badge';
 import { GaugeCard } from '@/components/gauge-card';
 import { StatTile } from '@/components/stat-tile';
 import { EvolutionCaCommandes } from '@/components/evolution-ca-commandes';
@@ -252,6 +253,7 @@ export async function DashboardTerrain({ me, annee, mois }: { me: Me; annee: num
                       <Link href={`/clients/${encodeURIComponent(m.id)}`} className={LIEN_CLIENT}>
                         {m.enseigne}
                       </Link>
+                      <ClassBadge value={m.niveauClass} size="xs" />
                       <span className="shrink-0 text-xs text-neutral-400">
                         {m.nb} cmd{m.nb > 1 ? 's' : ''}
                       </span>
@@ -283,6 +285,7 @@ export async function DashboardTerrain({ me, annee, mois }: { me: Me; annee: num
                         <Link href={`/clients/${encodeURIComponent(c.id)}`} className={LIEN_CLIENT}>
                           {c.nom}
                         </Link>
+                        <ClassBadge value={c.niveauClass} size="xs" />
                         {c.ville ? <span className="shrink-0 text-xs text-neutral-400">{c.ville}</span> : null}
                       </li>
                     ))}

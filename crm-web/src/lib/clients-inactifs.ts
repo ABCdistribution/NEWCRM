@@ -8,6 +8,8 @@ export type ClientPasseInactif = {
   enseigne: string;
   codeAs400: string;
   ville: string | null;
+  /** Classe du magasin (A à G), si l'API la renvoie. */
+  niveauClass?: string | null;
   /** Date et heure du passage en inactif (ISO). */
   date: string;
   modifiePar: string | null;
@@ -64,6 +66,7 @@ export function assainirPassesInactifs(brut: unknown): PassesInactifs {
       enseigne,
       codeAs400: texte(l.codeAs400, 40) ?? '',
       ville: texte(l.ville),
+      ...(texte(l.niveauClass, 1) ? { niveauClass: texte(l.niveauClass, 1) } : {}),
       date,
       modifiePar: texte(l.modifiePar),
       dr: texte(l.dr),

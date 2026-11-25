@@ -35,7 +35,7 @@ export type Route = {
 /**
  * Table unique des routes de crm-web (sans préfixe d'URL). Alimentera le menu et les gardes.
  * Pages de détail à garder (hors menu) :
- *  - /clients/[id], /commandes/[id], /prospects/[id]
+ *  - /clients/[id], /commandes/[id], /prospects/[id], /produits/[id] (même rôles que /produits : TOUS_ROLES)
  *  - /mon-equipe/[id] (DIRECTEUR_REGIONAL, ADMIN) et /mon-equipe/promoteur/[id] (ADMIN, DR, CS)
  * Décision : l'encadrement garde l'accès aux écrans terrain.
  */

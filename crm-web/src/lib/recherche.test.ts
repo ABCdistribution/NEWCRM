@@ -64,15 +64,21 @@ describe('lecture défensive de la réponse de l’API', () => {
 });
 
 describe('liens des résultats', () => {
-  it('clients, commandes et prospects : leur fiche', () => {
+  it('clients, commandes, prospects et produits : leur fiche', () => {
     expect(lienResultat('clients', { id: ID, titre: 'x', detail: null }, 'COMMERCIAL')).toBe(`/clients/${ID}`);
     expect(lienResultat('commandes', { id: ID, titre: 'x', detail: null }, 'ADV')).toBe(`/commandes/${ID}`);
     expect(lienResultat('prospects', { id: ID, titre: 'x', detail: null }, 'DIRECTION')).toBe(`/prospects/${ID}`);
+    expect(lienResultat('produits', { id: ID, titre: 'x', detail: null, recherche: 'P 001' }, 'MARKETING')).toBe(`/produits/${ID}`);
   });
 
-  it('visites et produits : la liste filtrée sur le texte à retrouver, échappé', () => {
+  it('produits : la fiche pour tous les rôles', () => {
+    for (const role of ['COMMERCIAL', 'CHEF_SECTEUR', 'ADMIN', 'DIRECTEUR_REGIONAL', 'DIRECTION', 'ADV', 'MARKETING'] as const) {
+      expect(lienResultat('produits', { id: ID, titre: 'x', detail: null }, role)).toBe(`/produits/${ID}`);
+    }
+  });
+
+  it('visites : la liste filtrée sur le texte à retrouver, échappé', () => {
     expect(lienResultat('visites', { id: ID, titre: 'x', detail: null, recherche: 'Auchan & Cie' }, 'ADMIN')).toBe('/visites?search=Auchan%20%26%20Cie');
-    expect(lienResultat('produits', { id: ID, titre: 'x', detail: null, recherche: 'P 001' }, 'ADMIN')).toBe('/produits?search=P%20001');
     expect(lienResultat('visites', { id: ID, titre: 'x', detail: null }, 'ADMIN')).toBeNull();
   });
 

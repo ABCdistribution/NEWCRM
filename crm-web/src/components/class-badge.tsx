@@ -19,7 +19,7 @@ const DIMENSIONS = {
   md: 'h-6 w-6 text-xs',
 } as const;
 
-export function ClassBadge({ value, size = 'sm' }: { value: string | null; size?: keyof typeof DIMENSIONS }) {
+export function ClassBadge({ value, size = 'sm' }: { value?: string | null; size?: keyof typeof DIMENSIONS }) {
   if (!value) return null;
   return (
     <span

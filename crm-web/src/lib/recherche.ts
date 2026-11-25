@@ -13,7 +13,7 @@ export type Resultat = {
   role?: Role;
   /** Visites : client concerné. */
   clientId?: string | null;
-  /** Visites et produits : texte passé à la liste de destination (`?search=`). */
+  /** Visites : texte passé à la liste de destination (`?search=`). */
   recherche?: string;
 };
 
@@ -109,7 +109,8 @@ export function lienResultat(type: TypeResultat, r: Resultat, role: Role): strin
     case 'prospects':
       return `/prospects/${enc(r.id)}`;
     case 'produits':
-      return r.recherche ? `/produits?search=${enc(r.recherche)}` : null;
+      // La fiche produit est ouverte à tous les rôles.
+      return `/produits/${enc(r.id)}`;
   }
 }
 

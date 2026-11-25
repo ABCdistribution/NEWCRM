@@ -10,7 +10,7 @@ import { aujourdhuiParis } from '@/lib/planning-dates';
 
 export type VisiteJour = { id: string; clientId: string; clientNom: string; ville: string | null; classe: string | null; fait: boolean; recurrente: boolean };
 export type JourPlanning = { nom: string; libelle: string; date: string; visites: VisiteJour[] };
-export type ClientChoix = { id: string; enseigne: string; ville: string | null; codeAs400: string };
+export type ClientChoix = { id: string; enseigne: string; ville: string | null; codeAs400: string; niveauClass?: string | null };
 
 function dateLocale(): string {
   const d = aujourdhuiParis();
@@ -94,6 +94,7 @@ function AjoutVisite({ promoteurId, date, clients, dejaPlanifies, onErreur }: { 
         <option value="">{filtres.length === 0 ? 'Aucun client trouvé' : `Choisir un client (${filtres.length})`}</option>
         {filtres.map((c) => (
           <option key={c.id} value={c.id}>
+            {c.niveauClass ? `[${c.niveauClass}] ` : ''}
             {c.enseigne}
             {c.ville ? ` — ${c.ville}` : ''}
             {dejaPlanifies.has(c.id) ? ' (déjà planifié cette semaine)' : ''}

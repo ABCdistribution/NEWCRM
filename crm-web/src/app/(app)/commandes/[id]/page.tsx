@@ -4,6 +4,7 @@ import { ArrowLeft, Store, ShoppingCart, Smartphone, Truck } from 'lucide-react'
 import { getCommande } from '@/lib/api';
 import { ROLES_COMMANDES_VISITES, requireRole } from '@/lib/roles';
 import { ROLES_LIVRAISON } from '@/lib/commande-roles';
+import { ClassBadge } from '@/components/class-badge';
 import { LivraisonBadge } from '@/components/livraison-badge';
 import { LivraisonEditor } from '@/components/livraison-editor';
 
@@ -91,6 +92,7 @@ export default async function CommandeDetail({ params }: { params: Promise<{ id:
           ) : (
             <span className="font-medium">{commande.raisonSocialeCmd ?? 'Client inconnu'}</span>
           )}
+          <ClassBadge value={commande.client?.niveauClass} size="sm" />
           {commande.client?.ville ? <span className="text-sm text-neutral-400">· {commande.client.ville}</span> : null}
         </div>
       </div>

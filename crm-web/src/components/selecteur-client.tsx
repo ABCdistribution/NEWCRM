@@ -8,7 +8,7 @@ export function SelecteurClient({
   valeur,
   base,
 }: {
-  clients: { id: string; enseigne: string; ville: string | null }[];
+  clients: { id: string; enseigne: string; ville: string | null; niveauClass?: string | null }[];
   valeur: string;
   /** URL de l'onglet courant, avec son `?onglet=` : on y ajoute `&client=`. */
   base: string;
@@ -28,6 +28,7 @@ export function SelecteurClient({
         <option value="tous">Tous les clients ({clients.length})</option>
         {clients.map((c) => (
           <option key={c.id} value={c.id}>
+            {c.niveauClass ? `[${c.niveauClass}] ` : ''}
             {c.enseigne}
             {c.ville ? ` — ${c.ville}` : ''}
           </option>

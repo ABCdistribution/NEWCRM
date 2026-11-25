@@ -5,6 +5,7 @@ import { KpiTile } from '@/components/kpi-tile';
 import { MesToggle } from '@/components/mes-toggle';
 import { aUnPerimetre } from '@/lib/clients-liste';
 import { LivraisonBadge, LIVRAISON } from '@/components/livraison-badge';
+import { ClassBadge } from '@/components/class-badge';
 import { SearchBar } from '@/components/search-bar';
 import { Pagination } from '@/components/pagination';
 import { OrigineBadge, OrigineFilter, parseOrigine, type Origine } from '@/components/origine-commande';
@@ -208,8 +209,9 @@ export default async function CommandesPage({
                 <div className="flex items-start justify-between gap-2">
                   <div className="min-w-0">
                     <p className="font-mono text-xs font-medium text-brand dark:text-accent">{c.numero}</p>
-                    <p className="mt-0.5 truncate text-sm">
-                      {c.client ? c.client.enseigne : (c.raisonSocialeCmd ?? '—')}
+                    <p className="mt-0.5 flex items-center gap-1.5 text-sm">
+                      <span className="truncate">{c.client ? c.client.enseigne : (c.raisonSocialeCmd ?? '—')}</span>
+                      <ClassBadge value={c.client?.niveauClass} size="xs" />
                     </p>
                   </div>
                   <span className="flex shrink-0 flex-col items-end gap-1">
@@ -263,9 +265,10 @@ export default async function CommandesPage({
                     </td>
                     <td className="px-4 py-2.5">
                       {c.client ? (
-                        <span>
+                        <span className="inline-flex items-center gap-1.5">
                           {c.client.enseigne}
-                          <span className="ml-1.5 font-mono text-xs text-neutral-400">{c.client.codeAs400}</span>
+                          <ClassBadge value={c.client.niveauClass} size="xs" />
+                          <span className="font-mono text-xs text-neutral-400">{c.client.codeAs400}</span>
                         </span>
                       ) : (
                         <span className="text-neutral-400">{c.raisonSocialeCmd ?? '—'}</span>

@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { Ban, Check, Download, History, X } from 'lucide-react';
+import { ClassBadge } from '@/components/class-badge';
 import { chargerPassesInactifs, type ReponsePassesInactifs } from '@/lib/clients-inactifs-actions';
 import {
   dateHeure,
@@ -186,7 +187,10 @@ export function ClientsInactifs({
                           return (
                             <tr key={`${l.id}-${l.date}`} className="border-b border-neutral-100 last:border-0">
                               <td className="px-3 py-2.5">
-                                {l.enseigne}
+                                <span className="inline-flex items-center gap-1.5">
+                                  {l.enseigne}
+                                  <ClassBadge value={l.niveauClass} size="xs" />
+                                </span>
                                 {l.retireAs400 ? (
                                   <span className="ml-2 rounded-md bg-neutral-100 px-1.5 py-0.5 text-[11px] font-semibold text-neutral-600">
                                     Retiré de l&apos;AS400

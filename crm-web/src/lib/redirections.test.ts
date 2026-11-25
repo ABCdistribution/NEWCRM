@@ -62,6 +62,7 @@ const INCHANGEES = [
   '/news',
   '/parametres',
   '/produits',
+  `/produits/${ID}`,
   '/promos',
   '/qualite',
   '/visites',

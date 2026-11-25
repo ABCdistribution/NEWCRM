@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { Camera, Star } from 'lucide-react';
 import { listVisites, type VisitesResult } from '@/lib/api';
 import { requireRole, ROLES_COMMANDES_VISITES } from '@/lib/roles';
+import { ClassBadge } from '@/components/class-badge';
 import { SearchBar } from '@/components/search-bar';
 import { Pagination } from '@/components/pagination';
 import { MesToggle } from '@/components/mes-toggle';
@@ -72,7 +73,10 @@ export default async function VisitesPage({
                 ) : null}
                 <div className="flex items-start justify-between gap-2">
                   <div className="min-w-0">
-                    <p className="truncate font-medium text-brand dark:text-accent">{v.client?.enseigne ?? '—'}</p>
+                    <p className="flex items-center gap-1.5 font-medium text-brand dark:text-accent">
+                      <span className="truncate">{v.client?.enseigne ?? '—'}</span>
+                      <ClassBadge value={v.client?.niveauClass} size="xs" />
+                    </p>
                     <p className="text-[11px] text-neutral-400">
                       {DATE.format(new Date(v.createdAt))} · il y a {jours(v.createdAt)} j
                       {v.client?.ville ? ` · ${v.client.ville}` : ''}
@@ -121,7 +125,10 @@ export default async function VisitesPage({
                       {v.client ? (
                         <Link href={`/clients/${encodeURIComponent(v.client.id)}`} className="absolute inset-0 focus-visible:outline-2 focus-visible:outline-brand dark:focus-visible:outline-accent" aria-label={`Fiche ${v.client.enseigne}`} />
                       ) : null}
-                      <div className="font-medium text-brand dark:text-accent">{v.client?.enseigne ?? '—'}</div>
+                      <div className="flex items-center gap-1.5 font-medium text-brand dark:text-accent">
+                        {v.client?.enseigne ?? '—'}
+                        <ClassBadge value={v.client?.niveauClass} size="xs" />
+                      </div>
                       <div className="text-[11px] text-neutral-400">{v.client?.ville ?? ''}</div>
                     </td>
                     {!seulSesVisites ? (

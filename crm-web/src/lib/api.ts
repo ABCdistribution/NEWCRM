@@ -150,7 +150,7 @@ export type CommandeRow = {
   idRepr: string | null;
   /** true = saisie mobile (Appli), false = EDI. Optionnel : absent tant que l'API n'est pas à jour. */
   viaMobile?: boolean;
-  client: { id: string; codeAs400: string; enseigne: string } | null;
+  client: { id: string; codeAs400: string; enseigne: string; niveauClass?: string | null } | null;
   nbLignes: number;
   total: number;
 };
@@ -170,7 +170,7 @@ export type CommandeDetail = {
   raisonSocialeCmd: string | null;
   idRepr: string | null;
   idCommandeApk: string | null;
-  client: { id: string; codeAs400: string; enseigne: string; ville: string | null } | null;
+  client: { id: string; codeAs400: string; enseigne: string; ville: string | null; niveauClass?: string | null } | null;
   lignes: {
     id: string;
     noLigne: string;
@@ -239,10 +239,10 @@ export type Performances =
         portefeuille: number;
         commandants: number;
         sansCommande: number;
-        exemplesSansCommande: { id: string; nom: string; ville: string | null }[];
+        exemplesSansCommande: { id: string; nom: string; ville: string | null; niveauClass?: string | null }[];
       };
       ca12mois: { anneeN: number; courbeN: number[]; courbeN1: number[] };
-      topMagasins: { id: string; enseigne: string; ca: number; nb: number }[];
+      topMagasins: { id: string; enseigne: string; ca: number; nb: number; niveauClass?: string | null }[];
       rang: { position: number | null; total: number };
     };
 
@@ -316,6 +316,62 @@ export type ArticleRow = {
   famille: { nom: string } | null;
 };
 
+/** Tarif d'un article (montant déjà converti en nombre par l'API). */
+export type ArticleTarif = { codeTarif: string | null; montant: number };
+
+/** Promotion en cours d'un article (dates ISO). */
+export type ArticlePromo = { libelle: string | null; dateDebut: string | null; dateFin: string | null };
+
+/** Règle de remplacement en cas de rupture : le produit remplaçant et le seuil de la règle. */
+export type ArticleRemplacement = {
+  seuil: number | null;
+  article: {
+    id: string;
+    codeAs400: string;
+    libelle: string;
+    gencode: string | null;
+    stock: number;
+    actif: boolean;
+    marque: { nom: string } | null;
+  };
+};
+
+/** Fiche détaillée d'un produit (GET /articles/:id) : la ligne de la liste, enrichie. */
+export type ArticleDetail = {
+  id: string;
+  codeAs400: string;
+  libelle: string;
+  gencode: string | null;
+  idIta: string | null;
+  typeArticle: string | null;
+  statut: string | null;
+  sousStatut: string | null;
+  retourAutorise: boolean;
+  actif: boolean;
+  codeTva: string | null;
+  pcb: number | null;
+  stock: number;
+  famillePlan: string | null;
+  familleAcd: string | null;
+  sousFamilleAcd: string | null;
+  sousFamille: string | null;
+  details: string | null;
+  avantages: string | null;
+  marque: { nom: string } | null;
+  gamme: { nom: string } | null;
+  famille: { nom: string } | null;
+  /** Tous les tarifs, par code tarif croissant. */
+  tarifs: ArticleTarif[];
+  /** Premier tarif (inchangé). */
+  prixIndicatif: number | null;
+  enPromo: boolean;
+  promoLibelle: string | null;
+  misEnAvant: boolean;
+  substitutionId: string | null;
+  promos: ArticlePromo[];
+  remplacements: ArticleRemplacement[];
+};
+
 /** Délai d'attente par défaut d'un appel à l'API (ms) : au-delà, elle est considérée indisponible. */
 const DELAI_API_MS = 20_000;
 
@@ -385,6 +441,22 @@ async function lireDetail<T>(path: string): Promise<T | null> {
   if (res.status === 401) redirect('/login');
   if (res.status >= 500 || res.status === 408 || res.status === 429) throw new ApiIndisponibleError();
   return null;
+}
+
+/**
+ * Fiche d'un produit, ou null si introuvable (404) ou hors accès (403). Même contrat d'erreur que `getClient` :
+ * identifiant invalide → 404 sans appel à l'API, 401 → /login, API en panne → `ApiIndisponibleError`.
+ * Une réponse sans les listes du détail (tarifs, promotions, remplacements) vient d'une API plus ancienne que le front
+ * (même résumé que la liste) : elle est traitée comme une panne (`ApiIndisponibleError`), pour ne jamais afficher
+ * « Aucun tarif » ou « Aucun produit de remplacement » à tort.
+ */
+export async function getArticle(id: string): Promise<ArticleDetail | null> {
+  const article = await lireDetail<ArticleDetail>(`/articles/${idSur(id)}`);
+  if (!article) return null;
+  if (!Array.isArray(article.tarifs) || !Array.isArray(article.promos) || !Array.isArray(article.remplacements)) {
+    throw new ApiIndisponibleError();
+  }
+  return article;
 }
 
 /**
@@ -958,7 +1030,7 @@ export type VisiteActivite = {
   id: string;
   createdAt: string;
   promoteur: { id: string; displayName: string } | null;
-  client: { id: string; enseigne: string; ville: string | null } | null;
+  client: { id: string; enseigne: string; ville: string | null; niveauClass?: string | null } | null;
 };
 
 export type PipelineColonne = {

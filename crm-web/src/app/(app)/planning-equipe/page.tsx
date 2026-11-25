@@ -120,7 +120,7 @@ export default async function PlanningEquipePage({ searchParams }: { searchParam
         <PlanningEquipeBoard
           promoteurId={promo.id}
           jours={jours}
-          clients={clients.map((c) => ({ id: c.id, enseigne: c.enseigne, ville: c.ville, codeAs400: c.codeAs400 }))}
+          clients={clients.map((c) => ({ id: c.id, enseigne: c.enseigne, ville: c.ville, codeAs400: c.codeAs400, niveauClass: c.niveauClass }))}
         />
       </div>
     );

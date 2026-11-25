@@ -153,7 +153,10 @@ export function ListeVisites({ visites, tronque, titre }: { visites: VisiteActiv
           {visites.map((v) => (
             <li key={v.id} className={`${CARTE} flex items-center gap-3 px-4 py-3`}>
               <div className="min-w-0 flex-1">
-                <p className="truncate font-medium">{v.client?.enseigne ?? '—'}</p>
+                <p className="flex items-center gap-1.5 font-medium">
+                  <span className="truncate">{v.client?.enseigne ?? '—'}</span>
+                  <ClassBadge value={v.client?.niveauClass} size="xs" />
+                </p>
                 <p className="truncate text-xs text-neutral-500">
                   {DATE_HEURE.format(new Date(v.createdAt))}
                   {v.client?.ville ? ` · ${v.client.ville}` : ''}
@@ -184,9 +187,12 @@ export function ListeCommandes({ commandes, tronque, titre }: { commandes: Comma
               <Link href={`/commandes/${c.id}`} className={`${CARTE} flex items-center gap-3 px-4 py-3 transition hover:shadow-md ${FOCUS}`}>
                 <div className="min-w-0 flex-1">
                   <p className="font-medium tabular-nums">{EUR2.format(c.total)} <span className="text-xs font-normal text-neutral-400">HT</span></p>
-                  <p className="truncate text-xs text-neutral-500">
-                    {c.numero} · {c.client?.enseigne ?? c.raisonSocialeCmd ?? '—'}
-                    {c.dateCommande ? ` · ${DATE_FMT.format(new Date(c.dateCommande))}` : ''}
+                  <p className="flex items-center gap-1.5 text-xs text-neutral-500">
+                    <span className="truncate">
+                      {c.numero} · {c.client?.enseigne ?? c.raisonSocialeCmd ?? '—'}
+                      {c.dateCommande ? ` · ${DATE_FMT.format(new Date(c.dateCommande))}` : ''}
+                    </span>
+                    <ClassBadge value={c.client?.niveauClass} size="xs" />
                   </p>
                 </div>
                 {c.annulee ? (

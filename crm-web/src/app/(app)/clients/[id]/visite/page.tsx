@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { ArrowLeft } from 'lucide-react';
 import { getClient, idSur } from '@/lib/api';
 import { ENCADREMENT, requireRole } from '@/lib/roles';
+import { ClassBadge } from '@/components/class-badge';
 import { VisiteCommercialeForm } from '@/components/visite-commerciale-form';
 
 export const metadata = { title: 'Visite commerciale' };
@@ -33,8 +34,10 @@ export default async function VisiteCommercialePage({
         </Link>
         <div>
           <h1 className="text-2xl font-bold">Visite commerciale</h1>
-          <p className="text-sm text-neutral-400">
-            {client.enseigne} · {[client.codePostal, client.ville].filter(Boolean).join(' ')} · code {client.codeAs400}
+          <p className="flex flex-wrap items-center gap-1.5 text-sm text-neutral-400">
+            {client.enseigne}
+            <ClassBadge value={client.niveauClass} size="xs" />
+            · {[client.codePostal, client.ville].filter(Boolean).join(' ')} · code {client.codeAs400}
           </p>
         </div>
       </div>
